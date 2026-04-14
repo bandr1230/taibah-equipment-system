@@ -52,7 +52,7 @@ function syncStatusText(){
     ? ` <button class="btn btn-sm btn-secondary" onclick="manualDownloadRemote()">سحب من Supabase</button> <button class="btn btn-sm btn-success" onclick="manualUploadRemote()">رفع بيانات هذا الجهاز</button>`
     : '';
   if(remoteSync.connected) {
-    return `متصل بقاعدة Supabase التجريبية v5.6.3: البيانات مشتركة بين الأجهزة.${controls}`;
+    return `متصل بقاعدة Supabase التجريبية v5.6.4: البيانات مشتركة بين الأجهزة.${controls}`;
   }
   if(remoteSync.loading) return 'جاري الاتصال بقاعدة Supabase التجريبية...';
   return `تم إعداد Supabase، لكن الاتصال لم يكتمل بعد.${err}`;
