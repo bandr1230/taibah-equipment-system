@@ -1,4 +1,4 @@
-// v5.6.6 - مزامنة Supabase عبر REST مباشر.
+// v5.6.7 - مزامنة Supabase عبر REST مباشر.
 // تحفظ بيانات النظام كاملة في public.app_state.data.
 // للاختبار المشترك فقط، وليس تصميم قاعدة إنتاجية نهائيًا.
 
@@ -45,7 +45,7 @@ function syncStatusText(){
   const controls = remoteSync.connected
     ? ` <button class="btn btn-sm btn-secondary" onclick="manualDownloadRemote()">سحب من Supabase</button> <button class="btn btn-sm btn-success" onclick="manualUploadRemote()">رفع بيانات هذا الجهاز</button>`
     : '';
-  if(remoteSync.connected) return `متصل بقاعدة Supabase التجريبية v5.6.6: البيانات مشتركة بين الأجهزة.${controls}`;
+  if(remoteSync.connected) return `متصل بقاعدة Supabase التجريبية v5.6.7: البيانات مشتركة بين الأجهزة.${controls}`;
   if(remoteSync.loading) return 'جاري الاتصال بقاعدة Supabase التجريبية...';
   return `تم إعداد Supabase، لكن الاتصال لم يكتمل بعد.${err}`;
 }
