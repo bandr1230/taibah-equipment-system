@@ -1,9 +1,8 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>اختبار Supabase</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>اختبار Supabase v5.6.8</title>
 <style>
 body{font-family:Tahoma,Arial,sans-serif;background:#f7f9fc;color:#111144;padding:20px;line-height:1.8}
 .card{max-width:850px;margin:auto;background:white;border:1px solid #e8edf5;border-radius:18px;padding:20px;box-shadow:0 12px 28px rgba(17,17,68,.08)}
@@ -13,12 +12,13 @@ pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#111144;color:
 </head>
 <body>
 <div class="card">
-<h2>اختبار اتصال Supabase</h2>
-<p>اضغط الزر لاختبار القراءة من جدول <b>app_state</b>.</p>
+<h2>اختبار اتصال Supabase v5.6.8</h2>
+<p>API URL الحالي:</p>
+<pre>https://qhaxbkrlekieixnnxifm.supabase.co</pre>
 <button onclick="runTest()">تشغيل الاختبار</button>
 <pre id="out">جاهز للاختبار...</pre>
 </div>
-<script src="supabase-config.js?v=567"></script>
+<script src="supabase-config.js?v=568"></script>
 <script>
 async function runTest(){
  const out=document.getElementById('out');
@@ -26,13 +26,8 @@ async function runTest(){
   out.textContent='جاري الاختبار...';
   const url=window.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/app_state?select=*&limit=5';
   const res=await fetch(url,{
-   method:'GET',
-   mode:'cors',
-   cache:'no-store',
-   headers:{
-    apikey:window.SUPABASE_ANON_KEY,
-    Authorization:'Bearer '+window.SUPABASE_ANON_KEY
-   }
+   method:'GET', mode:'cors', cache:'no-store',
+   headers:{ apikey:window.SUPABASE_ANON_KEY, Authorization:'Bearer '+window.SUPABASE_ANON_KEY }
   });
   const text=await res.text();
   out.textContent='STATUS: '+res.status+'\nOK: '+res.ok+'\nURL: '+url+'\n\nRESPONSE:\n'+text;
