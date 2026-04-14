@@ -128,22 +128,7 @@ function setSectionFilter(v){state.sectionFilter=v;render()}
 function toggleSidebar(){state.sidebarOpen=!state.sidebarOpen;render()}
 function closeSidebar(){state.sidebarOpen=false;render()}
 function logout(){state.currentUser=null;state.currentPage='executive';render()}
-function doLogin(){
-  if(typeof repairDbIfNeeded==='function')repairDbIfNeeded('before-login');
-  const u=document.getElementById('login-username').value.trim(),p=document.getElementById('login-password').value.trim();
-  let user=(db.users||[]).find(x=>x.username===u&&x.password===p&&x.isActive);
-  if(!user && typeof freshDefaultDb==='function'){
-    const fallback=freshDefaultDb();
-    const fallbackUser=(fallback.users||[]).find(x=>x.username===u&&x.password===p&&x.isActive);
-    if(fallbackUser){
-      db=fallback;
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
-      user=(db.users||[]).find(x=>x.username===u&&x.password===p&&x.isActive);
-    }
-  }
-  if(!user)return alert('اسم المستخدم أو كلمة المرور غير صحيحة');
-  state.currentUser=user;render()
-}
+function doLogin(){const u=document.getElementById('login-username').value.trim(),p=document.getElementById('login-password').value.trim(); const user=db.users.find(x=>x.username===u&&x.password===p&&x.isActive); if(!user)return alert('اسم المستخدم أو كلمة المرور غير صحيحة'); state.currentUser=user;render()}
 function openModal(type,id=null,txType='receive'){state.modal=type;state.editId=id;state.transactionType=txType;render()}
 function closeModal(){state.modal=null;state.editId=null;render()}
 function closeIfBackdrop(e){if(e.target.classList.contains('modal-backdrop'))closeModal()}
