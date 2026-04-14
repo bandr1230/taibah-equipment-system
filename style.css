@@ -186,3 +186,45 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
 }
 
 .footer-note .btn{margin-inline:6px;margin-top:6px;vertical-align:middle}
+
+
+
+/* v5.6.9 إصلاح عرض البيانات على iPhone:
+   لا نخفي الجداول في الجوال، بل نجعلها قابلة للتمرير الأفقي */
+@media (max-width:900px){
+  .table-panel .table-wrap{
+    display:block!important;
+    width:100%!important;
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  table{
+    min-width:760px;
+  }
+  .table-panel{
+    overflow:hidden;
+  }
+  .mobile-cards{
+    display:none!important;
+  }
+  .content{
+    overflow-x:hidden;
+  }
+  .toolbar{
+    gap:10px;
+  }
+  .toolbar .select,
+  .toolbar .input,
+  .search-input{
+    width:100%;
+  }
+}
+@media (max-width:600px){
+  table{
+    min-width:850px;
+    font-size:12px;
+  }
+  th,td{
+    padding:9px 8px;
+  }
+}
