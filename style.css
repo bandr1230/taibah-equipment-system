@@ -112,3 +112,75 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
 .alert-card span{font-size:12px;color:var(--muted);line-height:1.7}
 @media(max-width:900px){.alert-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.alert-grid{grid-template-columns:1fr}}
+
+
+
+/* v5.6.1 إصلاح القائمة الجانبية على الجوال والتابلت */
+.sidebar{
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.sidebar .nav{
+  flex:0 0 auto;
+}
+.sidebar .user-panel{
+  flex:0 0 auto;
+}
+
+@media (max-width:900px){
+  html,body,#root{
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  .app{
+    display:block;
+    min-height:100dvh;
+  }
+  .sidebar{
+    position:fixed;
+    top:0;
+    right:0;
+    bottom:0;
+    width:min(86vw,320px);
+    height:100dvh;
+    max-height:100dvh;
+    transform:translateX(105%);
+    transition:transform .25s ease;
+    z-index:1200;
+    overflow-y:auto!important;
+    overscroll-behavior:contain;
+    padding-bottom:22px;
+  }
+  .sidebar.open{
+    transform:translateX(0)!important;
+  }
+  .nav{
+    padding-bottom:14px;
+  }
+  .nav-item{
+    min-height:48px;
+  }
+  .user-panel{
+    margin-top:10px;
+  }
+  .main{
+    min-width:0;
+    width:100%;
+  }
+  .topbar{
+    position:sticky;
+    top:0;
+    z-index:900;
+  }
+  .mobile-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(17,17,68,.36);
+    z-index:1100;
+    display:none;
+  }
+  .mobile-overlay.show{
+    display:block;
+  }
+}
