@@ -114,4 +114,34 @@ db.users=(db.users||[]).map(u=>{
 });
 db.items=(db.items||[]).map(item=>({...item,college:item.college||'كلية الصيدلة',nameAr:item.nameAr||item.name||'',nameEn:item.nameEn||''}));
 db.transactions=(db.transactions||[]).map(t=>({...t,college:t.college||(db.items||[]).find(i=>i.id===t.itemId)?.college||'كلية الصيدلة'}));
+
+function freshDefaultDb(){
+  return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+function isCompleteDbShape(value){
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    Array.isArray(value.users) &&
+    value.users.some(u=>u.username==='admin' && u.password) &&
+    Array.isArray(value.items) &&
+    Array.isArray(value.transactions) &&
+    Array.isArray(value.needsRequests) &&
+    Array.isArray(value.supportRequests)
+  );
+}
+function repairDbIfNeeded(sourceLabel='unknown'){
+  if(!isCompleteDbShape(db)){
+    console.warn('تم إصلاح بيانات النظام لأنها غير مكتملة:', sourceLabel, db);
+    db = freshDefaultDb();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  }
+  if(!Array.isArray(db.users) || !db.users.some(u=>u.username==='admin')){
+    const fresh = freshDefaultDb();
+    db.users = fresh.users;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  }
+}
+repairDbIfNeeded('initial-load');
+
 let state={currentUser:null,currentPage:'executive',search:'',collegeFilter:'all',sectionFilter:'all',modal:null,editId:null,transactionType:'issue',reportTab:'inventory',sidebarOpen:false};
