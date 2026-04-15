@@ -228,3 +228,7 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
     padding:9px 8px;
   }
 }
+
+
+.modal-lg{width:min(980px,96vw)}
+.evidence-guidance{margin-bottom:18px}
