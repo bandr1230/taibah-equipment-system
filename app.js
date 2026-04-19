@@ -124,7 +124,8 @@ function collegeOptions(selected, includeAll=false){return `${includeAll?`<optio
 function sectionOptions(selected, includeAll=false){return `${includeAll?`<option value="all" ${selected==='all'?'selected':''}>كل الأقسام</option>`:''}${SECTION_OPTIONS.map(s=>`<option value="${s}" ${selected===s?'selected':''}>${s}</option>`).join('')}`}
 function userDepartmentOptions(selected){return `${USER_SECTION_OPTIONS.map(s=>`<option value="${s}" ${selected===s?'selected':''}>${s}</option>`).join('')}`}
 function setPage(p){state.currentPage=p;state.search='';state.collegeFilter='all';state.sectionFilter='all';state.sidebarOpen=false;render()}
-function setSearch(v){state.search=v;render()}
+let __searchRenderTimer=null
+function setSearch(v,el=null){state.search=v; clearTimeout(__searchRenderTimer); __searchRenderTimer=setTimeout(()=>render(),180)}
 function setCollegeFilter(v){state.collegeFilter=v;render()}
 function setSectionFilter(v){state.sectionFilter=v;render()}
 function toggleSidebar(){state.sidebarOpen=!state.sidebarOpen;render()}
@@ -165,16 +166,16 @@ function navItems(){return [
 ...(isCentral()?[{id:'users',label:'المستخدمون والصلاحيات',icon:'👥',permission:'manage_users'}]:[])
 ].filter(i=>hasPermission(i.permission))}
 function getPageTitle(){return {executive:'اللوحة التنفيذية',dashboard:'لوحة القطاع',items:'الأصناف والمخزون',transactions:'الصرف والحركات',exchange:'طلب الدعم بين القطاعات',needs:'طلبات الاحتياج',equipment:'التحليل والمتابعة المركزية',reports:'التقارير',audit:'سجل التدقيق والعمليات',users:'المستخدمون والصلاحيات',org:'القطاعات والأقسام والترميز'}[state.currentPage]||''}
-function filtersHtml(opts={college:true,section:true,search:true,forceCollege:false}){return `<div class="toolbar"><div class="toolbar-right">${opts.search?`<input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">`:''}${opts.college?collegeFilterControl(!!opts.forceCollege):''}${opts.section?`<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select>`:''}</div><div class="toolbar-left"></div></div>`}
+function filtersHtml(opts={college:true,section:true,search:true,forceCollege:false}){return `<div class="toolbar"><div class="toolbar-right">${opts.search?`<input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">`:''}${opts.college?collegeFilterControl(!!opts.forceCollege):''}${opts.section?`<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select>`:''}</div><div class="toolbar-left"></div></div>`}
 function renderExecutive(){const m=metrics();return `<div class="executive-hero"><div class="executive-card"><div class="executive-title">جامعة طيبة — منصة موحدة للقطاعات التعليمية</div><div class="executive-text">تدير المنصة مخزون القطاعات، طلبات الصرف، رفع الاحتياج، وتبادل الدعم بين القطاعات، مع لوحة متابعة مركزية لإدارة التجهيزات.</div><div class="executive-list"><div class="executive-item">إتاحة رؤية المخزون بين القطاعات لدعم تبادل المنفعة وتقليل الهدر.</div><div class="executive-item">رفع الاحتياج لإدارة التجهيزات بناءً على بيانات فعلية من المخزون.</div><div class="executive-item">اعتماد أو رفض طلبات الصرف والدعم بسجل موثق قابل للتقرير.</div></div></div><div class="executive-card"><div class="executive-title">ملخص سريع</div><div class="executive-list"><div class="executive-item">القطاعات المفعلة: ${m.colleges}</div><div class="executive-item">الأصناف المسجلة: ${m.items}</div><div class="executive-item">طلبات دعم معلقة: ${m.pendingSupport}</div><div class="executive-item">احتياجات معلقة: ${m.pendingNeeds}</div></div></div></div>${kpisHtml(m)}${alertsHtml()}<div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">أصناف تحتاج متابعة</div><div class="panel-subtitle">أصناف وصلت للحد الأدنى أو أقل</div></div>${table(['القطاع','القسم','الصنف','الكمية','الحد الأدنى'],lowStock().slice(0,6).map(i=>[i.college,i.section,itemName(i),i.qty,i.minQty]))}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات دعم معلقة</div><div class="panel-subtitle">طلبات بين الكليات تنتظر الإجراء</div></div>${table(['رقم الطلب','من','إلى','الصنف','الكمية','الحالة'],filteredSupport().filter(r=>(r.status||'pending')==='pending').slice(0,6).map(r=>[r.requestNo,r.fromCollege,r.toCollege,r.itemName,r.qty,statusBadge(r.status)]))}</div></div>`}
 function kpisHtml(m){return `<div class="grid"><div class="metric accent-blue"><div class="metric-label">إجمالي الأصناف</div><div class="metric-value">${m.items}</div><div class="metric-note">على مستوى النطاق المصرح</div></div><div class="metric accent-green"><div class="metric-label">الأجهزة التعليمية</div><div class="metric-value">${m.devices}</div><div class="metric-note">جاهزية وتشغيل</div></div><div class="metric accent-yellow"><div class="metric-label">طلبات معلقة</div><div class="metric-value">${m.pendingIssue}</div><div class="metric-note">بانتظار الاعتماد</div></div><div class="metric accent-pink"><div class="metric-label">مواد تحت الحد</div><div class="metric-value">${m.low}</div><div class="metric-note">تحتاج متابعة</div></div></div>`}
 function renderDashboard(){return `<div class="hero"><div class="hero-title">لوحة متابعة ${isCentral()?'جامعة طيبة':state.currentUser.college}</div><div class="hero-text">تعرض مؤشرات المخزون والصرف والاحتياج والدعم بين القطاعات بصورة مختصرة.</div></div>${kpisHtml(metrics())}${alertsHtml()}<div class="table-panel"><div class="table-head"><div class="panel-title">حالة الأجهزة التعليمية</div></div>${table(['القطاع','الجهاز','الرقم التسلسلي','الحالة','الموقع','الكمية'],visibleItems(true).filter(i=>i.section==='الأجهزة التعليمية').map(i=>[i.college,itemName(i),i.serialNumber||'—',i.deviceStatus||'يعمل',i.location||'—',i.qty]))}</div>`}
 function table(headers,rows){return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${c??'—'}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${headers.length}">لا توجد بيانات</td></tr>`}</tbody></table></div>`}
-function renderItems(){const rows=visibleItems().map(i=>[i.college,i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),hasPermission('edit_item')?`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('item',${i.id})">تعديل</button></div>`:'—']);return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">${isCentral()?'عرض مركزي للأصناف حسب القطاع والقسم.':'يعرض فقط أصناف ومخزون القطاع التابع للحساب الحالي.'}</div></div>${table(['القطاع','الرمز','العربي','English','القسم','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>`}
-function renderTransactions(){const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]});return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div><div class="panel-subtitle">${isCentral()?'عرض مركزي لحركات الصرف والحركات المسجلة على مستوى الجامعة.':'يعرض فقط حركات الصرف الخاصة بالقطاع التابع للحساب.'}</div></div>${table(['النوع','القطاع','القسم','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`}
+function renderItems(){const rows=visibleItems().map(i=>[i.college,i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),hasPermission('edit_item')?`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('item',${i.id})">تعديل</button></div>`:'—']);return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">${isCentral()?'عرض مركزي للأصناف حسب القطاع والقسم.':'يعرض فقط أصناف ومخزون القطاع التابع للحساب الحالي.'}</div></div>${table(['القطاع','الرمز','العربي','English','القسم','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>`}
+function renderTransactions(){const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]});return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div><div class="panel-subtitle">${isCentral()?'عرض مركزي لحركات الصرف والحركات المسجلة على مستوى الجامعة.':'يعرض فقط حركات الصرف الخاصة بالقطاع التابع للحساب.'}</div></div>${table(['النوع','القطاع','القسم','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`}
 function renderExchange(){const items=visibleItems(true); const rows=items.map(i=>[i.college,i.section,itemName(i),i.nameEn||'—',i.qty,i.unit,i.location||'—',i.college!==state.currentUser.college&&hasPermission('request_support')?`<button class="btn btn-primary btn-sm" onclick="openSupportFromItem(${i.id})">طلب دعم</button>`:'—']); const reqRows=filteredSupport().map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.fromCollege,r.toCollege,r.itemName,r.qty,r.unit,statusBadge(r.status),approvalPath('support',r.status),formatDateTime(r.createdAt),supportActions(r)]);return `<div class="hero"><div class="hero-title">مخزون القطاعات التعليمية</div><div class="hero-text">تمكن الصفحة الكليات من رؤية الأصناف المتاحة لدى القطاعات الأخرى وطلب دعم/إعارة/سلفة تشغيلية وفق اعتماد القطاع المالكة للصنف.</div></div>${filtersHtml({forceCollege:true})}<div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف المخزنة لدى جميع القطاعات</div><div class="panel-subtitle">يمكن البحث باسم الصنف بالعربية أو الإنجليزية أو الرمز، وتظهر النتائج من جميع القطاعات حسب الصلاحية.</div></div>${table(['القطاع','القسم','الصنف','English','المتاح','الوحدة','الموقع','طلب'],rows)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم بين القطاعات</div></div>${table(['رقم الطلب','نوع الطلب','الجهة الطالبة','الجهة المالكة','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','تاريخ الطلب','إجراء'],reqRows)}</div>`}
 function supportActions(r){const st=r.status||'pending_owner'; const owns=state.currentUser.college===r.toCollege; const buttons=[]; if(st==='pending_owner'&&owns&&hasPermission('approve_support')){buttons.push(`<button class="btn btn-success btn-sm" onclick="ownerApproveSupport(${r.id})">موافقة الجهة</button>`);buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectSupport(${r.id})">رفض</button>`)} if((st==='owner_approved'||st==='pending_equipment')&&isCentral()){buttons.push(`<button class="btn btn-success btn-sm" onclick="approveSupport(${r.id})">اعتماد نهائي</button>`);buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectSupport(${r.id})">رفض</button>`)} if((r.fromCollege===state.currentUser.college||owns||isCentral())&&hasPermission('request_support'))buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('supportEdit',${r.id})">تعديل</button>`); return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—'}
-function renderNeeds(){const rows=filteredNeeds().map(r=>[r.requestNo,r.college,r.section,r.itemNameAr||'—',r.itemNameEn||'—',r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]);return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج الخاصة بالقطاع</div><div class="panel-subtitle">يعرض الطلبات المرفوعة من القطاع الحالي فقط، بينما تظهر المتابعة الشاملة في صفحة التحليل المركزية.</div></div>${table(['رقم الطلب','القطاع','القسم','العربي','English','الكمية','القياس','الحالة','شاهد الاحتياج','مسار الاعتماد','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>`}
+function renderNeeds(){const rows=filteredNeeds().map(r=>[r.requestNo,r.college,r.section,r.itemNameAr||'—',r.itemNameEn||'—',r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]);return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج الخاصة بالقطاع</div><div class="panel-subtitle">يعرض الطلبات المرفوعة من القطاع الحالي فقط، بينما تظهر المتابعة الشاملة في صفحة التحليل المركزية.</div></div>${table(['رقم الطلب','القطاع','القسم','العربي','English','الكمية','القياس','الحالة','شاهد الاحتياج','مسار الاعتماد','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>`}
 function needActions(r){const buttons=[]; if((r.status||'pending')==='pending'&&isCentral()&&hasPermission('approve_need')){buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد</button>`);buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`)} if((r.college===state.currentUser.college||isCentral())&&hasPermission('create_need'))buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('needEdit',${r.id})">تعديل</button>`); if((r.college===state.currentUser.college||isCentral())&&hasPermission('create_need_evidence'))buttons.push(`<button class="btn btn-warning btn-sm" onclick="openModal('evidence',${r.id})">شاهد</button>`); return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—'}
 function renderEquipment(){const m=metrics();return `<div class="hero"><div class="hero-title">التحليل والمتابعة المركزية</div><div class="hero-text">لوحة مركزية لمتابعة إجراءات الكليات: المخزون، الصرف، الدعم بين القطاعات، وطلبات الاحتياج المرفوعة لسد النقص.</div></div><div class="grid"><div class="metric accent-blue"><div class="metric-label">كليات مفعلة</div><div class="metric-value">${COLLEGE_OPTIONS.length}</div><div class="metric-note">قطاعات تعليمية</div></div><div class="metric accent-green"><div class="metric-label">طلبات احتياج معلقة</div><div class="metric-value">${m.pendingNeeds}</div><div class="metric-note">تحتاج إجراء</div></div><div class="metric accent-yellow"><div class="metric-label">طلبات دعم معلقة</div><div class="metric-value">${m.pendingSupport}</div><div class="metric-note">بين الكليات</div></div><div class="metric accent-pink"><div class="metric-label">أصناف منخفضة</div><div class="metric-value">${m.low}</div><div class="metric-note">تحت الحد الأدنى</div></div></div>${alertsHtml()}<div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">تحليل المخزون حسب القطاع</div></div>${table(['القطاع','إجمالي الأصناف','تحت الحد','الأجهزة','طلبات دعم معلقة'],COLLEGE_OPTIONS.map(c=>{const items=db.items.filter(i=>i.college===c);return [c,items.length,items.filter(i=>i.qty<=i.minQty).length,items.filter(i=>i.section==='الأجهزة التعليمية').length,(db.supportRequests||[]).filter(r=>(r.status||'pending')==='pending'&&(r.fromCollege===c||r.toCollege===c)).length]}))}</div><div class="table-panel"><div class="table-head"><div class="panel-title">إجراءات تحتاج متابعة</div></div>${table(['النوع','الرقم/الصنف','القطاع','الحالة/الشاهد'],[...filteredNeeds().filter(r=>(r.status||'pending')==='pending').map(r=>['احتياج',r.requestNo,r.college,`${statusText(r.status)} - ${evidenceCountForNeed(r.id)>0?'يوجد شاهد':'لا يوجد شاهد'}`]),...filteredSupport().filter(r=>(r.status||'pending')==='pending').map(r=>['دعم بين القطاعات',r.requestNo,`${r.fromCollege} ← ${r.toCollege}`,statusBadge(r.status)])])}</div></div><div class="report-actions"><button class="btn btn-primary" onclick="printFullReport()">طباعة تقرير إداري شامل PDF</button><button class="btn btn-secondary" onclick="exportFullExcel()">تقرير شامل Excel</button></div>`}
 function renderReports(){const tabs=availableReportTabs(); if(!tabs.length)return `<div class="panel"><div class="panel-title">التقارير</div><div class="panel-subtitle">لم يتم منح هذا الحساب أي نوع من أنواع التقارير.</div></div>`; if(!tabs.some(t=>t[0]===state.reportTab))state.reportTab=tabs[0][0]; return `<div class="panel"><div class="panel-title">التقارير</div><div class="panel-subtitle">تقارير موحدة على مستوى الجامعة أو القطاع حسب الصلاحية، مع إظهار صاحب الإجراء في كل حركة.</div></div><div class="report-tabs">${tabs.map(([id,l])=>`<button class="report-tab ${state.reportTab===id?'active':''}" onclick="state.reportTab='${id}';render()">${l}</button>`).join('')}</div>${filtersHtml()}<div class="report-actions"><button class="btn btn-primary" onclick="printCurrentReport()">استخراج PDF</button><button class="btn btn-secondary" onclick="exportCurrentExcel()">استخراج Excel</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">معاينة التقرير</div></div>${reportPreviewTable()}</div>`}
@@ -626,7 +627,7 @@ cleanupDuplicateNonDevices();
 
 normalizeItemCodes();
 saveDb();
-function render(){document.getElementById('root').innerHTML=state.currentUser?renderApp():renderLogin()}
+function render(){const root=document.getElementById('root'); const active=document.activeElement; const focusMeta=active&&active.classList&&active.classList.contains('search-input')?{selector:'.search-input', value:active.value, start:active.selectionStart, end:active.selectionEnd}:null; root.innerHTML=state.currentUser?renderApp():renderLogin(); if(focusMeta){ const el=document.querySelector(focusMeta.selector); if(el){ el.focus(); try{ const pos=Math.min(String(focusMeta.value||'').length, el.value.length); el.setSelectionRange(pos,pos); }catch(e){} } }}
 if(typeof initRemoteSync==='function'){initRemoteSync().then(()=>render())}else{render()};
 
 
@@ -691,7 +692,7 @@ function renderNeedEvidence(){
   ]);
   return `<div class="hero"><div class="hero-title">شواهد الاحتياج</div><div class="hero-text">صفحة مخصصة لربط طلبات الاحتياج بأدلة أكاديمية وتشغيلية، مثل المقرر الدراسي، عدد الطلبة، عدد الشعب، ومعدل الاستخدام، بما يدعم القرار الإداري عند المراجعة والاعتماد.</div></div>
   <div class="panel evidence-guidance"><div class="panel-title">ما القيمة المضافة؟</div><div class="panel-subtitle">أُضيف نوعان من التقارير: تقرير تنفيذي يقدّم ملخصًا إداريًا للشواهد، وتقرير تفصيلي لكل شاهد يوضّح أساس التقدير والعجز والتوصية النهائية.</div></div>
-  <div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة شاهد احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeedEvidenceExecutive()">Excel تنفيذي</button><button class="btn btn-secondary" onclick="printNeedEvidenceExecutive()">PDF تنفيذي</button></div></div>
+  <div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة شاهد احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeedEvidenceExecutive()">Excel تنفيذي</button><button class="btn btn-secondary" onclick="printNeedEvidenceExecutive()">PDF تنفيذي</button></div></div>
   <div class="table-panel"><div class="table-head"><div class="panel-title">سجل شواهد الاحتياج</div><div class="panel-subtitle">كل شاهد مرتبط بطلب احتياج محدد ويُظهر أساس التقدير الأكاديمي أو التشغيلي.</div></div>${table(['رقم الطلب','القطاع','القسم','الصنف','اسم المقرر','رمز المقرر','السنة/الفصل','عدد الطلاب','عدد الشعب','الاحتياج النظري','المتاح','العجز','صاحب الإجراء','إجراء'],rows)}</div>`
 }
 function evidenceActions(r){
@@ -807,7 +808,7 @@ function itemActionButtons(i){
   if(hasPermission('delete_item'))actions.push(`<button class="btn btn-danger btn-sm" onclick="removeItem(${i.id})">حذف</button>`)
   return actions.length?`<div class="flex-actions">${actions.join('')}</div>`:'—'
 }
-function renderItems(){ const rows=visibleItems().map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),itemActionButtons(i)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">تمت إضافة القسم الرئيسي والقسم الفرعي وربط الموقع بقائمة مواقع قابلة للاختيار.</div></div>${table(['القطاع','القسم الرئيسي','الرمز','العربي','English','القسم الفرعي','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>` }
+function renderItems(){ const rows=visibleItems().map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),itemActionButtons(i)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">تمت إضافة القسم الرئيسي والقسم الفرعي وربط الموقع بقائمة مواقع قابلة للاختيار.</div></div>${table(['القطاع','القسم الرئيسي','الرمز','العربي','English','القسم الفرعي','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>` }
 function removeItem(id){
   if(!hasPermission('delete_item'))return alert('لا تملك صلاحية حذف الصنف')
   const idx=(db.items||[]).findIndex(x=>Number(x.id)===Number(id))
@@ -825,7 +826,7 @@ function removeItem(id){
   saveDb()
   render()
 }
-function renderTransactions(){ const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.mainDepartment||'القسم العام',t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]}); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>` }
+function renderTransactions(){ const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.mainDepartment||'القسم العام',t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]}); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>` }
 function saveTransaction(){ if(!hasPermission('add_issue'))return alert('لا تملك صلاحية إنشاء طلب الصرف'); const type=document.getElementById('tx-type').value, itemId=Number(document.getElementById('tx-item').value), qty=Number(document.getElementById('tx-qty').value||0), notes=document.getElementById('tx-notes').value.trim(); const item=getItemById(itemId); if(!item)return alert('اختر الصنف'); if(qty<=0)return alert('الكمية يجب أن تكون أكبر من صفر'); if(type==='issue'&&item.qty<qty)return alert(`الكمية المطلوبة أعلى من المتاح. المتاح: ${item.qty} ${item.unit}`); const tx={id:nextId(db.transactions),type,status:type==='receive'?'approved':'pending',itemId:item.id,college:item.college,mainDepartment:item.mainDepartment||'القسم العام',section:item.section,qty,unit:item.unit,transactionAt:nowLocalString(),notes,createdBy:state.currentUser.id}; if(type==='receive'){item.qty+=qty; item.createdBy=state.currentUser.id} db.transactions.unshift(tx); auditLog(type==='receive'?'إدخال كمية':'طلب صرف','transaction',tx.id,`${itemName(item)} - كمية ${qty} ${item.unit}`,item.college,item.mainDepartment); saveDb(); closeModal() }
 function getNeedPrefillByErp(code){ const q=String(code||'').trim(); if(!q) return null; const need=(db.needsRequests||[]).find(r=>String(r.erpCode||'').trim()===q); if(need) return {itemNameAr:need.itemNameAr||'',itemNameEn:need.itemNameEn||'',unit:need.unit||'',category:need.section||'',description:need.description||'',specifications:need.specifications||''}; const item=(db.items||[]).find(i=>String(i.erpCode||i.code||'').trim()===q); if(item) return {itemNameAr:item.nameAr||'',itemNameEn:item.nameEn||'',unit:item.unit||'',category:item.section||'',description:item.notes||'',specifications:item.notes||''}; return null }
 function fillNeedFromErp(){ const erp=document.getElementById('need-erpCode')?.value; const pref=getNeedPrefillByErp(erp); if(!pref) return; if(document.getElementById('need-itemNameAr')) document.getElementById('need-itemNameAr').value=pref.itemNameAr||''; if(document.getElementById('need-itemNameEn')) document.getElementById('need-itemNameEn').value=pref.itemNameEn||''; if(document.getElementById('need-unit')) document.getElementById('need-unit').value=pref.unit||UNIT_OPTIONS[0]; if(document.getElementById('need-section') && pref.category) document.getElementById('need-section').value=pref.category; if(document.getElementById('need-description')) document.getElementById('need-description').value=pref.description||''; if(document.getElementById('need-specifications')) document.getElementById('need-specifications').value=pref.specifications||'' }
@@ -836,13 +837,13 @@ function needEditModalHtml(){ const r=(db.needsRequests||[]).find(x=>x.id===stat
 function totalNeedQty(prefix){ const years=Number(document.getElementById(`${prefix}-yearsCount`)?.value||1); let total=Number(document.getElementById(`${prefix}-year1Qty`)?.value||0); if(years>=2) total+=Number(document.getElementById(`${prefix}-year2Qty`)?.value||0); if(years>=3) total+=Number(document.getElementById(`${prefix}-year3Qty`)?.value||0); return total }
 function saveNeed(){ if(!hasPermission('create_need'))return alert('لا تملك صلاحية رفع الاحتياج'); const req={id:nextId(db.needsRequests),requestNo:nextNo('NR',db.needsRequests),erpCode:document.getElementById('need-erpCode').value.trim(),college:document.getElementById('need-college').value,mainDepartment:document.getElementById('need-mainDepartment')?.value || currentDepartmentName(),section:document.getElementById('need-section').value,category:document.getElementById('need-section').value,itemNameAr:document.getElementById('need-itemNameAr').value.trim(),itemNameEn:document.getElementById('need-itemNameEn').value.trim(),unit:document.getElementById('need-unit').value,mandatoryProduct:document.getElementById('need-mandatoryProduct').value,constructionCode:document.getElementById('need-constructionCode').value.trim(),similarItem:document.getElementById('need-similarItem').value.trim(),brandMention:document.getElementById('need-brandMention').value,yearsCount:Number(document.getElementById('need-yearsCount').value||1),year1Qty:Number(document.getElementById('need-year1Qty').value||0),year2Qty:Number(document.getElementById('need-year2Qty')?.value||0),year3Qty:Number(document.getElementById('need-year3Qty')?.value||0),qty:totalNeedQty('need'),requestOrderNo:document.getElementById('need-requestOrderNo').value.trim(),sendGrouping:document.getElementById('need-sendGrouping').value,targetEntity:'إدارة التجهيزات',description:document.getElementById('need-description').value.trim(),specifications:document.getElementById('need-specifications').value.trim(),justification:document.getElementById('need-justification').value.trim(),brandReason:document.getElementById('need-brandReason').value.trim(),notes:document.getElementById('need-notes').value.trim(),status:'pending_sector_approval',workflowStage:'بانتظار اعتماد مسؤول القطاع',createdAt:nowLocalString(),createdBy:state.currentUser.id}; if(!req.itemNameAr && !req.itemNameEn) return alert('أدخل اسم البند'); if(req.qty<=0) return alert('أدخل كمية صحيحة لسنة واحدة أو أكثر'); if(req.mandatoryProduct==='نعم' && !req.constructionCode) return alert('عند اختيار "نعم" للقائمة الإلزامية يجب إدخال الرمز الإنشائي'); db.needsRequests.unshift(req); auditLog('رفع طلب احتياج','need',req.requestNo,`${req.itemNameAr||req.itemNameEn} - إجمالي ${req.qty} ${req.unit}`,req.college,req.mainDepartment); saveDb(); closeModal() }
 function saveNeedEdit(){ const r=(db.needsRequests||[]).find(x=>x.id===state.editId); if(!r)return; const oldQty=Number(r.qty)||0; r.mainDepartment=document.getElementById('edit-need-mainDepartment')?.value || currentDepartmentName(); r.section=document.getElementById('edit-need-section').value; r.category=r.section; r.erpCode=document.getElementById('edit-need-erpCode').value.trim(); r.itemNameAr=document.getElementById('edit-need-ar').value.trim(); r.itemNameEn=document.getElementById('edit-need-en').value.trim(); r.unit=document.getElementById('edit-need-unit').value; r.mandatoryProduct=document.getElementById('edit-need-mandatoryProduct').value; r.constructionCode=document.getElementById('edit-need-constructionCode').value.trim(); r.similarItem=document.getElementById('edit-need-similarItem').value.trim(); r.brandMention=document.getElementById('edit-need-brandMention').value; r.yearsCount=Number(document.getElementById('edit-need-yearsCount').value||1); r.year1Qty=Number(document.getElementById('edit-need-year1Qty').value||0); r.year2Qty=Number(document.getElementById('edit-need-year2Qty')?.value||0); r.year3Qty=Number(document.getElementById('edit-need-year3Qty')?.value||0); r.qty=totalNeedQty('edit-need'); r.requestOrderNo=document.getElementById('edit-need-requestOrderNo').value.trim(); r.sendGrouping=document.getElementById('edit-need-sendGrouping').value; r.description=document.getElementById('edit-need-description').value.trim(); r.specifications=document.getElementById('edit-need-specifications').value.trim(); r.justification=document.getElementById('edit-need-justification').value.trim(); r.brandReason=document.getElementById('edit-need-brandReason').value.trim(); r.notes=document.getElementById('edit-need-notes').value.trim(); if(!r.itemNameAr && !r.itemNameEn) return alert('أدخل اسم البند'); if(r.qty<=0) return alert('أدخل كمية صحيحة'); if(r.mandatoryProduct==='نعم' && !r.constructionCode) return alert('أدخل الرمز الإنشائي'); r.lastEditedAt=nowLocalString(); r.lastEditedBy=state.currentUser.id; if(isCentral()){ r.status='pending_equipment_review'; r.workflowStage='تم تعديل الطلب ويحتاج مراجعة إدارة التجهيزات' } else { r.status='pending_sector_approval'; r.workflowStage='أعيد لمرحلة اعتماد مسؤول القطاع بعد التعديل'; r.reviewedBy=null; r.reviewedAt=null } auditLog('تعديل طلب احتياج','need',r.requestNo,`الكمية من ${oldQty} إلى ${r.qty}. ${r.notes}`,r.college,r.mainDepartment); saveDb(); closeModal() }
-function renderNeeds(){ const rows=filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.itemNameEn||'—',`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),r.requestOrderNo||'—',formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج</div><div class="panel-subtitle">المسار الحالي: منشئ الطلب ← مسؤول القطاع ← إدارة التجهيزات، مع إمكانية الإرجاع للتعديل بملاحظة.</div></div>${table(['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','البند بالعربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','الشواهد','المسار','رقم أمر الاحتياج','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>` }
+function renderNeeds(){ const rows=filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.itemNameEn||'—',`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),r.requestOrderNo||'—',formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج</div><div class="panel-subtitle">المسار الحالي: منشئ الطلب ← مسؤول القطاع ← إدارة التجهيزات، مع إمكانية الإرجاع للتعديل بملاحظة.</div></div>${table(['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','البند بالعربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','الشواهد','المسار','رقم أمر الاحتياج','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>` }
 function needActions(r){ const buttons=[]; const sameCollege=r.college===state.currentUser.college; const sectorApprover=sameCollege && !isCentral() && hasPermission('approve_need'); if((r.status||'pending_sector_approval')==='pending_sector_approval' && sectorApprover){ buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد القطاع</button>`); buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`); buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للتعديل</button>`) } if((r.status||'pending_sector_approval')==='pending_equipment_review' && isCentral() && hasPermission('approve_need')){ buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد</button>`); buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`); buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للقطاع</button>`) } if((sameCollege||isCentral())&&hasPermission('create_need'))buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('needEdit',${r.id})">تعديل</button>`); if((sameCollege||isCentral())&&hasPermission('create_need_evidence'))buttons.push(`<button class="btn btn-warning btn-sm" onclick="openModal('evidence',${r.id})">شاهد</button>`); return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—' }
 function approveNeed(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية اعتماد طلبات الاحتياج'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const evidenceCount=evidenceCountForNeed(r.id); if((r.status||'pending_sector_approval')==='pending_sector_approval' && !isCentral()){ r.status='pending_equipment_review'; r.workflowStage='أحيل إلى إدارة التجهيزات بعد اعتماد مسؤول القطاع'; r.sectorApprovedAt=nowLocalString(); r.sectorApprovedBy=state.currentUser.id; auditLog('اعتماد طلب احتياج من مسؤول القطاع','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} | شواهد: ${evidenceCount}`,r.college,r.mainDepartment); saveDb();render(); return } if(evidenceCount===0){ const proceed=confirm('هذا الطلب لا يحتوي على شاهد احتياج. هل ترغب في اعتماده رغم ذلك؟'); if(!proceed) return } r.status='approved'; r.workflowStage='معتمد من إدارة التجهيزات'; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; auditLog('اعتماد طلب احتياج','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} | شواهد: ${evidenceCount}`,r.college,r.mainDepartment); saveDb();render() }
 function rejectNeed(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية رفض طلبات الاحتياج'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const note=prompt('أدخل سبب الرفض','')||''; r.status='rejected'; r.workflowStage='مرفوض'; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; r.returnNote=note; auditLog('رفض طلب احتياج','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} ${note?'- '+note:''}`,r.college,r.mainDepartment); saveDb();render() }
 function returnNeed(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية إعادة الطلب'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const note=prompt('أدخل ملاحظة الإعادة للتعديل','')||''; r.status='returned_to_sector'; r.workflowStage='معاد للقطاع للتعديل'; r.returnNote=note; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; auditLog('إعادة طلب احتياج للتعديل','need',r.requestNo,note||'بدون ملاحظة',r.college,r.mainDepartment); saveDb();render() }
 function visibleNeedEvidence(){ let rows=db.needEvidence||[]; if(!isCentral())rows=rows.filter(r=>r.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.college,r.mainDepartment,r.section,r.itemNameAr,r.itemNameEn,r.courseName,r.courseCode,r.academicYear,r.semester,r.justification,r.recommendation,r.notes].join(' ').includes(q))} return rows.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')) }
-function renderNeedEvidence(){ const rows=visibleNeedEvidence().map(r=>[r.requestNo,r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.courseName||'—',r.courseCode||'—',r.academicYear||'—',r.semester||'—',r.studentsCount||0,r.sectionsCount||0,r.estimatedNeed||0,r.stockAvailable||0,r.deficit||0,actorName(r.createdBy),`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('evidenceEdit',${r.id})">تعديل</button></div>`]); return `<div class="hero"><div class="hero-title">شواهد الاحتياج</div><div class="hero-text">يمكنك الآن إضافة أكثر من شاهد في نفس العملية قبل الحفظ؛ مثل تعدد المقررات أو الأدلة أو الجهات المستفيدة للصنف نفسه.</div></div><div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة شاهد احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeedEvidenceExecutive()">Excel تنفيذي</button><button class="btn btn-secondary" onclick="printNeedEvidenceExecutive()">PDF تنفيذي</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجل شواهد الاحتياج</div><div class="panel-subtitle">كل سطر يمثل شاهدًا مستقلًا مرتبطًا بطلب احتياج محدد.</div></div>${table(['رقم الطلب','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','اسم المقرر/الدليل','رمز المقرر','السنة','الفصل','عدد الطلاب','عدد الشعب','الاحتياج النظري','المتاح','العجز','صاحب الإجراء','إجراء'],rows)}</div>` }
+function renderNeedEvidence(){ const rows=visibleNeedEvidence().map(r=>[r.requestNo,r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.courseName||'—',r.courseCode||'—',r.academicYear||'—',r.semester||'—',r.studentsCount||0,r.sectionsCount||0,r.estimatedNeed||0,r.stockAvailable||0,r.deficit||0,actorName(r.createdBy),`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('evidenceEdit',${r.id})">تعديل</button></div>`]); return `<div class="hero"><div class="hero-title">شواهد الاحتياج</div><div class="hero-text">يمكنك الآن إضافة أكثر من شاهد في نفس العملية قبل الحفظ؛ مثل تعدد المقررات أو الأدلة أو الجهات المستفيدة للصنف نفسه.</div></div><div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة شاهد احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeedEvidenceExecutive()">Excel تنفيذي</button><button class="btn btn-secondary" onclick="printNeedEvidenceExecutive()">PDF تنفيذي</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجل شواهد الاحتياج</div><div class="panel-subtitle">كل سطر يمثل شاهدًا مستقلًا مرتبطًا بطلب احتياج محدد.</div></div>${table(['رقم الطلب','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','اسم المقرر/الدليل','رمز المقرر','السنة','الفصل','عدد الطلاب','عدد الشعب','الاحتياج النظري','المتاح','العجز','صاحب الإجراء','إجراء'],rows)}</div>` }
 function evidenceNeedOptions(selected){ const rows=filteredNeeds(); return rows.map(r=>`<option value="${r.id}" ${Number(selected)===Number(r.id)?'selected':''}>${r.requestNo} - ${r.college} - ${r.mainDepartment||'القسم العام'} - ${r.section} - ${r.itemNameAr||r.itemNameEn}</option>`).join('') }
 function needEvidenceModalHtml(){ const firstNeed=filteredNeeds()[0]; if(!firstNeed)return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">شواهد الاحتياج</div><div class="panel-subtitle">لا يمكن إضافة شاهد قبل وجود طلب احتياج واحد على الأقل.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div></div></div>`; const need=getNeedById(state.editId)||firstNeed; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">إضافة شواهد احتياج</div><div class="panel-subtitle">يمكنك إضافة أكثر من شاهد أو مقرر قبل الحفظ النهائي عبر زر (+).</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div class="full"><label class="label">طلب الاحتياج المرتبط</label><select id="ev-need-id" class="select" onchange="fillEvidenceNeedDefaults();calcEvidenceMetrics()">${evidenceNeedOptions(need.id)}</select></div></div><div id="evidence-rows"></div><button class="btn btn-secondary" type="button" onclick="addEvidenceRow()">+ إضافة شاهد آخر</button></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEvidence()">حفظ الشواهد</button></div></div></div>` }
 function evidenceRowHtml(idx, ev={}){ return `<div class="panel" data-ev-row="${idx}" style="margin-bottom:12px"><div class="panel-title">شاهد رقم ${idx+1}</div><div class="form-grid"><div><label class="label">اسم المقرر / الدليل</label><input class="input ev-courseName" value="${ev.courseName||''}" placeholder="مثال: الكيمياء الصيدلية أو دليل تشغيلي"></div><div><label class="label">رمز المقرر</label><input class="input ev-courseCode" value="${ev.courseCode||''}" placeholder="PHAR301"></div><div><label class="label">السنة الدراسية</label><input class="input ev-academicYear" value="${ev.academicYear||''}" placeholder="2026/2027"></div><div><label class="label">الفصل الدراسي</label><select class="select ev-semester"><option ${(ev.semester||'الأول')==='الأول'?'selected':''}>الأول</option><option ${ev.semester==='الثاني'?'selected':''}>الثاني</option><option ${ev.semester==='الصيفي'?'selected':''}>الصيفي</option></select></div><div><label class="label">عدد الشعب</label><input class="input ev-sections" type="number" min="1" value="${ev.sectionsCount||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">عدد الطلاب</label><input class="input ev-students" type="number" min="1" value="${ev.studentsCount||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">عدد مرات الاستخدام خلال الفصل</label><input class="input ev-uses" type="number" min="1" value="${ev.usesCount||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">الكمية التقديرية لكل طالب</label><input class="input ev-qtyPerStudent" type="number" min="0" step="0.01" value="${ev.qtyPerStudent||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">الرصيد الحالي المتاح</label><input class="input ev-stock" type="number" min="0" step="0.01" value="${ev.stockAvailable||stockForNeed(getNeedById(Number(document.getElementById('ev-need-id')?.value||0)))}" oninput="calcEvidenceMetrics()"></div><div class="full"><div class="alert ev-metrics">الاحتياج النظري: 0 | المتاح: 0 | العجز: 0</div></div><div class="full"><label class="label">مبررات الاحتياج</label><textarea class="textarea ev-justification">${ev.justification||''}</textarea></div><div class="full"><label class="label">التوصية النهائية</label><textarea class="textarea ev-recommendation">${ev.recommendation||''}</textarea></div><div class="full"><label class="label">ملاحظات إضافية</label><textarea class="textarea ev-notes">${ev.notes||''}</textarea></div><div class="full" style="text-align:left"><button class="btn btn-danger btn-sm" type="button" onclick="removeEvidenceRow(${idx})">حذف هذا الشاهد</button></div></div></div>` }
@@ -906,11 +907,11 @@ visibleTransactions=function(){
 renderTransactions=function(){
   ensureExtendedReportState()
   const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.mainDepartment||'القسم العام',t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]})
-  return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select><select class="select" onchange="setTransactionTypeFilter(this.value)">${txTypeFilterOptions(state.transactionTypeFilter)}</select><select class="select" onchange="setTransactionStatusFilter(this.value)">${txStatusFilterOptions(state.transactionStatusFilter)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div><div class="panel-subtitle">أضيفت فلاتر مستقلة للنوع والحالة لتمكين استخراج تقرير خاص بالإدخال أو الصرف أو بحالة محددة.</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`
+  return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select><select class="select" onchange="setTransactionTypeFilter(this.value)">${txTypeFilterOptions(state.transactionTypeFilter)}</select><select class="select" onchange="setTransactionStatusFilter(this.value)">${txStatusFilterOptions(state.transactionStatusFilter)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div><div class="panel-subtitle">أضيفت فلاتر مستقلة للنوع والحالة لتمكين استخراج تقرير خاص بالإدخال أو الصرف أو بحالة محددة.</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`
 }
 filtersHtml=function(opts={college:true,section:true,search:true,forceCollege:false,txType:false,txStatus:false}){
   ensureExtendedReportState()
-  return `<div class="toolbar"><div class="toolbar-right">${opts.search?`<input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value)">`:''}${opts.college?collegeFilterControl(!!opts.forceCollege):''}${opts.section?`<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select>`:''}${opts.txType?`<select class="select" onchange="setTransactionTypeFilter(this.value)">${txTypeFilterOptions(state.transactionTypeFilter)}</select>`:''}${opts.txStatus?`<select class="select" onchange="setTransactionStatusFilter(this.value)">${txStatusFilterOptions(state.transactionStatusFilter)}</select>`:''}</div><div class="toolbar-left"></div></div>`
+  return `<div class="toolbar"><div class="toolbar-right">${opts.search?`<input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">`:''}${opts.college?collegeFilterControl(!!opts.forceCollege):''}${opts.section?`<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select>`:''}${opts.txType?`<select class="select" onchange="setTransactionTypeFilter(this.value)">${txTypeFilterOptions(state.transactionTypeFilter)}</select>`:''}${opts.txStatus?`<select class="select" onchange="setTransactionStatusFilter(this.value)">${txStatusFilterOptions(state.transactionStatusFilter)}</select>`:''}</div><div class="toolbar-left"></div></div>`
 }
 renderReports=function(){
   ensureExtendedReportState()
@@ -967,3 +968,407 @@ renderExchange=function(){
   return `<div class="hero"><div class="hero-title">مخزون القطاعات التعليمية</div><div class="hero-text">تمكن الصفحة الكليات من رؤية الأصناف المتاحة لدى القطاعات الأخرى وطلب دعم/إعارة/سلفة تشغيلية وفق اعتماد القطاع المالكة للصنف، مع إتاحة تعديل أو حذف الصنف من القوائم التي يظهر فيها إذا كانت الصلاحية تسمح بذلك.</div></div>${filtersHtml({forceCollege:true})}<div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف المخزنة لدى جميع القطاعات</div><div class="panel-subtitle">يمكن البحث باسم الصنف بالعربية أو الإنجليزية أو الرمز، وتظهر النتائج من جميع القطاعات حسب الصلاحية.</div></div>${table(['القطاع','القسم الرئيسي','القسم الفرعي','الصنف','English','المتاح','الوحدة','الموقع','إجراء'],rows)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم بين القطاعات</div></div>${table(['رقم الطلب','نوع الطلب','الجهة الطالبة','الجهة المالكة','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','تاريخ الطلب','إجراء'],reqRows)}</div>`
 }
 /* ===== end v5.8.6.2 broader item delete actions ===== */
+
+/* ===== v5.8.7 need delete + date filters ===== */
+function ensureAdvancedFilterState(){
+  ensureExtendedReportState && ensureExtendedReportState();
+  if(typeof state.needStatusFilter==='undefined') state.needStatusFilter='all';
+  if(typeof state.dateFrom==='undefined') state.dateFrom='';
+  if(typeof state.dateTo==='undefined') state.dateTo='';
+}
+function setNeedStatusFilter(v){ ensureAdvancedFilterState(); state.needStatusFilter=v; render(); }
+function setDateFrom(v){ ensureAdvancedFilterState(); state.dateFrom=v||''; render(); }
+function setDateTo(v){ ensureAdvancedFilterState(); state.dateTo=v||''; render(); }
+(function(){
+  const __oldSetPage2=setPage;
+  setPage=function(p){
+    ensureAdvancedFilterState();
+    __oldSetPage2(p);
+    state.needStatusFilter='all';
+    state.dateFrom='';
+    state.dateTo='';
+  }
+})();
+function needStatusFilterOptions(selected='all'){
+  const opts=[
+    ['all','كل الحالات'],
+    ['pending','تحت الإجراء'],
+    ['approved','معتمد'],
+    ['rejected','مرفوض'],
+    ['returned_to_sector','معاد للقطاع'],
+  ];
+  return opts.map(([v,l])=>`<option value="${v}" ${selected===v?'selected':''}>${l}</option>`).join('');
+}
+function rowWithinDateRange(value){
+  ensureAdvancedFilterState();
+  if(!state.dateFrom && !state.dateTo) return true;
+  const raw=String(value||'').trim();
+  if(!raw) return false;
+  const dPart=raw.includes(' ')?raw.split(' ')[0]:raw;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dPart)) return true;
+  if(state.dateFrom && dPart < state.dateFrom) return false;
+  if(state.dateTo && dPart > state.dateTo) return false;
+  return true;
+}
+function effectiveNeedStatus(r){
+  const s=r.status||'pending_sector_approval';
+  if(['approved','rejected','returned_to_sector'].includes(s)) return s;
+  return 'pending';
+}
+visibleAuditLogs=function(){
+  ensureAdvancedFilterState();
+  let rows=db.auditLogs||[];
+  if(!isCentral()) rows=rows.filter(r=>r.college===state.currentUser.college||r.createdBy===state.currentUser.id);
+  if(state.collegeFilter!=='all') rows=rows.filter(r=>r.college===state.collegeFilter);
+  if(state.sectionFilter!=='all') rows=rows.filter(r=>r.department===state.sectionFilter||r.department==='الكل');
+  rows=rows.filter(r=>rowObjectWithinDateRange(r,['createdAt','actionAt','updatedAt']));
+  if(state.search){
+    const q=state.search.trim();
+    rows=rows.filter(r=>[r.action,r.targetType,r.targetId,r.college,r.department,r.details,actorName(r.createdBy)].join(' ').includes(q));
+  }
+  return rows.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+}
+visibleTransactions=function(){
+  ensureAdvancedFilterState();
+  let rows=db.transactions||[];
+  if(!isCentral())rows=rows.filter(t=>t.college===state.currentUser.college);
+  if(hasDepartmentScope())rows=rows.filter(t=>(t.mainDepartment||t.section)===state.currentUser.department || t.section===state.currentUser.department);
+  if(state.collegeFilter!=='all')rows=rows.filter(t=>t.college===state.collegeFilter);
+  if(state.sectionFilter!=='all')rows=rows.filter(t=>t.section===state.sectionFilter || (t.mainDepartment||'')===state.sectionFilter);
+  if(state.transactionTypeFilter!=='all')rows=rows.filter(t=>String(t.type||'')===state.transactionTypeFilter);
+  if(state.transactionStatusFilter!=='all')rows=rows.filter(t=>{
+    const effective=t.type==='receive'?'completed':(t.status||'pending');
+    return effective===state.transactionStatusFilter;
+  });
+  rows=rows.filter(t=>rowObjectWithinDateRange(t,['transactionAt','actionAt','requestedAt','createdAt','updatedAt']));
+  if(state.search){
+    const q=state.search.trim();
+    rows=rows.filter(t=>[itemName(getItemById(t.itemId)),t.college,t.mainDepartment,t.section,t.type,t.notes,t.status,actorName(t.createdBy),actorName(t.reviewedBy)].join(' ').includes(q));
+  }
+  return rows.sort((a,b)=>(b.transactionAt||b.createdAt||'').localeCompare(a.transactionAt||a.createdAt||''));
+}
+filteredNeeds=function(){
+  ensureAdvancedFilterState();
+  let rows=db.needsRequests||[];
+  if(!isCentral())rows=rows.filter(r=>r.college===state.currentUser.college);
+  if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department);
+  if(state.collegeFilter!=='all')rows=rows.filter(r=>r.college===state.collegeFilter);
+  if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter);
+  if(state.needStatusFilter!=='all')rows=rows.filter(r=>effectiveNeedStatus(r)===state.needStatusFilter);
+  rows=rows.filter(r=>rowObjectWithinDateRange(r,['createdAt','actionAt','updatedAt']));
+  if(state.search){
+    const q=state.search.trim();
+    rows=rows.filter(r=>[r.requestNo,r.erpCode,r.college,r.mainDepartment,r.section,r.itemNameAr,r.itemNameEn,r.description,r.specifications,r.notes,statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)].join(' ').includes(q));
+  }
+  return rows.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+}
+filteredSupport=function(){
+  ensureAdvancedFilterState();
+  let rows=db.supportRequests||[];
+  if(!isCentral())rows=rows.filter(r=>r.fromCollege===state.currentUser.college||r.toCollege===state.currentUser.college);
+  if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||r.section)===state.currentUser.department || r.section===state.currentUser.department);
+  if(state.collegeFilter!=='all')rows=rows.filter(r=>r.fromCollege===state.collegeFilter||r.toCollege===state.collegeFilter);
+  if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter);
+  rows=rows.filter(r=>rowObjectWithinDateRange(r,['createdAt','actionAt','updatedAt']));
+  if(state.search){
+    const q=state.search.trim();
+    rows=rows.filter(r=>[r.requestNo,r.fromCollege,r.toCollege,r.mainDepartment,r.section,r.itemName,r.notes,statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)].join(' ').includes(q));
+  }
+  return rows.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+}
+filtersHtml=function(opts={college:true,section:true,search:true,forceCollege:false,txType:false,txStatus:false,needStatus:false,date:true}){
+  ensureAdvancedFilterState();
+  return `<div class="toolbar"><div class="toolbar-right">${opts.search?`<input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">`:''}${opts.college?collegeFilterControl(!!opts.forceCollege):''}${opts.section?`<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select>`:''}${opts.txType?`<select class="select" onchange="setTransactionTypeFilter(this.value)">${txTypeFilterOptions(state.transactionTypeFilter)}</select>`:''}${opts.txStatus?`<select class="select" onchange="setTransactionStatusFilter(this.value)">${txStatusFilterOptions(state.transactionStatusFilter)}</select>`:''}${opts.needStatus?`<select class="select" onchange="setNeedStatusFilter(this.value)">${needStatusFilterOptions(state.needStatusFilter)}</select>`:''}${opts.date!==false?`<input class="input" type="date" value="${state.dateFrom}" onchange="setDateFrom(this.value)" title="من تاريخ"><input class="input" type="date" value="${state.dateTo}" onchange="setDateTo(this.value)" title="إلى تاريخ">`:''}</div><div class="toolbar-left"></div></div>`
+}
+function canDeleteNeed(r){
+  if(!hasPermission('create_need')) return false;
+  if(!r) return false;
+  if(r.college!==state.currentUser.college && !isCentral()) return false;
+  return (r.status||'pending_sector_approval')==='rejected';
+}
+function removeNeed(id){
+  const idx=(db.needsRequests||[]).findIndex(x=>Number(x.id)===Number(id));
+  if(idx<0) return alert('طلب الاحتياج غير موجود');
+  const r=db.needsRequests[idx];
+  if(!canDeleteNeed(r)) return alert('يسمح بحذف طلبات الاحتياج المرفوضة فقط ولمنشئيها أو الإدارة المركزية.');
+  if(!confirm(`حذف طلب الاحتياج ${r.requestNo||id}؟`)) return;
+  db.needsRequests.splice(idx,1);
+  db.needEvidence=(db.needEvidence||[]).filter(e=>Number(e.needId)!==Number(id));
+  auditLog('حذف طلب احتياج','need',r.requestNo||id,`${r.itemNameAr||r.itemNameEn||''} | حالة سابقة: ${statusText(r.status)}`,r.college,r.mainDepartment||r.section);
+  saveDb();
+  render();
+}
+needActions=function(r){
+  const buttons=[];
+  const sameCollege=r.college===state.currentUser.college;
+  const sectorApprover=sameCollege && !isCentral() && hasPermission('approve_need');
+  if((r.status||'pending_sector_approval')==='pending_sector_approval' && sectorApprover){
+    buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد القطاع</button>`);
+    buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`);
+    buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للتعديل</button>`);
+  }
+  if((r.status||'pending_sector_approval')==='pending_equipment_review' && isCentral() && hasPermission('approve_need')){
+    buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد</button>`);
+    buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`);
+    buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للقطاع</button>`);
+  }
+  if((sameCollege||isCentral())&&hasPermission('create_need'))buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('needEdit',${r.id})">تعديل</button>`);
+  if((sameCollege||isCentral())&&hasPermission('create_need_evidence'))buttons.push(`<button class="btn btn-warning btn-sm" onclick="openModal('evidence',${r.id})">شاهد</button>`);
+  if(canDeleteNeed(r))buttons.push(`<button class="btn btn-danger btn-sm" onclick="removeNeed(${r.id})">حذف</button>`);
+  return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—';
+}
+renderTransactions=function(){
+  ensureAdvancedFilterState();
+  const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.mainDepartment||'القسم العام',t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]});
+  return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select><select class="select" onchange="setTransactionTypeFilter(this.value)">${txTypeFilterOptions(state.transactionTypeFilter)}</select><select class="select" onchange="setTransactionStatusFilter(this.value)">${txStatusFilterOptions(state.transactionStatusFilter)}</select><input class="input" type="date" value="${state.dateFrom}" onchange="setDateFrom(this.value)"><input class="input" type="date" value="${state.dateTo}" onchange="setDateTo(this.value)"></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div><div class="panel-subtitle">يمكن الآن تصفية السجلات حسب النوع والحالة والتاريخ حتى لا تمتلئ الشاشة بالبيانات غير المطلوبة.</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`;
+}
+renderNeeds=function(){
+  ensureAdvancedFilterState();
+  const rows=filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.itemNameEn||'—',`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),r.requestOrderNo||'—',formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]);
+  return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select><select class="select" onchange="setNeedStatusFilter(this.value)">${needStatusFilterOptions(state.needStatusFilter)}</select><input class="input" type="date" value="${state.dateFrom}" onchange="setDateFrom(this.value)"><input class="input" type="date" value="${state.dateTo}" onchange="setDateTo(this.value)"></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج</div><div class="panel-subtitle">يمكنك الآن فرز الطلبات حسب الحالة والتاريخ، وحذف الطلبات المرفوضة فقط حتى يبقى السجل التشغيلي أنظف وأسهل في المتابعة.</div></div>${table(['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','البند بالعربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','الشواهد','المسار','رقم أمر الاحتياج','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>`;
+}
+renderAudit=function(){
+  ensureAdvancedFilterState();
+  const rows=visibleAuditLogs().map(r=>[formatDateTime(r.createdAt),actorName(r.createdBy),r.action,r.targetType,r.targetId,r.college,r.department,r.details]);
+  return `<div class="hero"><div class="hero-title">سجل التدقيق والعمليات</div><div class="hero-text">سجل غير تشغيلي مخصص للحوكمة: يوضح من نفذ الإجراء، ونوعه، وتوقيته، والجهة المرتبطة به، مع إمكانية التصفية حسب التاريخ.</div></div>${filtersHtml({forceCollege:true,date:true})}<div class="report-actions"><button class="btn btn-primary" onclick="printAuditReport()">تقرير PDF</button><button class="btn btn-secondary" onclick="exportAuditExcel()">تقرير Excel</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">آخر العمليات</div></div>${table(['التاريخ','صاحب الإجراء','الإجراء','النوع','المرجع','القطاع','القسم','التفاصيل'],rows)}</div>`;
+}
+renderReports=function(){
+  ensureAdvancedFilterState();
+  const tabs=availableReportTabs();
+  if(!tabs.length)return `<div class="panel"><div class="panel-title">التقارير</div><div class="panel-subtitle">لم يتم منح هذا الحساب أي نوع من أنواع التقارير.</div></div>`;
+  if(!tabs.some(t=>t[0]===state.reportTab))state.reportTab=tabs[0][0];
+  const needTxFilters = state.reportTab==='transactions';
+  const needNeedsFilters = state.reportTab==='needs';
+  return `<div class="panel"><div class="panel-title">التقارير</div><div class="panel-subtitle">أصبح بالإمكان استخراج التقارير وفق الفترة الزمنية، كما يمكن فصل تقرير الاحتياج بين المعتمد والمرفوض وتحت الإجراء.</div></div><div class="report-tabs">${tabs.map(([id,l])=>`<button class="report-tab ${state.reportTab===id?'active':''}" onclick="state.reportTab='${id}';render()">${l}</button>`).join('')}</div>${filtersHtml({txType:needTxFilters,txStatus:needTxFilters,needStatus:needNeedsFilters,date:true})}<div class="report-actions"><button class="btn btn-primary" onclick="printCurrentReport()">استخراج PDF</button><button class="btn btn-secondary" onclick="exportCurrentExcel()">استخراج Excel</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">معاينة التقرير</div></div>${reportPreviewTable()}</div>`;
+}
+printNeeds=function(){
+  openPrint({title:'تقرير طلبات الاحتياج',headers:['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الإجمالي','الوحدة','الحالة','تاريخ الرفع','صاحب الإجراء'],rows:filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||r.itemNameEn,r.qty,r.unit,statusText(r.status),formatDateTime(r.createdAt),actorName(r.createdBy)])});
+}
+reportData=function(){
+  if(state.reportTab==='senior')return {title:'تقرير الإدارة العليا',headers:['المؤشر','القيمة','قراءة إدارية'],rows:[['إجمالي القطاعات المفعلة',COLLEGE_OPTIONS.length,'نطاق التشغيل الحالي للنظام'],['إجمالي الأصناف',visibleItems(true).length,'حجم قاعدة بيانات المخزون'],['الأصناف تحت الحد الأدنى',lowStock().length,'تتطلب معالجة أو رفع احتياج'],['طلبات الصرف المعلقة',visibleTransactions().filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length,'تتطلب اعتمادًا من المسؤول'],['طلبات الاحتياج المعلقة',filteredNeeds().filter(r=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(r.status||'pending_sector_approval')).length,'بين القطاع وإدارة التجهيزات'],['طلبات الدعم بين القطاعات',filteredSupport().filter(r=>['pending_owner','owner_approved','pending_equipment'].includes(r.status||'pending_owner')).length,'تتطلب موافقات تشغيلية'],...COLLEGE_OPTIONS.map(c=>{const items=(db.items||[]).filter(i=>i.college===c);return [c,items.length+' صنف',`تحت الحد: ${items.filter(i=>i.qty<=i.minQty).length}`]})]};
+  if(state.reportTab==='transactions')return {title:'تقرير الصرف والحركات',headers:['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','تاريخ الحركة','صاحب الإجراء','اعتمد بواسطة'],rows:visibleTransactions().map(t=>[t.type==='receive'?'إدخال':'صرف',t.college,t.mainDepartment||'القسم العام',t.section,itemName(getItemById(t.itemId)),t.qty,t.unit,statusText((t.type==='receive'?'completed':(t.status||'pending'))),formatDateTime(t.transactionAt),actorName(t.createdBy),actorName(t.reviewedBy)])};
+  if(state.reportTab==='needs')return {title:'تقرير طلبات الاحتياج',headers:['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','العربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','تمت المراجعة بواسطة'],rows:filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr,r.itemNameEn,`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusText(r.status),r.workflowStage||statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)])};
+  if(state.reportTab==='support')return {title:'تقرير الدعم بين القطاعات',headers:['رقم الطلب','نوع الطلب','من','إلى','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','موافقة الجهة','اعتماد التجهيزات'],rows:filteredSupport().map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.fromCollege,r.toCollege,r.mainDepartment||'القسم العام',r.section,r.itemName,r.qty,r.unit,statusText(r.status),r.workflowStage||statusText(r.status),actorName(r.createdBy),actorName(r.ownerReviewedBy),actorName(r.reviewedBy)])};
+  if(state.reportTab==='low')return {title:'تقرير الأصناف تحت الحد الأدنى',headers:['القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الحد الأدنى','الوحدة','آخر تحديث بواسطة'],rows:lowStock().map(i=>[i.college,i.mainDepartment||'القسم العام',i.section,itemName(i),i.qty,i.minQty,i.unit,actorName(i.createdBy)])};
+  return {title:'تقرير المخزون العام',headers:['القطاع','القسم الرئيسي','الرمز','القسم الفرعي','العربي','English','الكمية','الوحدة','الموقع','صاحب الإجراء'],rows:(isCentral()?visibleItems(true):visibleItems()).map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,i.section,itemName(i),i.nameEn||'—',i.qty,i.unit,i.location||'—',actorName(i.createdBy)])};
+}
+/* ===== end v5.8.7 need delete + date filters ===== */
+
+/* ===== v5.8.8 date parsing + org page fixes ===== */
+function ensureOrgSettingsArrays(){
+  if(!db.settings || typeof db.settings!=='object') db.settings={};
+  if(!Array.isArray(db.settings.colleges)) db.settings.colleges=[];
+  if(!Array.isArray(db.settings.departments)) db.settings.departments=[];
+  if(!Array.isArray(db.settings.sections)) db.settings.sections=[];
+  if(!Array.isArray(db.settings.locations)) db.settings.locations=[];
+}
+function normalizeDateValueForCompare(value){
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  const cleaned=raw.split(' ')[0].replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[.]/g,'-').replace(/[\\]/g,'-');
+  if(/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  let m=cleaned.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
+  if(m) return `${m[3]}-${m[2]}-${m[1]}`;
+  m=cleaned.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  return '';
+}
+rowWithinDateRange=function(value){
+  ensureAdvancedFilterState();
+  if(!state.dateFrom && !state.dateTo) return true;
+  const normalized=normalizeDateValueForCompare(value);
+  if(!normalized) return false;
+  if(state.dateFrom && normalized < state.dateFrom) return false;
+  if(state.dateTo && normalized > state.dateTo) return false;
+  return true;
+}
+refreshSettingCaches=function(){
+  ensureOrgSettingsArrays();
+  COLLEGE_OPTIONS=(db.settings.colleges||[]).filter(x=>x && x.name && x.name!=='إدارة التجهيزات').map(x=>x.name);
+  SECTION_OPTIONS=(db.settings.sections||[]).filter(x=>x && x.name).map(x=>x.name);
+  USER_SECTION_OPTIONS=['الكل',...(db.settings.departments||[]).filter(x=>x && x.name).map(x=>x.name)];
+}
+renderOrg=function(){
+  ensureOrgSettingsArrays();
+  const colleges=(db.settings.colleges||[]).map((c,idx)=>[c.name||'—',c.code||'—',`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('collegeEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeCollegeSetting(${idx})">حذف</button></div>`]);
+  const departments=(db.settings.departments||[]).map((d,idx)=>[d.name||'—',`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('departmentEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeDepartmentSetting(${idx})">حذف</button></div>`]);
+  const sections=(db.settings.sections||[]).map((s,idx)=>[s.name||'—',s.code||'—',`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('sectionEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeSectionSetting(${idx})">حذف</button></div>`]);
+  const locations=(db.settings.locations||[]).map((l,idx)=>[l.name||'—',l.college||'عام',`<div class="flex-actions"><button class="btn btn-danger btn-sm" onclick="removeLocationSetting(${idx})">حذف</button></div>`]);
+  return `<div class="hero"><div class="hero-title">القطاعات والأقسام والترميز</div><div class="hero-text">الإضافات هنا مستقلة بالكامل: يمكنك إضافة قطاع فقط، أو قسم رئيسي فقط، أو قسم فرعي فقط، دون اشتراط ربطها أثناء الإضافة. يبقى الربط الفعلي عند استخدام هذه القيم داخل المستخدمين والأصناف والطلبات.</div></div>
+  <div class="section-split">
+    <div class="panel"><div class="panel-title">إضافة قطاع</div><div class="form-grid"><div><label class="label">اسم القطاع</label><input id="new-college-name" class="input" placeholder="مثال: وحدة المختبرات المركزية"></div><div><label class="label">الرمز</label><input id="new-college-code" class="input" placeholder="مثال: LABU"></div></div><button type="button" class="btn btn-primary" onclick="addCollegeSetting()">+ إضافة القطاع</button></div>
+    <div class="panel"><div class="panel-title">إضافة قسم رئيسي</div><div class="form-grid"><div><label class="label">اسم القسم الرئيسي</label><input id="new-department-name" class="input" placeholder="مثال: وحدة المستودعات"></div></div><button type="button" class="btn btn-primary" onclick="addDepartmentSetting()">+ إضافة القسم الرئيسي</button></div>
+    <div class="panel"><div class="panel-title">إضافة قسم فرعي</div><div class="form-grid"><div><label class="label">اسم القسم الفرعي</label><input id="new-section-name" class="input" placeholder="مثال: المواد الكيميائية"></div><div><label class="label">الرمز</label><input id="new-section-code" class="input" placeholder="مثال: CHM"></div></div><button type="button" class="btn btn-primary" onclick="addSectionSetting()">+ إضافة القسم الفرعي</button></div>
+  </div>
+  <div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">القطاعات الحالية</div></div>${table(['القطاع','الرمز','إجراء'],colleges)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">الأقسام الرئيسية</div></div>${table(['القسم الرئيسي','إجراء'],departments)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">الأقسام الفرعية</div></div>${table(['القسم الفرعي','الرمز','إجراء'],sections)}</div></div>
+  <div class="panel"><div class="panel-title">إضافة موقع</div><div class="form-grid"><div><label class="label">اسم الموقع</label><input id="new-location-name" class="input" placeholder="مثال: 129 SSL 008 - معمل الكيمياء"></div><div><label class="label">القطاع</label><select id="new-location-college" class="select"><option value="">عام</option>${collegeOptions('',false)}</select></div></div><button type="button" class="btn btn-primary" onclick="addLocationSetting()">+ إضافة موقع</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">المواقع المتاحة</div></div>${table(['الموقع','القطاع','إجراء'],locations)}</div>`;
+}
+addCollegeSetting=function(){
+  ensureOrgSettingsArrays();
+  const name=document.getElementById('new-college-name')?.value.trim();
+  const code=normalizeCode(document.getElementById('new-college-code')?.value);
+  if(!name || !code) return alert('أدخل اسم القطاع والرمز');
+  if((db.settings.colleges||[]).some(c=>String(c.name||'').trim()===name || String(c.code||'').trim()===code)) return alert('اسم القطاع أو رمزه موجود مسبقًا');
+  db.settings.colleges.push({name,code});
+  refreshSettingCaches();
+  auditLog('إضافة قطاع','settings',name,`رمز القطاع: ${code}`,'جامعة طيبة','الكل');
+  saveDb();
+  render();
+}
+addDepartmentSetting=function(){
+  ensureOrgSettingsArrays();
+  const input=document.getElementById('new-department-name');
+  const name=String(input?.value||'').trim();
+  if(!name) return alert('أدخل اسم القسم الرئيسي');
+  if((db.settings.departments||[]).some(d=>String(d.name||'').trim()===name)) return alert('اسم القسم الرئيسي موجود مسبقًا');
+  db.settings.departments.push({name});
+  refreshSettingCaches();
+  auditLog('إضافة قسم رئيسي','settings',name,'تمت الإضافة','جامعة طيبة','الكل');
+  saveDb();
+  render();
+}
+addSectionSetting=function(){
+  ensureOrgSettingsArrays();
+  const name=document.getElementById('new-section-name')?.value.trim();
+  const code=normalizeCode(document.getElementById('new-section-code')?.value);
+  if(!name || !code) return alert('أدخل اسم القسم الفرعي والرمز');
+  if((db.settings.sections||[]).some(s=>String(s.name||'').trim()===name || String(s.code||'').trim()===code)) return alert('اسم القسم الفرعي أو رمزه موجود مسبقًا');
+  db.settings.sections.push({name,code});
+  refreshSettingCaches();
+  auditLog('إضافة قسم فرعي','settings',name,`رمز القسم الفرعي: ${code}`,'جامعة طيبة','الكل');
+  saveDb();
+  render();
+}
+
+
+/* ===== v5.8.9 date binding + support request redesign ===== */
+function parseAnyDateValue(value){
+  const raw=String(value||'').trim();
+  if(!raw) return null;
+  let cleaned=raw
+    .replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/‏|‎/g,'')
+    .replace(/[.\\]/g,'-')
+    .replace(/\s+/g,' ')
+    .trim();
+  const datePart=cleaned.split(/[ T]/)[0];
+  let y,m,d;
+  let mt=datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(mt){
+    y=Number(mt[1]); m=Number(mt[2]); d=Number(mt[3]);
+  }else{
+    mt=datePart.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if(mt){
+      d=Number(mt[1]); m=Number(mt[2]); y=Number(mt[3]);
+    }else{
+      mt=datePart.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+      if(mt){
+        y=Number(mt[1]); m=Number(mt[2]); d=Number(mt[3]);
+      }else{
+        return null;
+      }
+    }
+  }
+  if(!y||!m||!d) return null;
+  const dt=new Date(y,m-1,d);
+  if(Number.isNaN(dt.getTime())) return null;
+  dt.setHours(0,0,0,0);
+  return dt;
+}
+function extractRecordDate(record,candidates=[]){
+  if(!record || typeof record!=='object') return '';
+  for(const key of candidates){
+    const val=record[key];
+    if(parseAnyDateValue(val)) return String(val);
+  }
+  for(const [k,val] of Object.entries(record)){
+    if(/date|at|time/i.test(k) && parseAnyDateValue(val)) return String(val);
+  }
+  return '';
+}
+function rowObjectWithinDateRange(record,candidates=[]){
+  return rowWithinDateRange(extractRecordDate(record,candidates));
+}
+
+rowWithinDateRange=function(value){
+  ensureAdvancedFilterState();
+  if(!state.dateFrom && !state.dateTo) return true;
+  const current=parseAnyDateValue(value);
+  if(!current) return false;
+  const from=state.dateFrom?parseAnyDateValue(state.dateFrom):null;
+  const to=state.dateTo?parseAnyDateValue(state.dateTo):null;
+  if(from && current.getTime()<from.getTime()) return false;
+  if(to && current.getTime()>to.getTime()) return false;
+  return true;
+}
+function supportSearchResults(){
+  const q=String(state.search||'').trim();
+  let rows=visibleItems(true).filter(i=>Number(i.qty||0)>0);
+  rows=rows.filter(i=>i.college!==state.currentUser.college || isCentral());
+  if(state.collegeFilter!=='all') rows=rows.filter(i=>i.college===state.collegeFilter);
+  if(state.sectionFilter!=='all') rows=rows.filter(i=>i.section===state.sectionFilter || (i.mainDepartment||'')===state.sectionFilter);
+  if(q){
+    rows=rows.filter(i=>[itemName(i),i.nameEn||'',i.code||'',i.college||'',i.mainDepartment||'',i.section||'',i.location||''].join(' ').toLowerCase().includes(q.toLowerCase()));
+  }else{
+    rows=[];
+  }
+  rows.sort((a,b)=>String(a.college||'').localeCompare(String(b.college||'')) || String(a.section||'').localeCompare(String(b.section||'')) || String(itemName(a)||'').localeCompare(String(itemName(b)||'')));
+  return rows;
+}
+renderExchange=function(){
+  const results=supportSearchResults();
+  const resultRows=results.map(i=>[
+    itemName(i),
+    i.nameEn||'—',
+    i.college,
+    i.mainDepartment||'القسم العام',
+    i.section,
+    i.qty,
+    i.unit,
+    i.location||'—',
+    hasPermission('request_support')?`<button class="btn btn-primary btn-sm" onclick="openSupportFromItem(${i.id})">إنشاء طلب دعم</button>`:'—'
+  ]);
+  const reqRows=filteredSupport().map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.itemName,r.fromCollege,r.toCollege,r.qty,r.unit,statusBadge(r.status),approvalPath('support',r.status),formatDateTime(r.createdAt),supportActions(r)]);
+  return `<div class="hero"><div class="hero-title">طلب الدعم بين القطاعات</div><div class="hero-text">بدل عرض كامل الأصناف بشكل دائم، أصبح التقديم من خلال بحث مباشر عن الصنف. اكتب اسم الصنف أو رمزه، وستظهر لك الجهات التي تملكه والكمية المتاحة والموقع، ثم أنشئ طلب الدعم بالكميّة المطلوبة وملاحظاتك.</div></div>
+  <div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="ابحث باسم الصنف أو الرمز..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(true)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left"></div></div>
+  <div class="table-panel"><div class="table-head"><div class="panel-title">نتائج البحث عن الصنف</div><div class="panel-subtitle">${String(state.search||'').trim()?`عدد النتائج: ${results.length}`:'ابدأ بكتابة اسم الصنف أو الرمز ليتم عرض الجهات المالكة والكمية المتاحة.'}</div></div>${table(['الصنف','English','القطاع المالك','القسم الرئيسي','القسم الفرعي','المتاح','الوحدة','الموقع','إجراء'],resultRows)}</div>
+  <div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم بين القطاعات</div></div>${table(['رقم الطلب','نوع الطلب','الصنف','الجهة الطالبة','الجهة المالكة','الكمية','الوحدة','الحالة','مسار الاعتماد','تاريخ الطلب','إجراء'],reqRows)}</div>`
+}
+supportModalHtml=function(){
+  const item=getItemById(state.editId);
+  if(!item) return '';
+  return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">إنشاء طلب دعم</div><div class="panel-subtitle">سترسل الطلب إلى الجهة المالكة للصنف بعد تحديد الكمية والملاحظات المطلوبة.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">الصنف: <strong>${itemName(item)}</strong> — القطاع المالك: <strong>${item.college}</strong> — المتاح: <strong>${item.qty} ${item.unit}</strong> — الموقع: <strong>${item.location||'—'}</strong></div><div class="form-grid"><div><label class="label">نوع الطلب</label><select id="sup-type" class="select"><option>دعم تشغيلي</option><option>سلفة تشغيلية</option><option>نقل عهدة</option></select></div><div><label class="label">الكمية المطلوبة</label><input id="sup-qty" class="input" type="number" min="1" max="${item.qty}" placeholder="أدخل الكمية"></div><div><label class="label">القطاع المالك</label><div class="alert">${item.college}</div></div><div><label class="label">القسم الرئيسي</label><div class="alert">${item.mainDepartment||'القسم العام'}</div></div><div><label class="label">القسم الفرعي</label><div class="alert">${item.section}</div></div><div><label class="label">الموقع</label><div class="alert">${item.location||'—'}</div></div><div class="full"><label class="label">ملاحظات الطلب</label><textarea id="sup-notes" class="textarea" placeholder="اكتب سبب طلب الدعم أو أي تفاصيل تشغيلية لازمة"></textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveSupport()">إرسال طلب الدعم</button></div></div></div>`;
+}
+saveSupport=function(){
+  const item=getItemById(state.editId), qty=Number(document.getElementById('sup-qty')?.value||0);
+  if(!item) return alert('الصنف غير موجود');
+  if(qty<=0) return alert('أدخل كمية صحيحة');
+  if(qty>Number(item.qty||0)) return alert(`الكمية المطلوبة أعلى من المتاح: ${item.qty} ${item.unit}`);
+  const notes=document.getElementById('sup-notes')?.value.trim()||'';
+  const supportType=document.getElementById('sup-type')?.value||'دعم تشغيلي';
+  const sr={
+    id:nextId(db.supportRequests),
+    requestNo:nextNo('SR',db.supportRequests),
+    itemId:item.id,
+    itemName:itemName(item),
+    mainDepartment:item.mainDepartment||'القسم العام',
+    section:item.section,
+    fromCollege:state.currentUser.college,
+    toCollege:item.college,
+    qty,
+    unit:item.unit,
+    notes,
+    supportType,
+    attachmentName:'',
+    status:'pending_owner',
+    workflowStage:'بانتظار موافقة الجهة المالكة',
+    createdAt:nowLocalString(),
+    createdBy:state.currentUser.id,
+    sourceLocation:item.location||''
+  };
+  db.supportRequests.unshift(sr);
+  auditLog('طلب دعم بين القطاعات','support',sr.requestNo,`${sr.supportType} - ${sr.itemName} - كمية ${sr.qty}`,sr.fromCollege,sr.section);
+  saveDb();
+  closeModal();
+}
+/* ===== end v5.8.9 date binding + support request redesign ===== */
