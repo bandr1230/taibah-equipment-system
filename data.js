@@ -1,8 +1,8 @@
-const STORAGE_KEY='taibah_university_supply_system_v5_5';
+const STORAGE_KEY='taibah_university_supply_system_v5_8';
 
 let COLLEGE_OPTIONS=['كلية الصيدلة','كلية التمريض','كلية الطب','كلية الأسنان'];
 let SECTION_OPTIONS=['المواد الكيميائية','المستهلكات التعليمية','الأجهزة التعليمية'];
-let USER_SECTION_OPTIONS=['الكل',...SECTION_OPTIONS];
+let USER_SECTION_OPTIONS=['الكل'];
 const UNIT_OPTIONS=['كيلو','جرام','لتر','مليتر','حبة','عدد','كرتون','صندوق','علبة','قطعة','جهاز'];
 
 const PERMISSIONS=[
@@ -47,18 +47,43 @@ const DEFAULT_DATA={
       {name:'كلية الأسنان',code:'DENT'},
       {name:'إدارة التجهيزات',code:'EQPM'}
     ],
+    departments:[
+      {name:'القسم العام'},
+      {name:'المعامل والمختبرات'},
+      {name:'المستودعات'},
+      {name:'العيادات التعليمية'}
+    ],
     sections:[
       {name:'المواد الكيميائية',code:'CHM'},
       {name:'المستهلكات التعليمية',code:'CON'},
       {name:'الأجهزة التعليمية',code:'DEV'}
+    ],
+    locations:[
+      {name:'129 SC 002',college:'كلية الصيدلة'},
+      {name:'129 SC 006',college:'كلية الصيدلة'},
+      {name:'125 FW 002',college:'كلية الصيدلة'},
+      {name:'125 FW 003',college:'كلية الصيدلة'},
+      {name:'125 FW 004',college:'كلية الصيدلة'},
+      {name:'125 FW 005',college:'كلية الصيدلة'},
+      {name:'125 FW 006',college:'كلية الصيدلة'},
+      {name:'125 FW 007',college:'كلية الصيدلة'},
+      {name:'125 FW 008',college:'كلية الصيدلة'},
+      {name:'125 FW 009',college:'كلية الصيدلة'},
+      {name:'129 SSL 001 - معمل العقاقير',college:'كلية الصيدلة'},
+      {name:'129 SSL 003 - معمل الحاسب',college:'كلية الصيدلة'},
+      {name:'129 SSL 004 - معمل الفارما',college:'كلية الصيدلة'},
+      {name:'129 SSL 005 - معمل الأبحاث',college:'كلية الصيدلة'},
+      {name:'129 SSL 007 - معمل البايو',college:'كلية الصيدلة'},
+      {name:'129 SSL 008 - معمل الكيمياء',college:'كلية الصيدلة'},
+      {name:'129 SSL 009 - معمل الصيدلانيات',college:'كلية الصيدلة'}
     ]
   },
   users:[
     {id:1,fullName:'بندر بن خلف الجابري',username:'admin',password:'123',role:'admin',jobTitle:'مدير النظام',college:'إدارة التجهيزات',department:'الكل',phone:'0500000000',email:'admin@taibahu.edu.sa',nationalId:'1000000000',isActive:true,permissions:['all'],createdAt:'2026-04-11T08:00'},
-    {id:2,fullName:'مسؤول كلية الصيدلة',username:'pharmacy',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية الصيدلة',department:'المواد الكيميائية',phone:'0501111111',email:'pharmacy@taibahu.edu.sa',nationalId:'1000000001',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T08:30'},
-    {id:3,fullName:'مسؤول كلية التمريض',username:'nursing',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية التمريض',department:'المستهلكات التعليمية',phone:'0502222222',email:'nursing@taibahu.edu.sa',nationalId:'1000000002',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T09:00'},
-    {id:4,fullName:'مسؤول كلية الطب',username:'medicine',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية الطب',department:'الأجهزة التعليمية',phone:'0503333333',email:'medicine@taibahu.edu.sa',nationalId:'1000000003',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T09:20'},
-    {id:5,fullName:'مسؤول كلية الأسنان',username:'dentistry',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية الأسنان',department:'المستهلكات التعليمية',phone:'0504444444',email:'dentistry@taibahu.edu.sa',nationalId:'1000000004',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T09:40'},
+    {id:2,fullName:'مسؤول كلية الصيدلة',username:'pharmacy',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية الصيدلة',department:'القسم العام',phone:'0501111111',email:'pharmacy@taibahu.edu.sa',nationalId:'1000000001',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','approve_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T08:30'},
+    {id:3,fullName:'مسؤول كلية التمريض',username:'nursing',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية التمريض',department:'القسم العام',phone:'0502222222',email:'nursing@taibahu.edu.sa',nationalId:'1000000002',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','approve_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T09:00'},
+    {id:4,fullName:'مسؤول كلية الطب',username:'medicine',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية الطب',department:'القسم العام',phone:'0503333333',email:'medicine@taibahu.edu.sa',nationalId:'1000000003',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','approve_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T09:20'},
+    {id:5,fullName:'مسؤول كلية الأسنان',username:'dentistry',password:'123',role:'user',jobTitle:'مسؤول مخزون الكلية',college:'كلية الأسنان',department:'القسم العام',phone:'0504444444',email:'dentistry@taibahu.edu.sa',nationalId:'1000000004',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','approve_need','view_need_evidence','create_need_evidence','view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'],createdAt:'2026-04-11T09:40'},
     {id:6,fullName:'حساب إدارة التجهيزات',username:'equipment',password:'123',role:'user',jobTitle:'إدارة التجهيزات',college:'إدارة التجهيزات',department:'الكل',phone:'0505555555',email:'equipment@taibahu.edu.sa',nationalId:'1000000005',isActive:true,permissions:['view_executive','view_dashboard','view_items','add_item','edit_item','delete_item','view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support','view_needs','create_need','approve_need','view_equipment','view_reports','report_senior','report_inventory','report_transactions','report_needs','report_support','report_low','view_audit','manage_users','manage_org'],createdAt:'2026-04-11T10:00'}
   ],
   items:[
@@ -94,9 +119,12 @@ function loadData(){
   try{return JSON.parse(raw)}catch(e){localStorage.setItem(STORAGE_KEY,JSON.stringify(DEFAULT_DATA));return deepClone(DEFAULT_DATA)}
 }
 let db=loadData();
+USER_SECTION_OPTIONS=['الكل',...((db.settings?.departments)||[]).map(x=>x.name)];
 if(!db.settings)db.settings=deepClone(DEFAULT_DATA.settings);
 if(!Array.isArray(db.settings.colleges))db.settings.colleges=deepClone(DEFAULT_DATA.settings.colleges);
 if(!Array.isArray(db.settings.sections))db.settings.sections=deepClone(DEFAULT_DATA.settings.sections);
+if(!Array.isArray(db.settings.departments))db.settings.departments=deepClone(DEFAULT_DATA.settings.departments||[{name:'القسم العام'}]);
+if(!Array.isArray(db.settings.locations))db.settings.locations=deepClone(DEFAULT_DATA.settings.locations||[]);
 COLLEGE_OPTIONS=db.settings.colleges.filter(x=>x.name!=='إدارة التجهيزات').map(x=>x.name);
 SECTION_OPTIONS=db.settings.sections.map(x=>x.name);
 USER_SECTION_OPTIONS=['الكل',...SECTION_OPTIONS];
@@ -106,7 +134,7 @@ if(!Array.isArray(db.needEvidence))db.needEvidence=[];
 if(!Array.isArray(db.auditLogs))db.auditLogs=[];
 db.users=(db.users||[]).map(u=>{
   const perms=Array.isArray(u.permissions)?[...u.permissions]:[];
-  if(u.role==='admin')return {...u,college:u.college||u.department||'كلية الصيدلة',department:u.department||'الكل',permissions:['all']};
+  if(u.role==='admin')return {...u,college:u.college||u.department||'كلية الصيدلة',department:u.department||'القسم العام',permissions:['all']};
   if(perms.includes('view_dashboard')&&!perms.includes('view_executive'))perms.unshift('view_executive');
   if(perms.includes('view_transactions')&&!perms.includes('view_needs'))perms.push('view_needs');
   if(perms.includes('view_needs')&&!perms.includes('create_need'))perms.push('create_need');
@@ -116,7 +144,7 @@ db.users=(db.users||[]).map(u=>{
   if((u.college==='إدارة التجهيزات'||perms.includes('manage_users'))&&!perms.includes('approve_need'))perms.push('approve_need');
   if(perms.includes('view_reports')){for(const key of REPORT_PERMISSION_KEYS){if(!perms.includes(key))perms.push(key)}}
   if((u.college==='إدارة التجهيزات'||perms.includes('manage_users'))&&!perms.includes('view_audit'))perms.push('view_audit');
-  return {...u,college:u.college||u.department||'كلية الصيدلة',department:u.department||'الكل',permissions:[...new Set(perms)]};
+  return {...u,college:u.college||u.department||'كلية الصيدلة',department:u.department||'القسم العام',permissions:[...new Set(perms)]};
 });
 db.items=(db.items||[]).map(item=>({...item,college:item.college||'كلية الصيدلة',nameAr:item.nameAr||item.name||'',nameEn:item.nameEn||''}));
 db.transactions=(db.transactions||[]).map(t=>({...t,college:t.college||(db.items||[]).find(i=>i.id===t.itemId)?.college||'كلية الصيدلة'}));
@@ -150,4 +178,4 @@ function repairDbIfNeeded(sourceLabel='unknown'){
 }
 repairDbIfNeeded('initial-load');
 
-let state={currentUser:null,currentPage:'executive',search:'',collegeFilter:'all',sectionFilter:'all',modal:null,editId:null,transactionType:'issue',reportTab:'inventory',sidebarOpen:false};
+let state={currentUser:null,currentPage:'executive',search:'',collegeFilter:'all',sectionFilter:'all',modal:null,editId:null,transactionType:'issue',transactionTypeFilter:'all',transactionStatusFilter:'all',reportTab:'inventory',sidebarOpen:false};
