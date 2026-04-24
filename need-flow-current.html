@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>فلو الاحتياج الحالي بعد التعديل</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: #162033;
+      background: #f3f7fb;
+      line-height: 1.75;
+    }
+    .page {
+      min-height: 269mm;
+      background: #fff;
+      border: 1px solid #dce6f2;
+      border-radius: 18px;
+      padding: 24px 28px;
+      margin: 0 auto 16px;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+    .page:last-child { page-break-after: auto; }
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 24px;
+      background:
+        linear-gradient(145deg, rgba(13, 112, 92, .10), rgba(22, 93, 163, .10)),
+        #fff;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid #dce6f2;
+      padding-bottom: 16px;
+    }
+    .brand-mark {
+      width: 70px;
+      height: 70px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 30px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #0d705c, #1767b2);
+    }
+    .brand h2 { margin: 0; color: #0f2742; font-size: 18px; }
+    .brand p { margin: 2px 0 0; color: #637083; font-size: 12px; }
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      color: #0f2742;
+      line-height: 1.35;
+    }
+    h2 {
+      margin: 0 0 14px;
+      color: #0f2742;
+      font-size: 22px;
+    }
+    h3 {
+      margin: 0 0 8px;
+      color: #1767b2;
+      font-size: 16px;
+    }
+    .lead {
+      font-size: 18px;
+      color: #405068;
+      max-width: 720px;
+    }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pill {
+      border: 1px solid #cfe0f0;
+      color: #0d705c;
+      background: #f5fbf8;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .meta div, .card {
+      border: 1px solid #dce6f2;
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .meta strong, .card strong { display: block; color: #0f2742; margin-bottom: 4px; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .step-flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .step {
+      min-height: 134px;
+      border: 1px solid #dce6f2;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fbfdff;
+      position: relative;
+    }
+    .step .num {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: #1767b2;
+      color: #fff;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .step p { margin: 0; color: #536174; font-size: 12px; }
+    .section {
+      border-top: 4px solid #0d705c;
+      padding-top: 12px;
+      margin-top: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #dce6f2;
+      padding: 8px 9px;
+      text-align: right;
+      vertical-align: top;
+    }
+    th {
+      background: #eef6fc;
+      color: #0f2742;
+      font-weight: 900;
+    }
+    .formula {
+      border: 1px solid #cfe0f0;
+      background: #f5fbff;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 8px 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: #0f2742;
+      font-weight: 700;
+    }
+    .note {
+      border-right: 5px solid #1767b2;
+      background: #f4f8fd;
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #405068;
+      margin: 12px 0;
+    }
+    .ok { color: #0d705c; font-weight: 900; }
+    .warn { color: #a06400; font-weight: 900; }
+    .footer {
+      position: absolute;
+      bottom: 14px;
+      left: 28px;
+      right: 28px;
+      border-top: 1px solid #e7edf5;
+      padding-top: 8px;
+      color: #778397;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+    }
+    ul { margin: 6px 0 0; padding-right: 20px; }
+    li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="brand">
+      <div>
+        <h2>جامعة طيبة</h2>
+        <p>نظام إدارة التجهيزات والمخزون</p>
+      </div>
+      <div class="brand-mark">T</div>
+    </div>
+    <div>
+      <h1>فلو الاحتياج الحالي بعد التعديل</h1>
+      <p class="lead">
+        عرض موجز ومنظم لمسار رفع الاحتياج المبني على الشواهد التعليمية، بعد تحويل الشاهد إلى تجربة تحتوي مواد وأدوات متعددة، مع تحويل وحدات القياس وتجميع نفس الصنف عبر المقررات.
+      </p>
+    </div>
+    <div class="pill-row">
+      <span class="pill">شاهد = تجربة</span>
+      <span class="pill">مواد متعددة داخل الشاهد</span>
+      <span class="pill">تحويل وحدة الطلب</span>
+      <span class="pill">تقريب للأعلى</span>
+      <span class="pill">دمج نفس الصنف</span>
+    </div>
+    <div class="meta">
+      <div><strong>الغرض</strong>ضبط الاحتياج الفعلي وتقليل الهدر.</div>
+      <div><strong>النطاق</strong>المقررات العملية، التجارب، المواد، الأدوات، والمخزون.</div>
+      <div><strong>المخرج</strong>طلب احتياج مجمع جاهز للاعتماد والرفع.</div>
+    </div>
+    <div class="footer"><span>فلو الاحتياج</span><span>نسخة عرض داخلية</span></div>
+  </section>
+
+  <section class="page">
+    <h2>الفكرة التشغيلية</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>قبل التعديل</h3>
+        <ul>
+          <li>يرسل ملف للقسم ثم يعبأ يدويًا من أعضاء هيئة التدريس.</li>
+          <li>الكميات لا ترتبط دائمًا بعدد الشعب أو الطلاب أو تكرار التجارب.</li>
+          <li>الصنف المتكرر في أكثر من مقرر قد يظهر كطلبات منفصلة.</li>
+          <li>وحدة الشاهد قد تكون صغيرة مثل مليتر، بينما وحدة المنافسة تحتاج لتر أو كيلو.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>بعد التعديل</h3>
+        <ul>
+          <li>يبدأ رفع الاحتياج من المقرر والتجارب والشواهد.</li>
+          <li>كل شاهد يمثل تجربة واحدة، وداخلها مواد وأدوات متعددة.</li>
+          <li>النظام يحسب الاحتياج حسب الطالب أو المجموعة أو الشعبة أو التجربة.</li>
+          <li>يحول وحدة الشاهد إلى وحدة طلب نهائية ويقرب الصافي للأعلى.</li>
+          <li>يجمع نفس الصنف المفتوح تحت طلب واحد.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>متى نضيف شاهدًا جديدًا؟</h2>
+      <table>
+        <thead><tr><th>الحالة</th><th>الإجراء الصحيح</th><th>مثال</th></tr></thead>
+        <tbody>
+          <tr><td>نفس التجربة وفيها أكثر من مادة أو أداة</td><td class="ok">إضافة المواد داخل نفس الشاهد</td><td>تجربة معايرة: إيثانول، دورق، ماصة، مؤشر.</td></tr>
+          <tr><td>تجربة مختلفة داخل نفس المقرر</td><td class="ok">إضافة شاهد تجربة جديد</td><td>تجربة A ثم تجربة B.</td></tr>
+          <tr><td>مقرر آخر يستخدم نفس المادة</td><td class="ok">رفع شاهد جديد للمقرر، والنظام يدمج الصنف</td><td>الإيثانول في مقرر كيمياء عضوية ومقرر تحليلية.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer"><span>الفكرة التشغيلية</span><span>2</span></div>
+  </section>
+
+  <section class="page">
+    <h2>خريطة الفلو الحالية</h2>
+    <div class="step-flow">
+      <div class="step"><div class="num">1</div><h3>بيانات المقرر</h3><p>العام الدراسي، القطاع، القسم الرئيسي، القسم الفرعي، المستوى، اسم المقرر، رمز المقرر.</p></div>
+      <div class="step"><div class="num">2</div><h3>إضافة شاهد تجربة</h3><p>الشاهد يمثل تجربة واحدة فقط، ويحتوي بيانات الشعب والطلاب والتكرار وحجم المجموعة.</p></div>
+      <div class="step"><div class="num">3</div><h3>مواد وأدوات</h3><p>داخل الشاهد تضاف كل المواد والأدوات المستخدمة في التجربة نفسها.</p></div>
+      <div class="step"><div class="num">4</div><h3>أساس الصرف</h3><p>لكل طالب، لكل مجموعة، لكل شعبة، للتجربة كاملة، أو أداة قابلة لإعادة الاستخدام.</p></div>
+      <div class="step"><div class="num">5</div><h3>تحويل الوحدة</h3><p>مثال: مليتر إلى لتر، أو جرام إلى كيلو، قبل رفع الطلب للمنافسة.</p></div>
+      <div class="step"><div class="num">6</div><h3>خصم الرصيد</h3><p>يعرض النظام الرصيد المتاح ويخصمه من الاحتياج الإجمالي قبل إخراج الصافي.</p></div>
+      <div class="step"><div class="num">7</div><h3>تجميع الصنف</h3><p>إذا تكرر نفس الصنف في أكثر من تجربة أو مقرر، يدمج تحت بند طلب واحد مفتوح.</p></div>
+      <div class="step"><div class="num">8</div><h3>الاعتماد</h3><p>ينتقل الطلب إلى اعتماد مسؤول القطاع ثم مراجعة واعتماد إدارة التجهيزات.</p></div>
+    </div>
+
+    <div class="note">
+      <strong>المبدأ الحاكم:</strong>
+      لا يتم رفع الكمية بناءً على تقدير حر فقط، بل بناءً على شاهد تعليمي قابل للمراجعة يوضح التجربة والمقرر وعدد الطلاب والشعب وأساس الحساب.
+    </div>
+    <div class="footer"><span>خريطة الفلو</span><span>3</span></div>
+  </section>
+
+  <section class="page">
+    <h2>منطق الحساب</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>حساب الطلاب والمجموعات</h3>
+        <div class="formula">إجمالي الطلاب = شعب الطلاب × طلاب/شعبة + شعب الطالبات × طالبات/شعبة</div>
+        <div class="formula">عدد المجموعات = مجموعات الطلاب + مجموعات الطالبات حسب حجم المجموعة</div>
+        <p>حجم المجموعة يعني عدد الطلاب الذين ينفذون التجربة كوحدة واحدة. إذا كانت الشعبة 24 طالبًا وحجم المجموعة 4، فعدد المجموعات 6.</p>
+      </div>
+      <div class="card">
+        <h3>أساس الصرف</h3>
+        <table>
+          <thead><tr><th>الأساس</th><th>طريقة الحساب</th></tr></thead>
+          <tbody>
+            <tr><td>لكل طالب</td><td>عدد الطلاب × كمية الاستخدام</td></tr>
+            <tr><td>لكل مجموعة</td><td>عدد المجموعات × كمية الاستخدام</td></tr>
+            <tr><td>لكل شعبة</td><td>عدد الشعب × كمية الاستخدام</td></tr>
+            <tr><td>للتجربة كاملة</td><td>كمية ثابتة للتجربة</td></tr>
+            <tr><td>أداة قابلة لإعادة الاستخدام</td><td>تحسب على الاحتياج التشغيلي ولا تضاعف مع كل تكرار</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>التحويل والتقريب</h2>
+      <div class="formula">الاحتياج قبل الرصيد = الكمية المحسوبة × التكرار × نسبة الهدر/الاحتياط</div>
+      <div class="formula">الصافي = الاحتياج بعد تحويل الوحدة - الرصيد المتاح</div>
+      <div class="formula">الكمية المرفوعة = تقريب الصافي للأعلى إلى عدد صحيح</div>
+      <table>
+        <thead><tr><th>وحدة الشاهد</th><th>وحدة الطلب النهائية</th><th>سبب التحويل</th></tr></thead>
+        <tbody>
+          <tr><td>مليتر</td><td>لتر</td><td>المنافسة لا تطلب عادة كميات صغيرة مثل 250 مل إلا كجزء من عبوة أو لتر.</td></tr>
+          <tr><td>جرام</td><td>كيلو</td><td>توحيد الشراء والمنافسة على وحدة أعلى.</td></tr>
+          <tr><td>عدد / حبة / قطعة</td><td>نفس الوحدة غالبًا</td><td>لأنها وحدات عدية مباشرة.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer"><span>منطق الحساب</span><span>4</span></div>
+  </section>
+
+  <section class="page">
+    <h2>المخرجات والمسار الرقابي</h2>
+    <div class="grid-3">
+      <div class="card"><strong>طلب الاحتياج</strong>بند مجمع للصنف، يحتوي الصافي المرفوع، وحدة الطلب، الرصيد، وعدد الشواهد.</div>
+      <div class="card"><strong>الشواهد</strong>سجل تفصيلي لكل تجربة ومادة/أداة مع المقرر وطريقة الحساب.</div>
+      <div class="card"><strong>سجل التدقيق</strong>يسجل إنشاء الطلب، الدمج، وإضافة الشواهد والإجراءات.</div>
+    </div>
+
+    <div class="section">
+      <h2>مسار الاعتماد</h2>
+      <table>
+        <thead><tr><th>المرحلة</th><th>المسؤول</th><th>المخرجات</th></tr></thead>
+        <tbody>
+          <tr><td>رفع الطلب</td><td>منشئ الطلب في القطاع</td><td>طلب احتياج محسوب وشواهد مرتبطة.</td></tr>
+          <tr><td>اعتماد القطاع</td><td>مسؤول القطاع</td><td>مراجعة منطق الشواهد والكمية قبل الإحالة.</td></tr>
+          <tr><td>مراجعة إدارة التجهيزات</td><td>إدارة التجهيزات</td><td>اعتماد، رفض، أو إعادة للقطاع للتعديل.</td></tr>
+          <tr><td>الرفع للمنافسة</td><td>الإدارة المعنية</td><td>استخدام وحدة الطلب النهائية والكمية الصحيحة بعد التقريب.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>ضابط مهم:</strong>
+      دمج الصنف يتم للطلبات المحسوبة المفتوحة وغير المعتمدة/المرفوضة، ضمن نفس القطاع والقسم والوحدة النهائية، حتى لا تختلط طلبات مغلقة أو معتمدة مع احتياج جديد.
+    </div>
+    <div class="footer"><span>المخرجات والاعتماد</span><span>5</span></div>
+  </section>
+</body>
+</html>

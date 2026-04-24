@@ -10,7 +10,11 @@ window.remoteSync = {
 };
 
 function remoteStateId(){ return window.SUPABASE_APP_STATE_ID || 'taibah-university-demo'; }
+function isDemoRemoteDisabled(){
+  return Boolean(window.DEMO_DISABLE_REMOTE_SYNC);
+}
 function isSupabaseConfigured(){
+  if(isDemoRemoteDisabled()) return false;
   return Boolean(window.SUPABASE_URL && window.SUPABASE_ANON_KEY &&
     !String(window.SUPABASE_URL).includes('PUT_YOUR') &&
     !String(window.SUPABASE_ANON_KEY).includes('PUT_YOUR'));
@@ -40,6 +44,7 @@ function ensureLocalDbValid(label='check'){
   return isValidSystemDb(db);
 }
 function syncStatusText(){
+  if(isDemoRemoteDisabled()) return 'نسخة عرض محلية مستقرة: البيانات التجريبية محفوظة داخل هذا المتصفح ولا تعتمد على الاتصال الخارجي. <button class="btn btn-sm btn-secondary" onclick="resetDemoData()">إعادة ضبط بيانات العرض</button>';
   if(!isSupabaseConfigured()) return 'وضع محلي: البيانات محفوظة على هذا المتصفح فقط.';
   const err = remoteSync.lastError ? ` | آخر خطأ: ${remoteSync.lastError}` : '';
   const controls = remoteSync.connected
