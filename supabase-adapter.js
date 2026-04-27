@@ -44,14 +44,14 @@ function ensureLocalDbValid(label='check'){
   return isValidSystemDb(db);
 }
 function syncStatusText(){
-  if(isDemoRemoteDisabled()) return 'نسخة عرض محلية مستقرة: البيانات التجريبية محفوظة داخل هذا المتصفح ولا تعتمد على الاتصال الخارجي. <button class="btn btn-sm btn-secondary" onclick="resetDemoData()">إعادة ضبط بيانات العرض</button>';
+  if(isDemoRemoteDisabled()) return 'وضع محلي: البيانات محفوظة داخل هذا المتصفح ولا تعتمد على الاتصال الخارجي.';
   if(!isSupabaseConfigured()) return 'وضع محلي: البيانات محفوظة على هذا المتصفح فقط.';
   const err = remoteSync.lastError ? ` | آخر خطأ: ${remoteSync.lastError}` : '';
   const controls = remoteSync.connected
     ? ` <button class="btn btn-sm btn-secondary" onclick="manualDownloadRemote()">سحب من Supabase</button> <button class="btn btn-sm btn-success" onclick="manualUploadRemote()">رفع بيانات هذا الجهاز</button>`
     : '';
-  if(remoteSync.connected) return `متصل بقاعدة Supabase التجريبية v5.6.9: البيانات مشتركة بين الأجهزة.${controls}`;
-  if(remoteSync.loading) return 'جاري الاتصال بقاعدة Supabase التجريبية...';
+  if(remoteSync.connected) return `متصل بقاعدة البيانات: البيانات مشتركة بين الأجهزة.${controls}`;
+  if(remoteSync.loading) return 'جاري الاتصال بقاعدة البيانات...';
   return `تم إعداد Supabase، لكن الاتصال لم يكتمل بعد.${err}`;
 }
 async function restFetch(path='', options={}){

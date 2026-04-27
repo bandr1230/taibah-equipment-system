@@ -165,6 +165,19 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
 @media(max-width:1100px){.maintenance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.asset-profile-head{grid-template-columns:1fr}}
 @media(max-width:560px){.maintenance-kpi-grid{grid-template-columns:1fr}}
 
+/* Production interface: keep pages operational and remove explanatory page copy. */
+.topbar .page-subtitle,
+.content > .hero .hero-text,
+.content > .panel > .panel-subtitle,
+.table-head > .panel-subtitle,
+.executive-text,
+.executive-card:first-child .executive-list,
+.demo-pill,
+.demo-tag{
+  display:none!important;
+}
+.content > .hero .hero-title{margin-bottom:0}
+
 
 
 /* v5.6.1 إصلاح القائمة الجانبية على الجوال والتابلت */
@@ -285,7 +298,7 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
 .modal-lg{width:min(980px,96vw)}
 .evidence-guidance{margin-bottom:18px}
 
-/* Executive Demo Edition */
+/* Executive operating edition */
 .demo-shell .brand-subtitle{color:rgba(255,255,255,.78)}
 .demo-topbar{gap:16px}
 .demo-top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}

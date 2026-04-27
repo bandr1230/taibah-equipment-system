@@ -1373,7 +1373,7 @@ saveSupport=function(){
 }
 /* ===== end v5.8.9 date binding + support request redesign ===== */
 
-/* ===== Executive Demo Edition ===== */
+/* ===== Executive Operating Edition ===== */
 const DEMO_DATA_VERSION='executive-demo-2026-04-24-operational-reset';
 
 function demoAllPermissions(){
@@ -1390,7 +1390,7 @@ function buildExecutiveDemoDb(){
   ];
   const reportPerms=['view_executive','view_dashboard','view_items','view_transactions','view_exchange','view_needs','view_need_evidence','view_reports','report_senior','report_inventory','report_transactions','report_needs','report_support','report_low'];
   return {
-    demoMeta:{version:DEMO_DATA_VERSION,label:'نسخة عرض للمديرين',seededAt:'2026-04-23T08:00'},
+    demoMeta:{version:DEMO_DATA_VERSION,label:'منصة التجهيزات التعليمية',seededAt:'2026-04-23T08:00'},
     settings:{
       colleges:[
         {name:'كلية الصيدلة',code:'PHRM'},
@@ -1504,7 +1504,7 @@ function buildExecutiveDemoDb(){
 
 function buildSimplifiedOperationalDemoData(){
   return {
-    demoMeta:{version:DEMO_DATA_VERSION,label:'نسخة عرض مبسطة لحوكمة الاحتياج والمخزون',seededAt:'2026-04-24T21:45'},
+    demoMeta:{version:DEMO_DATA_VERSION,label:'منصة التجهيزات التعليمية',seededAt:'2026-04-24T21:45'},
     items:[
       {id:1,college:'كلية الصيدلة',mainDepartment:'المعامل والمختبرات',section:'المواد الكيميائية',name:'إيثانول 96%',nameAr:'إيثانول 96%',nameEn:'Ethanol 96%',code:'PHRM-CHM-001',unit:'لتر',qty:8,minQty:20,location:'129 SSL 009 - معمل الصيدلانيات',notes:'رصيد منخفض لا يكفي تجارب الفصلين',serialNumber:'',deviceStatus:'',createdAt:'2026-04-20T09:00',createdBy:3},
       {id:2,college:'كلية الصيدلة',mainDepartment:'المعامل والمختبرات',section:'المواد الكيميائية',name:'حمض الهيدروكلوريك HCl',nameAr:'حمض الهيدروكلوريك HCl',nameEn:'Hydrochloric Acid 37%',code:'PHRM-CHM-002',unit:'لتر',qty:24,minQty:10,location:'129 SSL 008 - معمل الكيمياء',notes:'رصيد كاف للتدريب الحالي',serialNumber:'',deviceStatus:'',createdAt:'2026-04-20T09:10',createdBy:3},
@@ -1612,7 +1612,7 @@ function demoAccountCards(){
 }
 
 renderLogin=function(){
-  return `<div class="login-screen demo-login"><div class="login-card demo-login-card"><div class="demo-pill">نسخة عرض للمديرين</div><div class="login-title">جامعة طيبة</div><div class="login-subtitle">منصة تنفيذية لإدارة المخزون والاحتياج والدعم بين القطاعات التعليمية</div><div class="input-group"><label class="label">اسم المستخدم</label><input id="login-username" class="input" value="admin" placeholder="أدخل اسم المستخدم"></div><div class="input-group"><label class="label">كلمة المرور</label><input id="login-password" type="password" class="input" value="123" placeholder="أدخل كلمة المرور"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">دخول نسخة العرض</button>${demoAccountCards()}</div></div>`;
+  return `<div class="login-screen demo-login"><div class="login-card demo-login-card"><div class="login-title">جامعة طيبة</div><div class="login-subtitle">منصة التجهيزات التعليمية</div><div class="input-group"><label class="label">اسم المستخدم</label><input id="login-username" class="input" placeholder="أدخل اسم المستخدم"></div><div class="input-group"><label class="label">كلمة المرور</label><input id="login-password" type="password" class="input" placeholder="أدخل كلمة المرور"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">تسجيل الدخول</button></div></div>`;
 }
 
 getPageTitle=function(){
@@ -1622,7 +1622,7 @@ getPageTitle=function(){
 renderApp=function(){
   const nav=navItems();
   if(!nav.some(n=>n.id===state.currentPage)) state.currentPage=nav[0]?.id||'executive';
-  return `<div class="mobile-overlay ${state.sidebarOpen?'show':''}" onclick="closeSidebar()"></div><div class="app demo-shell"><aside class="sidebar ${state.sidebarOpen?'open':''}"><div class="brand-wrap"><div class="brand-title">جامعة طيبة</div><div class="brand-subtitle">Demo Edition - عرض تنفيذي</div></div><div class="nav">${nav.map(n=>`<div class="nav-item ${state.currentPage===n.id?'active':''}" onclick="setPage('${n.id}')"><div>${n.icon}</div><div>${n.label}</div></div>`).join('')}</div><div class="user-panel"><div class="user-card"><div class="user-name">${state.currentUser.fullName}</div><div class="user-role">${state.currentUser.role==='admin'?'مدير النظام':state.currentUser.jobTitle}</div><div class="user-meta">الجهة: ${state.currentUser.college}<br>القسم: ${state.currentUser.department}</div><button class="btn logout-btn" onclick="logout()">تسجيل الخروج</button></div></div></aside><main class="main"><div class="topbar demo-topbar"><div><div class="page-title">${getPageTitle()}</div><div class="page-subtitle">نسخة عرض مستقرة ببيانات تجريبية للشرح أمام المديرين.</div></div><div class="mobile-top-actions"><button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button></div><div class="demo-top-actions"><div class="tag demo-tag">${window.DEMO_LABEL||'نسخة عرض'}</div><div class="tag">${state.currentUser.college}</div><button class="btn btn-secondary btn-sm" onclick="resetDemoData()">إعادة ضبط العرض</button></div></div><div class="content">${renderPageContent()}<div class="footer-note">${typeof syncStatusText==='function'?syncStatusText():'نسخة عرض محلية.'}</div></div></main>${modalHtml()}</div>`;
+  return `<div class="mobile-overlay ${state.sidebarOpen?'show':''}" onclick="closeSidebar()"></div><div class="app demo-shell"><aside class="sidebar ${state.sidebarOpen?'open':''}"><div class="brand-wrap"><div class="brand-title">جامعة طيبة</div><div class="brand-subtitle">منصة التجهيزات التعليمية</div></div><div class="nav">${nav.map(n=>`<div class="nav-item ${state.currentPage===n.id?'active':''}" onclick="setPage('${n.id}')"><div>${n.icon}</div><div>${n.label}</div></div>`).join('')}</div><div class="user-panel"><div class="user-card"><div class="user-name">${state.currentUser.fullName}</div><div class="user-role">${state.currentUser.role==='admin'?'مدير النظام':state.currentUser.jobTitle}</div><div class="user-meta">الجهة: ${state.currentUser.college}<br>القسم: ${state.currentUser.department}</div><button class="btn logout-btn" onclick="logout()">تسجيل الخروج</button></div></div></aside><main class="main"><div class="topbar demo-topbar"><div><div class="page-title">${getPageTitle()}</div></div><div class="mobile-top-actions"><button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button></div><div class="demo-top-actions"><div class="tag">${state.currentUser.college}</div></div></div><div class="content">${renderPageContent()}<div class="footer-note">${typeof syncStatusText==='function'?syncStatusText():'البيانات محفوظة.'}</div></div></main>${modalHtml()}</div>`;
 }
 
 function demoKpisHtml(){
@@ -1637,7 +1637,7 @@ renderExecutive=function(){
   const lowRows=lowStock().slice(0,8).map(i=>[i.college,i.mainDepartment||'القسم العام',i.section,itemName(i),i.qty,i.minQty,itemActionButtons(i)]);
   const needRows=filteredNeeds().filter(r=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(r.status||'pending_sector_approval')).slice(0,6).map(r=>[r.requestNo,r.college,r.mainDepartment||'القسم العام',r.itemNameAr||r.itemNameEn,r.qty,statusBadge(r.status),needEvidenceBadge(r.id)]);
   const supportRows=filteredSupport().filter(r=>['pending_owner','owner_approved','pending_equipment'].includes(r.status||'pending_owner')).slice(0,6).map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.fromCollege,r.toCollege,r.itemName,r.qty,statusBadge(r.status)]);
-  return `<div class="demo-hero"><div class="demo-hero-copy"><div class="demo-pill">نسخة عرض للمديرين</div><h1>منصة موحدة لرؤية المخزون وقرارات الاحتياج</h1><p>يعرض هذا السيناريو كيف تربط إدارة التجهيزات بين مخزون الكليات، طلبات الصرف، شواهد الاحتياج، والدعم بين القطاعات في لوحة واحدة قابلة للتقرير.</p><div class="demo-hero-actions"><button class="btn btn-primary" onclick="setPage('reports')">فتح التقارير</button><button class="btn btn-secondary" onclick="setPage('needs')">متابعة الاحتياج</button><button class="btn btn-secondary" onclick="setPage('exchange')">الدعم بين القطاعات</button></div></div><div class="demo-hero-panel"><div class="demo-panel-title">قراءة تنفيذية سريعة</div><div class="demo-progress"><span>جاهزية الأجهزة التعليمية</span><strong>${readiness}%</strong><div><i style="width:${readiness}%"></i></div></div><div class="demo-progress"><span>نسبة الاحتياج المعتمد</span><strong>${needApproval}%</strong><div><i style="width:${needApproval}%"></i></div></div><div class="demo-note">الأولوية الحالية: معالجة ${s.low} أصناف تحت الحد، واستكمال ${s.activeNeeds} طلبات احتياج قيد الإجراء.</div></div></div>${demoKpisHtml()}${alertsHtml()}<div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات احتياج تحتاج قرارًا</div><div class="panel-subtitle">تظهر الحالة والشواهد المرتبطة بكل طلب.</div></div>${table(['رقم الطلب','القطاع','القسم الرئيسي','البند','الإجمالي','الحالة','الشواهد'],needRows)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات دعم بين القطاعات</div><div class="panel-subtitle">طلبات تشغيلية توضح الاستفادة من المخزون المتاح.</div></div>${table(['رقم الطلب','النوع','الطالبة','المالكة','الصنف','الكمية','الحالة'],supportRows)}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">أصناف تحت الحد الأدنى</div><div class="panel-subtitle">قائمة مختصرة قابلة للتحويل إلى احتياج أو دعم.</div></div>${table(['القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الحد الأدنى','إجراء'],lowRows)}</div>`;
+  return `<div class="demo-hero"><div class="demo-hero-copy"><h1>منصة التجهيزات التعليمية</h1><div class="demo-hero-actions"><button class="btn btn-primary" onclick="setPage('reports')">فتح التقارير</button><button class="btn btn-secondary" onclick="setPage('needs')">متابعة الاحتياج</button><button class="btn btn-secondary" onclick="setPage('exchange')">الدعم بين القطاعات</button></div></div><div class="demo-hero-panel"><div class="demo-panel-title">قراءة تنفيذية سريعة</div><div class="demo-progress"><span>جاهزية الأجهزة التعليمية</span><strong>${readiness}%</strong><div><i style="width:${readiness}%"></i></div></div><div class="demo-progress"><span>نسبة الاحتياج المعتمد</span><strong>${needApproval}%</strong><div><i style="width:${needApproval}%"></i></div></div></div></div>${demoKpisHtml()}${alertsHtml()}<div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات احتياج تحتاج قرارًا</div><div class="panel-subtitle">تظهر الحالة والشواهد المرتبطة بكل طلب.</div></div>${table(['رقم الطلب','القطاع','القسم الرئيسي','البند','الإجمالي','الحالة','الشواهد'],needRows)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات دعم بين القطاعات</div><div class="panel-subtitle">طلبات تشغيلية توضح الاستفادة من المخزون المتاح.</div></div>${table(['رقم الطلب','النوع','الطالبة','المالكة','الصنف','الكمية','الحالة'],supportRows)}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">أصناف تحت الحد الأدنى</div><div class="panel-subtitle">قائمة مختصرة قابلة للتحويل إلى احتياج أو دعم.</div></div>${table(['القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الحد الأدنى','إجراء'],lowRows)}</div>`;
 }
 
 renderDashboard=function(){
@@ -1662,7 +1662,7 @@ reportData=function(){
 }
 
 applyDemoDataIfNeeded(false);
-/* ===== end Executive Demo Edition ===== */
+/* ===== end Executive Operating Edition ===== */
 
 /* ===== Analysis Assistant ===== */
 function ensureAnalysisState(){
@@ -3317,7 +3317,7 @@ function officialReportMeta(data){
     ['النطاق',officialReportScope()],
     ['عدد السجلات',(data.rows||[]).length],
     ['الفلاتر',officialReportFilters()],
-    ['مصدر البيانات','نظام إدارة التجهيزات والمخزون']
+    ['مصدر البيانات','منصة التجهيزات التعليمية']
   ];
 }
 
@@ -3350,7 +3350,7 @@ function officialReportHtml(data){
     .note{font-size:10px;color:#667085;line-height:1.8;margin-top:8px}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style></head><body><main class="report">
-    <header class="head"><div><div class="kicker">جامعة طيبة | نظام إدارة التجهيزات والمخزون</div><h1>${officialReportText(data.title)}</h1><div class="sub">${officialReportText(data.subtitle||'تقرير رسمي مستخرج من بيانات النظام حسب الصلاحيات والفلاتر الحالية.')}</div></div><div class="mark">T</div></header>
+    <header class="head"><div><div class="kicker">جامعة طيبة | منصة التجهيزات التعليمية</div><h1>${officialReportText(data.title)}</h1><div class="sub">${officialReportText(data.subtitle||'تقرير رسمي مستخرج من بيانات النظام حسب الصلاحيات والفلاتر الحالية.')}</div></div><div class="mark">T</div></header>
     <section class="meta">${meta.map(([k,v])=>`<div><strong>${officialReportText(k)}</strong>${officialReportText(v)}</div>`).join('')}</section>
     ${summary.length?`<section class="summary">${summary.map(([k,v])=>`<div><strong>${officialReportText(k)}</strong>${officialReportText(v)}</div>`).join('')}</section>`:''}
     <table><thead><tr>${(data.headers||[]).map(h=>`<th>${officialReportText(h)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${officialReportText(c)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${(data.headers||[]).length||1}">لا توجد بيانات</td></tr>`}</tbody></table>
@@ -3524,7 +3524,7 @@ function makeExcelData(data){
   const summary=data.summary||[];
   const meta=[
     ['جامعة طيبة'],
-    ['نظام إدارة التجهيزات والمخزون'],
+    ['منصة التجهيزات التعليمية'],
     [data.title||'تقرير'],
     [],
     ['تاريخ الإنشاء',formatDateTime(nowLocalString()),'مستخرج التقرير',state.currentUser?.fullName||'—'],
@@ -3566,7 +3566,7 @@ exportExcel=function(data,filename){
   excelStyleSheet(ws,prepared.headerRow,totalCols,totalRows);
   const wb=XLSX.utils.book_new();
   wb.Workbook={Views:[{RTL:true}],WBProps:{date1904:false}};
-  wb.Props={Title:excelCell(data.title||'تقرير'),Subject:'تقرير من نظام إدارة التجهيزات والمخزون',Author:state.currentUser?.fullName||'جامعة طيبة',Company:'جامعة طيبة'};
+  wb.Props={Title:excelCell(data.title||'تقرير'),Subject:'تقرير من منصة التجهيزات التعليمية',Author:state.currentUser?.fullName||'جامعة طيبة',Company:'جامعة طيبة'};
   XLSX.utils.book_append_sheet(wb,ws,excelSheetName(data.title||'تقرير'));
   XLSX.writeFile(wb,filename||'taibah-report.xlsx',{compression:true,cellStyles:true});
 }
@@ -3576,7 +3576,7 @@ exportNeedsDetailedExact=function(){
   const data=detailedNeedsTemplateData();
   const aoa=[
     ['جامعة طيبة'],
-    ['نظام إدارة التجهيزات والمخزون'],
+    ['منصة التجهيزات التعليمية'],
     ['جدول الكميات المعتمد للاحتياج'],
     [],
     ['القطاع',officialReportScope?officialReportScope():(isCentral()?'جامعة طيبة':state.currentUser.college),'تاريخ الإنشاء',formatDateTime(nowLocalString())],
@@ -5276,18 +5276,18 @@ function taibahLogoUrl(){
   try{return new URL(TAIBAH_LOGO_SRC,window.location.href).href}catch(e){return TAIBAH_LOGO_SRC}
 }
 
-function taibahBrandLockup(subtitle='نظام إدارة التجهيزات والمخزون'){
+function taibahBrandLockup(subtitle='منصة التجهيزات التعليمية'){
   return `<div class="brand-lockup"><div class="brand-logo-panel"><img class="brand-logo" src="${TAIBAH_LOGO_SRC}" alt="شعار جامعة طيبة"></div><div class="brand-copy"><div class="brand-title">جامعة طيبة</div><div class="brand-subtitle">${subtitle}</div></div></div>`;
 }
 
 renderLogin=function(){
-  return `<div class="login-screen demo-login"><div class="login-card demo-login-card">${taibahBrandLockup('منصة تنفيذية لإدارة المخزون والاحتياج والدعم بين القطاعات التعليمية')}<div class="demo-pill">نسخة عرض للمديرين</div><div class="input-group"><label class="label">اسم المستخدم</label><input id="login-username" class="input" value="admin" placeholder="أدخل اسم المستخدم"></div><div class="input-group"><label class="label">كلمة المرور</label><input id="login-password" type="password" class="input" value="123" placeholder="أدخل كلمة المرور"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">دخول نسخة العرض</button>${typeof demoAccountCards==='function'?demoAccountCards():''}</div></div>`;
+  return `<div class="login-screen"><div class="login-card">${taibahBrandLockup('منصة التجهيزات التعليمية')}<div class="input-group"><label class="label">اسم المستخدم</label><input id="login-username" class="input" placeholder="أدخل اسم المستخدم"></div><div class="input-group"><label class="label">كلمة المرور</label><input id="login-password" type="password" class="input" placeholder="أدخل كلمة المرور"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">تسجيل الدخول</button></div></div>`;
 }
 
 renderApp=function(){
   const nav=navItems();
   if(!nav.some(n=>n.id===state.currentPage)) state.currentPage=nav[0]?.id||'executive';
-  return `<div class="mobile-overlay ${state.sidebarOpen?'show':''}" onclick="closeSidebar()"></div><div class="app demo-shell"><aside class="sidebar ${state.sidebarOpen?'open':''}"><div class="brand-wrap">${taibahBrandLockup('إدارة التجهيزات والمخزون')}</div><div class="nav">${nav.map(n=>`<div class="nav-item ${state.currentPage===n.id?'active':''}" onclick="setPage('${n.id}')"><div>${n.icon}</div><div>${n.label}</div></div>`).join('')}</div><div class="user-panel"><div class="user-card"><div class="user-name">${state.currentUser.fullName}</div><div class="user-role">${state.currentUser.role==='admin'?'مدير النظام':state.currentUser.jobTitle}</div><div class="user-meta">الجهة: ${state.currentUser.college}<br>القسم: ${state.currentUser.department}</div><button class="btn logout-btn" onclick="logout()">تسجيل الخروج</button></div></div></aside><main class="main"><div class="topbar demo-topbar"><div class="topbar-title-group"><img class="topbar-logo" src="${TAIBAH_LOGO_SRC}" alt="جامعة طيبة"><div><div class="page-title">${getPageTitle()}</div><div class="page-subtitle">منظومة موحدة لحوكمة المخزون والاحتياج وفق هوية جامعة طيبة.</div></div></div><div class="mobile-top-actions"><button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button></div><div class="demo-top-actions"><div class="tag demo-tag">${window.DEMO_LABEL||'نسخة عرض'}</div><div class="tag">${state.currentUser.college}</div><button class="btn btn-secondary btn-sm" onclick="resetDemoData()">إعادة ضبط العرض</button></div></div><div class="content">${renderPageContent()}<div class="footer-note">${typeof syncStatusText==='function'?syncStatusText():'نسخة عرض محلية.'}</div></div></main>${modalHtml()}</div>`;
+  return `<div class="mobile-overlay ${state.sidebarOpen?'show':''}" onclick="closeSidebar()"></div><div class="app"><aside class="sidebar ${state.sidebarOpen?'open':''}"><div class="brand-wrap">${taibahBrandLockup('منصة التجهيزات التعليمية')}</div><div class="nav">${nav.map(n=>`<div class="nav-item ${state.currentPage===n.id?'active':''}" onclick="setPage('${n.id}')"><div>${n.icon}</div><div>${n.label}</div></div>`).join('')}</div><div class="user-panel"><div class="user-card"><div class="user-name">${state.currentUser.fullName}</div><div class="user-role">${state.currentUser.role==='admin'?'مدير النظام':state.currentUser.jobTitle}</div><div class="user-meta">الجهة: ${state.currentUser.college}<br>القسم: ${state.currentUser.department}</div><button class="btn logout-btn" onclick="logout()">تسجيل الخروج</button></div></div></aside><main class="main"><div class="topbar"><div class="topbar-title-group"><img class="topbar-logo" src="${TAIBAH_LOGO_SRC}" alt="جامعة طيبة"><div><div class="page-title">${getPageTitle()}</div></div></div><div class="mobile-top-actions"><button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button></div><div class="demo-top-actions"><div class="tag">${state.currentUser.college}</div></div></div><div class="content">${renderPageContent()}<div class="footer-note">${typeof syncStatusText==='function'?syncStatusText():'البيانات محفوظة.'}</div></div></main>${modalHtml()}</div>`;
 }
 
 officialReportHtml=function(data){
@@ -5320,7 +5320,7 @@ officialReportHtml=function(data){
     .note{font-size:10px;color:#5f6377;line-height:1.8;margin-top:8px;border-right:4px solid #e5c603;padding-right:8px}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style></head><body><main class="report">
-    <header class="head"><div><div class="kicker">جامعة طيبة | نظام إدارة التجهيزات والمخزون</div><h1>${officialReportText(data.title)}</h1><div class="sub">${officialReportText(data.subtitle||'تقرير رسمي مستخرج من بيانات النظام حسب الصلاحيات والفلاتر الحالية.')}</div></div><img class="report-logo" src="${logo}" alt="شعار جامعة طيبة"></header>
+    <header class="head"><div><div class="kicker">جامعة طيبة | منصة التجهيزات التعليمية</div><h1>${officialReportText(data.title)}</h1><div class="sub">${officialReportText(data.subtitle||'تقرير رسمي مستخرج من بيانات النظام حسب الصلاحيات والفلاتر الحالية.')}</div></div><img class="report-logo" src="${logo}" alt="شعار جامعة طيبة"></header>
     <section class="meta">${meta.map(([k,v])=>`<div><strong>${officialReportText(k)}</strong>${officialReportText(v)}</div>`).join('')}</section>
     ${summary.length?`<section class="summary">${summary.map(([k,v])=>`<div><strong>${officialReportText(k)}</strong>${officialReportText(v)}</div>`).join('')}</section>`:''}
     <table><thead><tr>${(data.headers||[]).map(h=>`<th>${officialReportText(h)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${officialReportText(c)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${(data.headers||[]).length||1}">لا توجد بيانات</td></tr>`}</tbody></table>
