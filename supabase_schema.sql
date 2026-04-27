@@ -33,4 +33,9 @@ using (true)
 with check (true);
 
 -- تفعيل Realtime للجدول حتى تظهر التحديثات بين الأجهزة.
-alter publication supabase_realtime add table public.app_state;
+do $$
+begin
+  alter publication supabase_realtime add table public.app_state;
+exception
+  when duplicate_object then null;
+end $$;
