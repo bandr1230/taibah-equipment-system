@@ -634,7 +634,8 @@ function publicAssetRouteRedirectUrl(){
   const params=new URLSearchParams(window.location.search||'');
   const match=path.match(/\/public\/asset\/([^/?#]+)/i);
   const id=params.get('id') || params.get('assetId') || (match?decodeURIComponent(match[1]):'');
-  const url=new URL('/public-asset.html',window.location.origin);
+  const basePath=match ? path.replace(/\/public\/asset(?:\/.*)?$/i,'/') : path.replace(/[^\/]*$/,'');
+  const url=new URL(`${basePath}public-asset.html`,window.location.origin);
   if(id) url.searchParams.set('id',id);
   return url.href;
 }
@@ -5151,8 +5152,16 @@ itemModalHtml=function(){
   return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">${state.editId?'تعديل صنف':'إضافة صنف'}</div><div class="panel-subtitle">${state.editId?'تعديل بيانات الصنف الحالي.':'ابدأ باسم الصنف، وإذا كان موجودًا سيتم التعرف عليه وتعبئة بياناته لإضافة الكمية على الرصيد الحالي.'}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><input id="item-existing-id" type="hidden" value=""><div id="item-smart-hint" class="alert" style="${state.editId?'display:none':'display:block'}">اكتب اسم الصنف أو اختره من الاقتراحات. إذا كان موجودًا سيتم تعبئة بياناته تلقائيًا وتتحول العملية إلى إضافة كمية على الرصيد.</div><div class="form-grid"><div><label class="label">القطاع</label>${isCentral()?`<select id="item-college" class="select" onchange="itemSmartRefreshAfterScopeChange()">${collegeOptions(college,false)}</select>`:`<input id="item-college" class="input" value="${state.currentUser.college}" readonly>`}</div><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="item-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="item-mainDepartment" class="select" onchange="itemSmartRefreshAfterScopeChange()">${departmentOptions(item.mainDepartment||currentDepartmentName(),false)}</select>`}</div><div><label class="label">القسم الفرعي</label><select id="item-section" class="select">${sectionOptions(item.section,false)}</select></div><div><label class="label">اسم الصنف بالعربية</label><input id="item-name" class="input" list="item-name-suggestions" value="${item.nameAr||''}" oninput="itemSmartLookup('name')" onblur="itemSmartLookup('name')"><datalist id="item-name-suggestions">${suggestions}</datalist></div><div><label class="label">اسم الصنف بالإنجليزية</label><input id="item-name-en" class="input" list="item-name-suggestions" value="${item.nameEn||''}" oninput="itemSmartLookup('english')" onblur="itemSmartLookup('english')"></div><div><label class="label">${state.editId?'الكمية':'الكمية / الكمية المضافة'}</label><input id="item-qty" class="input" type="number" min="0" value="${item.qty||0}"></div><div><label class="label">الوحدة</label><select id="item-unit" class="select">${UNIT_OPTIONS.map(u=>`<option ${item.unit===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="label">الحد الأدنى</label><input id="item-minQty" class="input" type="number" min="0" value="${item.minQty||0}"></div><div><label class="label">الموقع</label><input id="item-location" class="input" list="item-location-list" value="${item.location||''}"><datalist id="item-location-list">${locs.map(x=>`<option value="${x}">`).join('')}</datalist></div><div><label class="label">الرقم التسلسلي</label><input id="item-serialNumber" class="input" value="${item.serialNumber||''}"></div><div><label class="label">حالة الجهاز</label><select id="item-deviceStatus" class="select">${deviceStatuses().map(s=>`<option ${item.deviceStatus===s?'selected':''}>${s}</option>`).join('')}</select></div><div class="full"><label class="label">ملاحظات</label><textarea id="item-notes" class="textarea">${item.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveItem()">${state.editId?'حفظ':'حفظ / إضافة للرصيد'}</button></div></div></div>`;
 }
 
+function itemFormValuesAreDevice(values){
+  const raw=[values.section,values.unit,values.nameAr,values.nameEn].join(' ');
+  const text=String(raw||'').toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ة]/g,'ه').replace(/[ى]/g,'ي');
+  return text.includes('اجهزه')
+    || text.includes('جهاز')
+    || /device|equipment|microscope|centrifuge|analy[sz]er|spectrophotometer|autoclave|incubator/i.test(raw);
+}
+
 function readItemFormValues(){
-  return {
+  const values={
     college:isCentral()?document.getElementById('item-college').value:state.currentUser.college,
     mainDepartment:document.getElementById('item-mainDepartment')?.value || currentDepartmentName(),
     section:document.getElementById('item-section').value,
@@ -5166,6 +5175,8 @@ function readItemFormValues(){
     deviceStatus:document.getElementById('item-deviceStatus').value,
     notes:document.getElementById('item-notes').value.trim()
   };
+  if(!itemFormValuesAreDevice(values)) values.deviceStatus='';
+  return values;
 }
 
 function itemDuplicateForValues(values,currentId=null){
@@ -6685,6 +6696,14 @@ saveSupport=function(){
   const SPARE_STATUSES=['جديد','قيد المراجعة','معتمد','مرفوض','تم التوريد','تم التركيب'];
 
   function maintenanceText(value){ return String(value??'').trim(); }
+  function maintenancePublicAssetPath(assetOrId){
+    const id=typeof assetOrId==='object' ? assetOrId?.id : assetOrId;
+    return `public-asset.html?id=${encodeURIComponent(id)}`;
+  }
+  function maintenancePublicAssetUrl(assetOrId){
+    if(typeof window==='undefined') return maintenancePublicAssetPath(assetOrId);
+    return new URL(maintenancePublicAssetPath(assetOrId),window.location.href.split('#')[0]).href;
+  }
   function maintenanceEscape(value){
     return maintenanceText(value)
       .replace(/&/g,'&amp;')
@@ -6737,6 +6756,52 @@ saveSupport=function(){
     const section=maintenanceText(item?.section);
     return section.includes('الأجهزة') || section.includes('ط§ظ„ط£ط¬ظ‡ط²ط©') || Boolean(item?.serialNumber) || Boolean(item?.deviceStatus) || /device|microscope|centrifuge|analy/i.test(item?.nameEn||'');
   }
+  function maintenanceNormalizedText(value){
+    return maintenanceText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ة]/g,'ه')
+      .replace(/[ى]/g,'ي');
+  }
+  function maintenanceIsDeviceSection(section){
+    const text=maintenanceNormalizedText(section);
+    return text.includes('اجهزه') || text.includes('جهاز') || /device|equipment/i.test(maintenanceText(section));
+  }
+  function maintenanceIsDeviceUnit(unit){
+    const text=maintenanceNormalizedText(unit);
+    return text==='جهاز' || text==='اجهزه' || /device|equipment/i.test(maintenanceText(unit));
+  }
+  function maintenanceLooksDeviceLike(...values){
+    const raw=values.map(maintenanceText).join(' ');
+    const text=maintenanceNormalizedText(raw);
+    return /device|equipment|microscope|centrifuge|analy[sz]er|spectrophotometer|autoclave|incubator|freez|frzer|refrigerator|fridge/i.test(raw)
+      || /جهاز|مجهر|طرد مركزي|محلل|تحليل|طيفي|ميزان|حاضنه|اوتوكلاف|اوتوكليف|مقياس/.test(text);
+  }
+  function maintenanceIsDeviceItem(item){
+    if(!item) return false;
+    return maintenanceIsDeviceSection(item.section)
+      || maintenanceIsDeviceUnit(item.unit)
+      || /\bDEV\b|[-_]DEV[-_]?/i.test(maintenanceText(item.code))
+      || maintenanceLooksDeviceLike(item.nameAr,item.name,item.nameEn);
+  }
+  function maintenanceAssetIsDevice(asset){
+    if(!asset) return false;
+    const item=asset.itemId?getItemById(asset.itemId):null;
+    if(item) return maintenanceIsDeviceItem(item);
+    return maintenanceIsDeviceSection(asset.section)
+      || maintenanceIsDeviceUnit(asset.unit)
+      || maintenanceLooksDeviceLike(asset.assetNameAr,asset.assetNameEn);
+  }
+  function maintenanceRowAssetIsDevice(row){
+    if(!row) return false;
+    if(row.assetId){
+      const asset=(db.maintenanceAssets||[]).find(item=>String(item.id)===String(row.assetId));
+      return maintenanceAssetIsDevice(asset);
+    }
+    return maintenanceIsDeviceSection(row.section)
+      || maintenanceIsDeviceUnit(row.unit)
+      || maintenanceLooksDeviceLike(row.assetNameAr,row.assetNameEn);
+  }
+
   function maintenanceScopeRows(rows,collegeGetter=row=>row.college,departmentGetter=row=>row.mainDepartment||row.section){
     let scoped=rows||[];
     if(!isCentral()){
@@ -6783,8 +6848,9 @@ saveSupport=function(){
     const serial=maintenanceText(item.serialNumber)||(allowAutoSerial?`AUTO-${item.code||item.id}`:'');
     if(!serial) return null;
     if(db.maintenanceAssets.some(asset=>maintenanceText(asset.serialNumber)===serial)) return null;
+    const assetId=nextId(db.maintenanceAssets);
     const asset={
-      id:nextId(db.maintenanceAssets),
+      id:assetId,
       itemId:item.id,
       assetNameAr:item.nameAr||item.name||'جهاز غير مسمى',
       assetNameEn:item.nameEn||'',
@@ -6805,7 +6871,7 @@ saveSupport=function(){
       operationStartDate:'',
       warrantyEndDate:'',
       maintenanceContract:'',
-      qrCodeUrl:`maintenance-asset-${item.id}`,
+      qrCodeUrl:maintenancePublicAssetPath(assetId),
       lastMaintenanceDate:'',
       nextMaintenanceDate:'',
       createdBy:item.createdBy||state.currentUser?.id||1,
@@ -6824,13 +6890,22 @@ saveSupport=function(){
     db.fieldVisits=db.fieldVisits||[];
     db.sparePartRequests=db.sparePartRequests||[];
     ensureMaintenancePermissions();
+    let qrChanged=false;
+    (db.maintenanceAssets||[]).forEach(asset=>{
+      const expected=maintenancePublicAssetPath(asset.id);
+      if(asset.qrCodeUrl!==expected){
+        asset.qrCodeUrl=expected;
+        qrChanged=true;
+      }
+    });
     const assetsByItem=new Set(db.maintenanceAssets.map(asset=>Number(asset.itemId)).filter(Boolean));
     (db.items||[]).filter(maintenanceIsDeviceItem).forEach(item=>{
       if(assetsByItem.has(Number(item.id))) return;
       const serial=maintenanceText(item.serialNumber)||`AUTO-${item.code||item.id}`;
       if(db.maintenanceAssets.some(asset=>maintenanceText(asset.serialNumber)===serial)) return;
+      const assetId=nextId(db.maintenanceAssets);
       const asset={
-        id:nextId(db.maintenanceAssets),
+        id:assetId,
         itemId:item.id,
         assetNameAr:item.nameAr||item.name||'جهاز غير مسمى',
         assetNameEn:item.nameEn||'',
@@ -6851,7 +6926,7 @@ saveSupport=function(){
         operationStartDate:'',
         warrantyEndDate:'',
         maintenanceContract:'',
-        qrCodeUrl:`maintenance-asset-${item.id}`,
+        qrCodeUrl:maintenancePublicAssetPath(assetId),
         lastMaintenanceDate:'',
         nextMaintenanceDate:'',
         createdBy:item.createdBy||state.currentUser?.id||1,
@@ -6859,8 +6934,9 @@ saveSupport=function(){
         updatedAt:''
       };
       db.maintenanceAssets.push(asset);
+      qrChanged=true;
     });
-    saveDb();
+    if(qrChanged) saveDb();
   }
   window.ensureMaintenanceData=ensureMaintenanceData;
 
@@ -6932,6 +7008,7 @@ saveSupport=function(){
   function maintenanceAssets(){
     ensureMaintenanceState();
     let rows=maintenanceScopeRows(db.maintenanceAssets,row=>row.college,row=>row.mainDepartment||row.section);
+    rows=rows.filter(maintenanceAssetIsDevice);
     rows=rows.filter(row=>maintenanceIncludes(row,['assetNameAr','assetNameEn','serialNumber','assetNumber','college','mainDepartment','section','labRoom','status','riskLevel']));
     if(state.maintenanceStatus!=='all') rows=rows.filter(row=>row.status===state.maintenanceStatus);
     if(state.maintenanceRisk!=='all') rows=rows.filter(row=>row.riskLevel===state.maintenanceRisk);
@@ -6941,6 +7018,7 @@ saveSupport=function(){
   function maintenancePlans(){
     ensureMaintenanceState();
     let rows=maintenanceScopeRows(db.preventiveMaintenancePlans,row=>row.college,row=>row.mainDepartment||row.section);
+    rows=rows.filter(maintenanceRowAssetIsDevice);
     rows=rows.map(plan=>({...plan,effectiveStatus:maintenancePlanStatus(plan)}));
     rows=rows.filter(row=>maintenanceIncludes(row,['planNo','assetNameAr','serialNumber','college','location','frequency','riskLevel','effectiveStatus','assignedToName']));
     if(state.maintenanceStatus!=='all') rows=rows.filter(row=>row.effectiveStatus===state.maintenanceStatus);
@@ -6952,6 +7030,7 @@ saveSupport=function(){
   function maintenanceTickets(){
     ensureMaintenanceState();
     let rows=maintenanceScopeRows(db.maintenanceTickets,row=>row.college,row=>row.mainDepartment||row.section);
+    rows=rows.filter(maintenanceRowAssetIsDevice);
     rows=rows.filter(row=>maintenanceIncludes(row,['ticketNumber','assetNameAr','serialNumber','college','location','faultDescription','priority','status','requesterName','assignedToName']));
     if(state.maintenanceStatus!=='all') rows=rows.filter(row=>row.status===state.maintenanceStatus);
     rows=rows.filter(row=>maintenanceWithinDate(row,['reportedAt','failureDate','closedAt','createdAt','updatedAt']));
@@ -6964,6 +7043,7 @@ saveSupport=function(){
   function maintenanceVisits(){
     ensureMaintenanceState();
     let rows=maintenanceScopeRows(db.fieldVisits,row=>row.college,row=>row.mainDepartment||row.section);
+    rows=rows.filter(maintenanceRowAssetIsDevice);
     rows=rows.filter(row=>maintenanceIncludes(row,['visitNo','ticketNumber','assetNameAr','technicianName','initialDiagnosis','recommendation','actionTaken']));
     rows=rows.filter(row=>maintenanceWithinDate(row,['visitDateTime','createdAt','approvedAt']));
     return rows;
@@ -6972,6 +7052,7 @@ saveSupport=function(){
   function maintenanceSpares(){
     ensureMaintenanceState();
     let rows=maintenanceScopeRows(db.sparePartRequests,row=>row.college,row=>row.mainDepartment||row.section);
+    rows=rows.filter(maintenanceRowAssetIsDevice);
     rows=rows.filter(row=>maintenanceIncludes(row,['requestNo','ticketNumber','assetNameAr','partName','suggestedSupplier','status','requestReason']));
     if(state.maintenanceStatus!=='all') rows=rows.filter(row=>row.status===state.maintenanceStatus);
     rows=rows.filter(row=>maintenanceWithinDate(row,['requestedAt','suppliedAt','installedAt','createdAt','updatedAt']));
@@ -7304,7 +7385,7 @@ saveSupport=function(){
       operationStartDate:maintenanceDateOnly(document.getElementById('maint-operation')?.value),
       warrantyEndDate:maintenanceDateOnly(document.getElementById('maint-warranty')?.value),
       maintenanceContract:maintenanceText(document.getElementById('maint-contract')?.value),
-      qrCodeUrl:`maintenance-asset-${serial}`,
+      qrCodeUrl:maintenancePublicAssetPath(asset.id),
       updatedAt:nowLocalString(),
       updatedBy:state.currentUser.id
     });
@@ -7667,7 +7748,7 @@ saveSupport=function(){
   window.closeMaintenanceTicket=closeMaintenanceTicket;
 
   function maintenanceQrImg(asset){
-    const publicUrl=new URL(`public-asset.html?id=${encodeURIComponent(asset.id)}`,window.location.href).href;
+    const publicUrl=maintenancePublicAssetUrl(asset);
     const data=encodeURIComponent(publicUrl);
     return `<img class="maintenance-qr-img" alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${data}"><div class="small">${maintenanceEscape(publicUrl)}</div>`;
   }

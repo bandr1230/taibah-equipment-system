@@ -24,6 +24,28 @@
     return Boolean(value && typeof value==='object' && Array.isArray(value.items));
   }
 
+  function normalized(value){
+    return String(value??'').trim().toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ة]/g,'ه')
+      .replace(/[ى]/g,'ي');
+  }
+
+  function looksLikeDevice(...values){
+    const raw=values.map(value=>String(value??'').trim()).join(' ');
+    const text=normalized(raw);
+    return text.includes('اجهزه')
+      || text.includes('جهاز')
+      || /device|equipment|microscope|centrifuge|analy[sz]er|spectrophotometer|autoclave|incubator|freez|frzer|refrigerator|fridge/i.test(raw);
+  }
+
+  function isDeviceAsset(source,asset){
+    if(!asset) return false;
+    const item=(source.items||[]).find(row=>sameId(row.id,asset.itemId));
+    if(item) return looksLikeDevice(item.section,item.unit,item.nameAr,item.name,item.nameEn,item.code);
+    return looksLikeDevice(asset.section,asset.unit,asset.assetNameAr,asset.assetNameEn);
+  }
+
   function localDb(){
     try{
       if(typeof db!=='undefined' && validDb(db)) return db;
@@ -66,7 +88,7 @@
 
   function findAsset(source,id){
     if(!source || !id) return null;
-    return (source.maintenanceAssets||[]).find(asset=>sameId(asset.id,id)) || null;
+    return (source.maintenanceAssets||[]).find(asset=>sameId(asset.id,id) && isDeviceAsset(source,asset)) || null;
   }
 
   function latestRecord(source,assetId){
