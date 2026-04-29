@@ -627,8 +627,21 @@ cleanupDuplicateNonDevices();
 
 normalizeItemCodes();
 saveDb();
-function render(){const root=document.getElementById('root'); const active=document.activeElement; const focusMeta=active&&active.classList&&active.classList.contains('search-input')?{selector:'.search-input', value:active.value, start:active.selectionStart, end:active.selectionEnd}:null; root.innerHTML=state.currentUser?renderApp():renderLogin(); if(focusMeta){ const el=document.querySelector(focusMeta.selector); if(el){ el.focus(); try{ const pos=Math.min(String(focusMeta.value||'').length, el.value.length); el.setSelectionRange(pos,pos); }catch(e){} } }}
-if(typeof initRemoteSync==='function'){initRemoteSync().then(()=>render())}else{render()};
+function publicAssetRouteRedirectUrl(){
+  if(typeof window==='undefined') return '';
+  const path=String(window.location.pathname||'');
+  if(!/\/public\/asset(?:\/|$)|public-asset\.html/i.test(path)) return '';
+  const params=new URLSearchParams(window.location.search||'');
+  const match=path.match(/\/public\/asset\/([^/?#]+)/i);
+  const id=params.get('id') || params.get('assetId') || (match?decodeURIComponent(match[1]):'');
+  const url=new URL('/public-asset.html',window.location.origin);
+  if(id) url.searchParams.set('id',id);
+  return url.href;
+}
+function render(){const root=document.getElementById('root'); if(!root)return; const active=document.activeElement; const focusMeta=active&&active.classList&&active.classList.contains('search-input')?{selector:'.search-input', value:active.value, start:active.selectionStart, end:active.selectionEnd}:null; root.innerHTML=state.currentUser?renderApp():renderLogin(); if(focusMeta){ const el=document.querySelector(focusMeta.selector); if(el){ el.focus(); try{ const pos=Math.min(String(focusMeta.value||'').length, el.value.length); el.setSelectionRange(pos,pos); }catch(e){} } }}
+const __publicAssetRedirectUrl=publicAssetRouteRedirectUrl();
+if(__publicAssetRedirectUrl){window.location.replace(__publicAssetRedirectUrl)}
+else if(typeof initRemoteSync==='function'){initRemoteSync().then(()=>render())}else{render()};
 
 
 function getNeedById(id){return (db.needsRequests||[]).find(x=>Number(x.id)===Number(id))}
@@ -7654,8 +7667,9 @@ saveSupport=function(){
   window.closeMaintenanceTicket=closeMaintenanceTicket;
 
   function maintenanceQrImg(asset){
-    const data=encodeURIComponent(`${location.origin||''}${location.pathname||''}#maintenanceAsset=${asset.id}`);
-    return `<img class="maintenance-qr-img" alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${data}"><div class="small">${maintenanceEscape(asset.qrCodeUrl||asset.serialNumber)}</div>`;
+    const publicUrl=new URL(`public-asset.html?id=${encodeURIComponent(asset.id)}`,window.location.href).href;
+    const data=encodeURIComponent(publicUrl);
+    return `<img class="maintenance-qr-img" alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${data}"><div class="small">${maintenanceEscape(publicUrl)}</div>`;
   }
 
   function openMaintenanceHashTarget(){
