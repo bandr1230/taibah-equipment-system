@@ -30,6 +30,44 @@ function apiHeaders(extra={}){
     ...extra
   };
 }
+function functionApiUrl(name){
+  return `${String(window.SUPABASE_URL).replace(/\/$/,'')}/functions/v1/${encodeURIComponent(name)}`;
+}
+function ensureSupabaseFunctionInvokeClient(){
+  if(window.supabase && window.supabase.functions && typeof window.supabase.functions.invoke==='function') return;
+  const previous = (window.supabase && typeof window.supabase==='object') ? window.supabase : {};
+  window.supabase = {
+    ...previous,
+    functions:{
+      ...(previous.functions || {}),
+      async invoke(name, options={}){
+        if(!isSupabaseConfigured()){
+          return {data:null,error:new Error('Supabase غير مضبوط')};
+        }
+        try{
+          const res = await fetch(functionApiUrl(name), {
+            method:'POST',
+            mode:'cors',
+            cache:'no-store',
+            headers: apiHeaders(options.headers || {}),
+            body: JSON.stringify(options.body || {})
+          });
+          const text = await res.text();
+          let data = null;
+          try { data = text ? JSON.parse(text) : null; } catch(e){ data = text; }
+          if(!res.ok){
+            const message = typeof data === 'string' ? data : (data && (data.error || data.message || JSON.stringify(data)));
+            return {data:null,error:new Error(message || `HTTP ${res.status}`)};
+          }
+          return {data,error:null};
+        }catch(error){
+          return {data:null,error};
+        }
+      }
+    }
+  };
+}
+ensureSupabaseFunctionInvokeClient();
 function isValidSystemDb(value){
   return Boolean(value && typeof value==='object' &&
     Array.isArray(value.users) && value.users.length>0 &&

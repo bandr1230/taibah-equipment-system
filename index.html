@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>جامعة طيبة - منصة التجهيزات التعليمية</title>
   <meta name="description" content="منصة جامعة طيبة لحوكمة التجهيزات التعليمية والاحتياج والصيانة والتقارير" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#0a8e6e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="منصة التجهيزات التعليمية" />
   <link rel="stylesheet" href="style.css?v=20260427-production-ui" />
 </head>
 <body>
@@ -12,8 +16,18 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="supabase-config.js?v=20260427-remote-test"></script>
   <script src="data.js?v=demo-20260423"></script>
-  <script src="supabase-adapter.js?v=20260427-remote-test"></script>
+  <script src="supabase-adapter.js?v=20260504-function-invoke"></script>
   <script src="need-engine.js?v=20260424"></script>
   <script src="app.js?v=20260429-maintenance-device-only-2"></script>
+  <script src="ai-analyzer.js?v=20260504-ai-edge-function"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./service-worker.js").catch(function (error) {
+          console.warn("Service worker registration failed:", error);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

@@ -897,3 +897,24 @@ body{
   }
 }
 /* ===== end Taibah University official identity v6.6 ===== */
+
+/* ===== AI Analyzer ===== */
+.ai-analyzer-page{display:flex;flex-direction:column;gap:14px}
+.ai-control-panel{padding:16px}
+.ai-governance-note{margin-top:12px}
+.ai-status-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #dfe7f2;border-radius:12px;padding:12px 14px;color:#111144}
+.ai-status-line span{color:#62687c;font-size:12px}
+.ai-summary-panel p{margin:10px 0;line-height:1.9;color:#24304d}
+.ai-meta{display:flex;gap:8px;flex-wrap:wrap}
+.ai-meta span{display:inline-flex;border:1px solid #d9e5f4;background:#f7fbff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;color:#111144}
+.ai-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.ai-finding-card{background:#fff;border:1px solid #dfe7f2;border-radius:12px;padding:14px;box-shadow:0 10px 24px rgba(17,17,68,.06)}
+.ai-finding-card span{display:inline-flex;border-radius:999px;padding:4px 9px;background:#e9f8f4;color:#0a8e6e;font-size:11px;font-weight:900;margin-bottom:8px}
+.ai-finding-card strong{display:block;color:#111144;margin-bottom:6px}
+.ai-finding-card p{margin:0 0 8px;line-height:1.8;color:#26334f}
+.ai-finding-card em{display:block;font-style:normal;color:#62687c;font-size:12px;line-height:1.7}
+@media(max-width:760px){
+  .ai-card-grid{grid-template-columns:1fr}
+  .ai-status-line{align-items:flex-start;flex-direction:column}
+}
+/* ===== end AI Analyzer ===== */
