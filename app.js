@@ -6822,7 +6822,7 @@ saveSupport=function(){
   }
 
   function ensureMaintenancePermissions(){
-    maintenancePushPermission('view_maintenance','عرض الصيانة والتشغيل');
+    maintenancePushPermission('view_maintenance','عرض صيانة الأجهزة التعليمية والطبية');
     maintenancePushPermission('manage_maintenance_assets','إدارة أصول الصيانة');
     maintenancePushPermission('create_maintenance_ticket','إنشاء بلاغات الأعطال');
     maintenancePushPermission('approve_maintenance','اعتماد وإغلاق أعمال الصيانة');
@@ -7132,7 +7132,7 @@ saveSupport=function(){
       ['بلاغات مفتوحة',stats.openTickets,'قيد المعالجة'],
       ['بلاغات حرجة',stats.criticalTickets,'تمس السلامة أو التشغيل']
     ];
-    return `<div class="hero edu-need-page-hero"><div><div class="hero-title">الصيانة والتشغيل</div><div class="hero-text">متابعة جاهزية الأجهزة، الصيانة الوقائية، بلاغات الأعطال، الزيارات الميدانية وقطع الغيار ضمن نطاق الصلاحية.</div></div><button class="btn btn-primary" onclick="openModal('maintenanceTicket')">+ إنشاء بلاغ</button></div>
+    return `<div class="hero edu-need-page-hero"><div><div class="hero-title">صيانة الأجهزة التعليمية والطبية</div><div class="hero-text">متابعة جاهزية الأجهزة، الصيانة الوقائية، بلاغات الأعطال، الزيارات الميدانية وقطع الغيار ضمن نطاق الصلاحية.</div></div><button class="btn btn-primary" onclick="openModal('maintenanceTicket')">+ إنشاء بلاغ</button></div>
     <div class="maintenance-kpi-grid">${cards.map(([title,value,note])=>`<div class="maintenance-kpi"><strong>${title}</strong><b>${value}</b><span>${note}</span></div>`).join('')}</div>
     <div class="section-split">
       <div class="table-panel"><div class="table-head"><div class="panel-title">مؤشرات زمنية</div></div>${table(['المؤشر','القيمة'],[
@@ -7899,7 +7899,7 @@ saveSupport=function(){
     const items=previousMaintenanceNavItems?previousMaintenanceNavItems():[];
     if(!hasPermission('view_maintenance')) return items;
     if(items.some(item=>item.id==='maintenance')) return items;
-    const entry={id:'maintenance',label:'الصيانة والتشغيل',icon:typeof uiIcon==='function'?uiIcon('equipment'):'🛠',permission:'view_maintenance'};
+    const entry={id:'maintenance',label:'صيانة الأجهزة التعليمية والطبية',icon:typeof uiIcon==='function'?uiIcon('equipment'):'🛠',permission:'view_maintenance'};
     const idx=items.findIndex(item=>item.id==='items');
     if(idx>=0) items.splice(idx+1,0,entry);
     else items.push(entry);
@@ -7907,7 +7907,7 @@ saveSupport=function(){
   };
 
   getPageTitle=function(){
-    if(state.currentPage==='maintenance') return 'الصيانة والتشغيل';
+    if(state.currentPage==='maintenance') return 'صيانة الأجهزة التعليمية والطبية';
     return previousMaintenanceGetPageTitle?previousMaintenanceGetPageTitle():'';
   };
 
@@ -7919,7 +7919,7 @@ saveSupport=function(){
   renderDashboard=function(){
     const base=previousMaintenanceRenderDashboard?previousMaintenanceRenderDashboard():'';
     const stats=maintenanceDashboardStats();
-    return `${base}<div class="table-panel"><div class="table-head"><div class="panel-title">ملخص الصيانة والتشغيل</div><div class="panel-subtitle">مؤشرات مختصرة من وحدة الصيانة ضمن نطاق القطاع.</div></div>${table(['المؤشر','القيمة'],[
+    return `${base}<div class="table-panel"><div class="table-head"><div class="panel-title">ملخص صيانة الأجهزة التعليمية والطبية</div><div class="panel-subtitle">مؤشرات مختصرة من وحدة الصيانة ضمن نطاق القطاع.</div></div>${table(['المؤشر','القيمة'],[
       ['الأجهزة المتوقفة',stats.stopped],
       ['البلاغات المفتوحة',stats.openTickets],
       ['الصيانة الوقائية المتأخرة',stats.overdue],

@@ -1,0 +1,8 @@
+{
+  "appId": "sa.edu.taibah.equipment",
+  "appName": "منصة التجهيزات التعليمية",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
