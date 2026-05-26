@@ -8,6 +8,13 @@ create table if not exists public.app_state (
   updated_by text
 );
 
+-- Explicit Data API grants required by Supabase's 2026 public schema change.
+-- The current web client uses the anon key for app_state sync, so anon needs
+-- read/write access here. RLS policies below still control row access.
+grant select, insert, update on table public.app_state to anon;
+grant select, insert, update on table public.app_state to authenticated;
+grant select, insert, update, delete on table public.app_state to service_role;
+
 alter table public.app_state enable row level security;
 
 -- سياسة تجريبية مفتوحة للقراءة والكتابة عبر anon key.
@@ -18,17 +25,17 @@ drop policy if exists "demo update app_state" on public.app_state;
 
 create policy "demo read app_state"
 on public.app_state for select
-to anon
+to anon, authenticated
 using (true);
 
 create policy "demo insert app_state"
 on public.app_state for insert
-to anon
+to anon, authenticated
 with check (true);
 
 create policy "demo update app_state"
 on public.app_state for update
-to anon
+to anon, authenticated
 using (true)
 with check (true);
 
@@ -80,6 +87,13 @@ create table if not exists public.ai_recommendations (
   rejected_at timestamptz,
   rejection_reason text
 );
+
+-- Explicit Data API grants for AI analyzer tables.
+-- Edge Functions can use service_role; authenticated access is limited by RLS.
+grant select, insert, update on table public.ai_analysis_runs to authenticated;
+grant select, insert, update on table public.ai_recommendations to authenticated;
+grant select, insert, update, delete on table public.ai_analysis_runs to service_role;
+grant select, insert, update, delete on table public.ai_recommendations to service_role;
 
 alter table public.ai_analysis_runs enable row level security;
 alter table public.ai_recommendations enable row level security;
@@ -153,6 +167,77 @@ with check (
       or run.sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
     )
   )
+);
+
+-- Educational reference document archive metadata.
+-- The current static web app stores small document payloads inside app_state for demo use.
+-- This relational table is prepared for production metadata and Supabase Storage URLs.
+create table if not exists public.educational_reference_documents (
+  id uuid primary key default gen_random_uuid(),
+  document_no text not null unique,
+  title text not null,
+  college text,
+  main_department text,
+  section text,
+  course_name text,
+  course_code text,
+  academic_year text,
+  semester text,
+  linked_evidence_id text,
+  file_name text,
+  file_type text,
+  file_size bigint,
+  file_url text,
+  status text not null default 'uploaded',
+  notes text,
+  created_by uuid null,
+  created_at timestamptz not null default now(),
+  approved_by uuid null,
+  approved_at timestamptz null,
+  rejected_by uuid null,
+  rejected_at timestamptz null,
+  rejection_reason text null
+);
+
+grant select, insert, update on table public.educational_reference_documents to authenticated;
+grant select, insert, update, delete on table public.educational_reference_documents to service_role;
+
+alter table public.educational_reference_documents enable row level security;
+
+drop policy if exists "authenticated read educational_reference_documents" on public.educational_reference_documents;
+drop policy if exists "authenticated insert educational_reference_documents" on public.educational_reference_documents;
+drop policy if exists "authenticated update educational_reference_documents" on public.educational_reference_documents;
+
+create policy "authenticated read educational_reference_documents"
+on public.educational_reference_documents for select
+to authenticated
+using (
+  coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'college','')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'sector','')
+);
+
+create policy "authenticated insert educational_reference_documents"
+on public.educational_reference_documents for insert
+to authenticated
+with check (
+  coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'college','')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'sector','')
+);
+
+create policy "authenticated update educational_reference_documents"
+on public.educational_reference_documents for update
+to authenticated
+using (
+  coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'college','')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'sector','')
+)
+with check (
+  coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'college','')
+  or college = coalesce(auth.jwt()->'app_metadata'->>'sector','')
 );
 
 create policy "authenticated update scoped ai_recommendations"

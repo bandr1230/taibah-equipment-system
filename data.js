@@ -18,6 +18,36 @@ const PERMISSIONS=[
   {key:'view_exchange',label:'عرض طلب الدعم بين القطاعات'},
   {key:'request_support',label:'إنشاء طلب دعم من قطاع آخر'},
   {key:'approve_support',label:'اعتماد طلبات الدعم'},
+  {key:'view_support_availability',label:'عرض أرصدة ومواقع الدعم بين القطاعات'},
+  {key:'view_support_requests',label:'طلب الدعم بين القطاعات - عرض طلبات الدعم'},
+  {key:'view_own_support_requests',label:'طلب الدعم بين القطاعات - عرض طلبات الدعم الخاصة بالقطاع'},
+  {key:'create_support_request',label:'طلب الدعم بين القطاعات - إنشاء طلب دعم'},
+  {key:'review_support_requests',label:'طلب الدعم بين القطاعات - مراجعة طلبات الدعم من إدارة التجهيزات'},
+  {key:'view_support_source_availability',label:'طلب الدعم بين القطاعات - عرض توفر الصنف في القطاعات لإدارة التجهيزات'},
+  {key:'view_support_locations',label:'طلب الدعم بين القطاعات - عرض المواقع التفصيلية لمصادر الدعم'},
+  {key:'assign_support_source',label:'طلب الدعم بين القطاعات - تحديد القطاع المانح والكمية'},
+  {key:'approve_support_transfer',label:'طلب الدعم بين القطاعات - اعتماد تحويل الدعم'},
+  {key:'execute_support_transfer',label:'طلب الدعم بين القطاعات - تنفيذ تحويل الدعم وخصم/إضافة الرصيد'},
+  {key:'reject_support_request',label:'طلب الدعم بين القطاعات - رفض طلب الدعم'},
+  {key:'return_support_request',label:'طلب الدعم بين القطاعات - إعادة الطلب للقطاع بملاحظات'},
+  {key:'cancel_support_request',label:'طلب الدعم بين القطاعات - إلغاء طلب الدعم'},
+  {key:'view_support_reports',label:'طلب الدعم بين القطاعات - عرض تقارير الدعم'},
+  {key:'view_support_transfer_details',label:'طلب الدعم بين القطاعات - عرض تفاصيل تحويل الدعم بين القطاعات'},
+  {key:'view_support_source_sector',label:'طلب الدعم بين القطاعات - عرض القطاع المانح'},
+  {key:'view_support_target_sector',label:'طلب الدعم بين القطاعات - عرض القطاع المستفيد'},
+  {key:'view_support_admin_report',label:'طلب الدعم بين القطاعات - عرض تقرير الدعم الإداري الكامل'},
+  {key:'view_maintenance',label:'عرض صيانة الأجهزة التعليمية والطبية'},
+  {key:'view_maintenance_assets',label:'عرض أصول الصيانة'},
+  {key:'manage_maintenance_assets',label:'إدارة أصول وخطط الصيانة'},
+  {key:'create_maintenance_ticket',label:'إنشاء بلاغ عطل'},
+  {key:'perform_maintenance_visit',label:'تنفيذ الزيارات الفنية للصيانة'},
+  {key:'request_spare_parts',label:'طلب قطع غيار للصيانة'},
+  {key:'approve_entity_maintenance',label:'اعتماد الجهة لبلاغات الصيانة'},
+  {key:'final_close_maintenance',label:'الإغلاق النهائي لبلاغات الصيانة'},
+  {key:'view_maintenance_reports',label:'عرض تقارير الصيانة'},
+  {key:'manage_maintenance_settings',label:'إعدادات الصيانة'},
+  {key:'approve_maintenance_entity',label:'اعتماد الجهة لبلاغات الصيانة'},
+  {key:'close_maintenance_ticket',label:'الإغلاق النهائي لبلاغات الصيانة'},
   {key:'view_needs',label:'عرض طلبات الاحتياج'},
   {key:'create_need',label:'رفع طلب احتياج'},
   {key:'approve_need',label:'اعتماد طلبات الاحتياج'},
@@ -36,7 +66,7 @@ const PERMISSIONS=[
   {key:'manage_org',label:'إدارة القطاعات والأقسام والترميز'}
 ];
 
-const REPORT_PERMISSION_KEYS=['report_senior','report_inventory','report_transactions','report_needs','report_support','report_low'];
+const REPORT_PERMISSION_KEYS=['report_senior','report_inventory','report_transactions','report_needs','report_support','report_low','view_support_reports','view_support_admin_report','view_maintenance_reports'];
 
 const DEFAULT_DATA={
   settings:{
@@ -133,7 +163,7 @@ if(!Array.isArray(db.supportRequests))db.supportRequests=[];
 if(!Array.isArray(db.needEvidence))db.needEvidence=[];
 if(!Array.isArray(db.auditLogs))db.auditLogs=[];
 db.users=(db.users||[]).map(u=>{
-  const perms=Array.isArray(u.permissions)?[...u.permissions]:[];
+  const perms=Array.isArray(u.permissions)?u.permissions.filter(p=>p!=='use_ai_assistant'):[];
   if(u.role==='admin')return {...u,college:u.college||u.department||'كلية الصيدلة',department:u.department||'القسم العام',permissions:['all']};
   if(perms.includes('view_dashboard')&&!perms.includes('view_executive'))perms.unshift('view_executive');
   if(perms.includes('view_transactions')&&!perms.includes('view_needs'))perms.push('view_needs');

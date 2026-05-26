@@ -114,7 +114,65 @@
     return semester==='الثاني' || semester==='كلاهما' || semester==='both' || semester==='second';
   }
 
+  function parseRatioNumber(value){
+    const raw=String(value||'').replace('%','').replace(',','.').trim();
+    const match=raw.match(/[-+]?\d*\.?\d+/);
+    const n=match ? Number(match[0]) : 0;
+    return Number.isFinite(n) && n>0 ? n : 0;
+  }
+
+  function chemicalPreparationFactor(row){
+    const mode=String(row.chemicalUsageMode||row.preparationMode||'direct').trim();
+    if(!['solution_preparation','prepare_solution','prepared_from_concentrate'].includes(mode)) return 1;
+    const percent=parseRatioNumber(
+      row.preparationPercent ||
+      row.solutionPercent ||
+      row.targetConcentration ||
+      row.finalConcentration ||
+      row.solutionConcentration
+    );
+    if(!percent) return 1;
+    return Math.min(percent/100,1);
+  }
+
+  function lifecyclePolicy(row,categoryKey){
+    const raw=String(row.reusePolicy||row.lifecyclePolicy||row.usageLifecycle||'').trim();
+    if(raw) return raw;
+    if(categoryKey==='device') return 'reusable_peak';
+    if(row.basis==='reusable') return 'reusable_peak';
+    return 'single_use';
+  }
+
+  function isPeakBased(row){
+    const policy=lifecyclePolicy(row,row.referenceCategoryKey||row.categoryKey||row.category);
+    return ['reusable','reusable_peak','shared','durable','device'].includes(policy) || row.basis==='reusable';
+  }
+
+  function scheduleBucket(row,term){
+    const week=Math.max(1,Math.min(15,Math.ceil(toNumber(row.academicWeek||row.weekNo||row.experimentWeek||1)||1)));
+    const day=normalizeKey(row.scheduleDay||row.day||'unspecified_day')||'unspecified_day';
+    const slot=normalizeKey(row.scheduleSlot||row.timeSlot||row.period||'unspecified_slot')||'unspecified_slot';
+    return [term,week,day,slot].join('|');
+  }
+
+  function itemIdentityParts(row,mainDepartment,section){
+    const category=normalizeKey(row.referenceCategoryKey||row.categoryKey||row.category||section);
+    const specA=normalizeKey(row.specA||row.size||row.model||row.sourceConcentration||row.concentration);
+    const specB=normalizeKey(row.specB||row.packageType||row.deviceCondition);
+    return [
+      normalizeKey(row.itemNameAr||row.itemNameEn),
+      normalizeKey(row.requestUnit),
+      normalizeKey(mainDepartment),
+      normalizeKey(section),
+      category,
+      specA,
+      category==='chemical' ? '' : specB
+    ];
+  }
+
   function calcMaterial(row){
+    const categoryKey=String(row.referenceCategoryKey||row.categoryKey||row.category||'').trim();
+    const isDevice=categoryKey==='device';
     const safe={
       experimentName:String(row.experimentName||'تجربة غير مسماة').trim()||'تجربة غير مسماة',
       semester:row.semester||'الأول',
@@ -128,10 +186,25 @@
       itemNameEn:String(row.itemNameEn||'').trim(),
       usageUnit:canonicalUnit(row.usageUnit||row.unit||'عدد'),
       requestUnit:canonicalUnit(row.requestUnit||defaultRequestUnit(row.usageUnit||row.unit||'عدد')),
-      basis:row.basis||'per_student',
+      basis:row.basis||(isDevice?'per_section':'per_student'),
       qtyPerUse:toNumber(row.qtyPerUse),
-      wastePercent:toNumber(row.wastePercent),
-      stockAvailable:toNumber(row.stockAvailable)
+      wastePercent:isDevice?0:toNumber(row.wastePercent),
+      stockAvailable:toNumber(row.stockAvailable),
+      referenceCategoryKey:categoryKey,
+      reusePolicy:lifecyclePolicy(row,categoryKey),
+      academicWeek:Math.max(1,Math.min(15,Math.ceil(toNumber(row.academicWeek||row.weekNo||row.experimentWeek||1)||1))),
+      scheduleDay:String(row.scheduleDay||row.day||'').trim(),
+      scheduleSlot:String(row.scheduleSlot||row.timeSlot||row.period||'').trim(),
+      chemicalUsageMode:String(row.chemicalUsageMode||row.preparationMode||'concentrated_direct').trim(),
+      sourceConcentration:String(row.sourceConcentration||row.stockConcentration||row.specA||row.concentration||'').trim(),
+      targetConcentration:String(row.targetConcentration||row.finalConcentration||row.solutionConcentration||'').trim(),
+      preparationPercent:toNumber(row.preparationPercent||row.solutionPercent||row.targetConcentration||row.finalConcentration),
+      preparationVolume:toNumber(row.preparationVolume||row.finalSolutionVolume||row.displayQtyPerUse),
+      preparationCount:toNumber(row.preparationCount||1),
+      preparationCountMode:String(row.preparationCountMode||'').trim(),
+      solutionVolumeTotal:toNumber(row.solutionVolumeTotal||row.finalSolutionTotal),
+      specA:String(row.specA||'').trim(),
+      specB:String(row.specB||'').trim()
     };
     const maleStudents=safe.maleSections*safe.malePerSection;
     const femaleStudents=safe.femaleSections*safe.femalePerSection;
@@ -141,21 +214,27 @@
     const femaleGroups=safe.femaleSections ? safe.femaleSections*Math.ceil(safe.femalePerSection/safe.groupSize) : 0;
     const groups=maleGroups+femaleGroups;
     let baseQty=0;
-    let effectiveRepeats=safe.repeats;
+    let effectiveRepeats=isDevice?1:safe.repeats;
 
     if(safe.basis==='per_student') baseQty=students*safe.qtyPerUse;
     else if(safe.basis==='per_group') baseQty=groups*safe.qtyPerUse;
     else if(safe.basis==='per_section') baseQty=sections*safe.qtyPerUse;
     else if(safe.basis==='per_experiment') baseQty=safe.qtyPerUse;
     else {
-      baseQty=Math.max(groups,sections,1)*safe.qtyPerUse;
+      baseQty=(isDevice?Math.max(sections,1):Math.max(groups,sections,1))*safe.qtyPerUse;
       effectiveRepeats=1;
     }
 
-    const grossNeedUsage=(baseQty*effectiveRepeats)*(1+(safe.wastePercent/100));
+    const chemicalFactor=categoryKey==='chemical' ? chemicalPreparationFactor(row) : 1;
+    const grossNeedUsage=(baseQty*effectiveRepeats*chemicalFactor)*(1+(safe.wastePercent/100));
     const grossNeed=convertQty(grossNeedUsage,safe.usageUnit,safe.requestUnit);
     return {
       ...safe,
+      _refId:row._refId,
+      referenceNo:row.referenceNo,
+      courseName:row.courseName||'',
+      courseCode:row.courseCode||'',
+      academicYear:row.academicYear||'',
       unit:safe.requestUnit,
       maleStudents,
       femaleStudents,
@@ -164,6 +243,8 @@
       groups,
       baseQty,
       effectiveRepeats,
+      chemicalFactor,
+      peakBased:isPeakBased(safe),
       grossNeedUsage,
       grossNeed
     };
@@ -181,12 +262,7 @@
     const section=options.section||'القسم العام';
     const map=new Map();
     (rows||[]).map(calcMaterial).filter(isValidMaterial).forEach(row=>{
-      const key=[
-        normalizeKey(row.itemNameAr||row.itemNameEn),
-        normalizeKey(row.requestUnit),
-        normalizeKey(mainDepartment),
-        normalizeKey(section)
-      ].join('|');
+      const key=itemIdentityParts(row,mainDepartment,section).join('|');
       if(!map.has(key)){
         map.set(key,{
           key,
@@ -203,20 +279,46 @@
           term2Gross:0,
           stockAvailable:0,
           evidenceRows:[],
-          experiments:new Set()
+          experiments:new Set(),
+          courses:new Set(),
+          reusableBuckets:{first:new Map(),second:new Map()},
+          consumptiveGross:{first:0,second:0},
+          calculationModes:new Set()
         });
       }
       const agg=map.get(key);
       if(row.itemNameAr && !agg.itemNameAr) agg.itemNameAr=row.itemNameAr;
       if(row.itemNameEn && !agg.itemNameEn) agg.itemNameEn=row.itemNameEn;
-      if(appliesToFirstTerm(row.semester)) agg.term1Gross+=row.grossNeed;
-      if(appliesToSecondTerm(row.semester)) agg.term2Gross+=row.grossNeed;
+      const peak=isPeakBased(row);
+      agg.calculationModes.add(peak?'peak':'sum');
+      if(peak){
+        if(appliesToFirstTerm(row.semester)){
+          const bucket=scheduleBucket(row,'first');
+          agg.reusableBuckets.first.set(bucket,(agg.reusableBuckets.first.get(bucket)||0)+row.grossNeed);
+        }
+        if(appliesToSecondTerm(row.semester)){
+          const bucket=scheduleBucket(row,'second');
+          agg.reusableBuckets.second.set(bucket,(agg.reusableBuckets.second.get(bucket)||0)+row.grossNeed);
+        }
+      }else{
+        if(appliesToFirstTerm(row.semester)) agg.consumptiveGross.first+=row.grossNeed;
+        if(appliesToSecondTerm(row.semester)) agg.consumptiveGross.second+=row.grossNeed;
+      }
       agg.stockAvailable=Math.max(agg.stockAvailable,row.stockAvailable||0);
       agg.evidenceRows.push(row);
       agg.experiments.add(row.experimentName);
+      if(row.courseName) agg.courses.add(row.courseName);
       agg.usageUnits.add(row.usageUnit);
     });
     return [...map.values()].map(agg=>{
+      agg.term1Peak=roundPreview(Math.max(0,...agg.reusableBuckets.first.values()));
+      agg.term2Peak=roundPreview(Math.max(0,...agg.reusableBuckets.second.values()));
+      agg.term1Gross=roundPreview(agg.consumptiveGross.first+agg.term1Peak);
+      agg.term2Gross=roundPreview(agg.consumptiveGross.second+agg.term2Peak);
+      agg.peakBased=agg.calculationModes.has('peak');
+      agg.calculationMode=agg.calculationModes.has('peak') && !agg.calculationModes.has('sum') ? 'peak' :
+        agg.calculationModes.has('peak') ? 'mixed' : 'sum';
+      agg.conflictCount=[...agg.reusableBuckets.first.values(),...agg.reusableBuckets.second.values()].filter(v=>v>0).length;
       let remainingStock=agg.stockAvailable;
       const term1NetRaw=Math.max(agg.term1Gross-remainingStock,0);
       remainingStock=Math.max(remainingStock-agg.term1Gross,0);
@@ -258,6 +360,10 @@
     normalizeKey,
     calcMaterial,
     aggregateRows,
+    isPeakBased,
+    chemicalPreparationFactor,
+    scheduleBucket,
+    itemIdentityParts,
     findMergeTarget
   };
 });

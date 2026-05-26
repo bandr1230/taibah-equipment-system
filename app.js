@@ -786,7 +786,7 @@ function saveNeedEvidenceEdit(){
 /* ===== v5.8 customizations for sector/main-department/subcategory, need form, evidence rows, and locations ===== */
 function departmentsList(){ return (db.settings?.departments||[]).map(x=>x.name).filter(Boolean) }
 function departmentOptions(selected, includeAll=false){ const rows=departmentsList(); return `${includeAll?`<option value="all" ${selected==='all'?'selected':''}>كل الأقسام الرئيسية</option>`:''}${rows.map(s=>`<option value="${s}" ${selected===s?'selected':''}>${s}</option>`).join('')}` }
-function userDepartmentOptions(selected){return `<option value="الكل" ${selected==='الكل'?'selected':''}>الكل</option>${departmentsList().map(s=>`<option value="${s}" ${selected===s?'selected':''}>${s}</option>`).join('')}`}
+userDepartmentOptions=function(selected){return `<option value="الكل" ${selected==='الكل'?'selected':''}>الكل</option>${departmentsList().map(s=>`<option value="${s}" ${selected===s?'selected':''}>${s}</option>`).join('')}`}
 function currentDepartmentName(){ return isCentral() ? ((departmentsList()[0])||'القسم العام') : (state.currentUser?.department && state.currentUser.department!=='الكل' ? state.currentUser.department : ((departmentsList()[0])||'القسم العام')) }
 function migrateAdvancedModel(){
   if(!db.settings) db.settings={}
@@ -800,29 +800,29 @@ function migrateAdvancedModel(){
   db.users=(db.users||[]).map(u=>{ if(u.college==='إدارة التجهيزات') return {...u,department:'الكل'}; if(!u.department || SECTION_OPTIONS.includes(u.department)) return {...u,department:'القسم العام'}; return u })
   refreshSettingCaches()
 }
-function refreshSettingCaches(){ COLLEGE_OPTIONS=(db.settings.colleges||[]).filter(x=>x.name!=='إدارة التجهيزات').map(x=>x.name); SECTION_OPTIONS=(db.settings.sections||[]).map(x=>x.name); USER_SECTION_OPTIONS=['الكل',...(db.settings.departments||[]).map(x=>x.name)] }
+refreshSettingCaches=function(){ COLLEGE_OPTIONS=(db.settings.colleges||[]).filter(x=>x.name!=='إدارة التجهيزات').map(x=>x.name); SECTION_OPTIONS=(db.settings.sections||[]).map(x=>x.name); USER_SECTION_OPTIONS=['الكل',...(db.settings.departments||[]).map(x=>x.name)] }
 migrateAdvancedModel()
 
-function hasDepartmentScope(){return !isCentral() && !!state.currentUser?.department && state.currentUser.department!=='الكل'}
-function statusText(s){ return {draft:'مسودة',pending_sector_approval:'بانتظار اعتماد مسؤول القطاع',pending_equipment_review:'بانتظار إجراء إدارة التجهيزات',returned_to_sector:'معاد للقطاع للتعديل',pending_owner:'بانتظار موافقة الجهة المالكة',owner_approved:'موافقة الجهة المالكة',pending_equipment:'بانتظار اعتماد إدارة التجهيزات',approved:'معتمد',rejected:'مرفوض',completed:'مكتمل'}[s]||s||'تحت الإجراء' }
-function statusBadge(s){ if(s==='approved')return '<span class="badge badge-ok">معتمد</span>'; if(s==='rejected')return '<span class="badge badge-danger">مرفوض</span>'; if(['pending_sector_approval','pending_equipment_review','returned_to_sector','pending_owner','owner_approved','pending_equipment'].includes(s))return '<span class="badge badge-warning">'+statusText(s)+'</span>'; if(s==='draft')return '<span class="badge badge-info">مسودة</span>'; return '<span class="badge badge-info">تحت الإجراء</span>' }
-function approvalPath(type,status){ if(type==='support'){ const steps=['تقديم الطلب','موافقة الجهة المالكة','اعتماد إدارة التجهيزات','إغلاق الطلب']; const idx={pending_owner:0,owner_approved:1,pending_equipment:1,approved:3,rejected:3}[status||'pending_owner']??0; return `<div class="workflow">${steps.map((s,i)=>`<span class="${i<=idx?'done':''}">${s}</span>`).join('')}</div>` } const steps=['إنشاء الطلب','اعتماد مسؤول القطاع','مراجعة إدارة التجهيزات','الإغلاق']; const idx={draft:0,pending_sector_approval:0,returned_to_sector:0,pending_equipment_review:1,approved:3,rejected:3}[status||'pending_sector_approval']??0; return `<div class="workflow">${steps.map((s,i)=>`<span class="${i<=idx?'done':''}">${s}</span>`).join('')}</div>` }
-function visibleItems(all=false){ let rows=db.items||[]; if(!all&&!isCentral())rows=rows.filter(i=>i.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(i=>(i.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(i=>i.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(i=>i.section===state.sectionFilter || (i.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(i=>[i.code,i.college,i.mainDepartment,i.section,itemName(i),i.nameEn,i.location,i.serialNumber].join(' ').includes(q))} return rows }
-function visibleTransactions(){ let rows=db.transactions||[]; if(!isCentral())rows=rows.filter(t=>t.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(t=>(t.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(t=>t.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(t=>t.section===state.sectionFilter || (t.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(t=>[itemName(getItemById(t.itemId)),t.college,t.mainDepartment,t.section,t.type,t.notes,t.status,actorName(t.createdBy),actorName(t.reviewedBy)].join(' ').includes(q))} return rows.sort((a,b)=>(b.transactionAt||'').localeCompare(a.transactionAt||'')) }
-function filteredNeeds(){ let rows=db.needsRequests||[]; if(!isCentral())rows=rows.filter(r=>r.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.erpCode,r.college,r.mainDepartment,r.section,r.itemNameAr,r.itemNameEn,r.description,r.specifications,r.notes,statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)].join(' ').includes(q))} return rows }
-function filteredSupport(){ let rows=db.supportRequests||[]; if(!isCentral())rows=rows.filter(r=>r.fromCollege===state.currentUser.college||r.toCollege===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.fromCollege===state.collegeFilter||r.toCollege===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.fromCollege,r.toCollege,r.mainDepartment,r.section,r.itemName,r.notes,statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)].join(' ').includes(q))} return rows }
-function metrics(){const items=isCentral()?visibleItems(true):visibleItems(), tx=visibleTransactions(), needs=filteredNeeds(), support=filteredSupport(); return {items:items.length,colleges:new Set(items.map(i=>i.college)).size,low:items.filter(i=>i.qty<=i.minQty).length,devices:items.filter(i=>i.section==='الأجهزة التعليمية').length,pendingIssue:tx.filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length,pendingNeeds:needs.filter(n=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(n.status||'pending_sector_approval')).length,pendingSupport:support.filter(s=>['pending_owner','owner_approved','pending_equipment'].includes(s.status||'pending_owner')).length,approvedSupport:support.filter(s=>s.status==='approved').length}}
-function alertsHtml(){ const lows=lowStock().length, pendingIssue=visibleTransactions().filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length; const pendingNeeds=filteredNeeds().filter(n=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(n.status||'pending_sector_approval')).length; const noEvidenceNeeds=filteredNeeds().filter(n=>evidenceCountForNeed(n.id)===0).length; const pendingSupport=filteredSupport().filter(s=>['pending_owner','owner_approved','pending_equipment'].includes(s.status||'pending_owner')).length; const cards=[['مواد تحت الحد الأدنى',lows,'تحتاج معالجة أو رفع احتياج'],['طلبات صرف معلقة',pendingIssue,'بانتظار قرار المسؤول'],['طلبات احتياج قيد الإجراء',pendingNeeds,'بين القطاع وإدارة التجهيزات'],['طلبات احتياج بلا شواهد',noEvidenceNeeds,'يفضل استكمالها قبل الاعتماد'],['طلبات دعم بين القطاعات',pendingSupport,'بانتظار الموافقات']]; return `<div class="alert-grid">${cards.map(c=>`<div class="alert-card"><strong>${c[0]}</strong><b>${c[1]}</b><span>${c[2]}</span></div>`).join('')}</div>` }
+hasDepartmentScope=function(){return !isCentral() && !!state.currentUser?.department && state.currentUser.department!=='الكل'}
+statusText=function(s){ return {draft:'مسودة',pending_sector_approval:'بانتظار اعتماد مسؤول القطاع',pending_equipment_review:'بانتظار إجراء إدارة التجهيزات',returned_to_sector:'معاد للقطاع للتعديل',pending_owner:'بانتظار موافقة الجهة المالكة',owner_approved:'موافقة الجهة المالكة',pending_equipment:'بانتظار اعتماد إدارة التجهيزات',approved:'معتمد',rejected:'مرفوض',completed:'مكتمل'}[s]||s||'تحت الإجراء' }
+statusBadge=function(s){ if(s==='approved')return '<span class="badge badge-ok">معتمد</span>'; if(s==='rejected')return '<span class="badge badge-danger">مرفوض</span>'; if(['pending_sector_approval','pending_equipment_review','returned_to_sector','pending_owner','owner_approved','pending_equipment'].includes(s))return '<span class="badge badge-warning">'+statusText(s)+'</span>'; if(s==='draft')return '<span class="badge badge-info">مسودة</span>'; return '<span class="badge badge-info">تحت الإجراء</span>' }
+approvalPath=function(type,status){ if(type==='support'){ const steps=['تقديم الطلب','موافقة الجهة المالكة','اعتماد إدارة التجهيزات','إغلاق الطلب']; const idx={pending_owner:0,owner_approved:1,pending_equipment:1,approved:3,rejected:3}[status||'pending_owner']??0; return `<div class="workflow">${steps.map((s,i)=>`<span class="${i<=idx?'done':''}">${s}</span>`).join('')}</div>` } const steps=['إنشاء الطلب','اعتماد مسؤول القطاع','مراجعة إدارة التجهيزات','الإغلاق']; const idx={draft:0,pending_sector_approval:0,returned_to_sector:0,pending_equipment_review:1,approved:3,rejected:3}[status||'pending_sector_approval']??0; return `<div class="workflow">${steps.map((s,i)=>`<span class="${i<=idx?'done':''}">${s}</span>`).join('')}</div>` }
+visibleItems=function(all=false){ let rows=db.items||[]; if(!all&&!isCentral())rows=rows.filter(i=>i.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(i=>(i.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(i=>i.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(i=>i.section===state.sectionFilter || (i.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(i=>[i.code,i.college,i.mainDepartment,i.section,itemName(i),i.nameEn,i.location,i.serialNumber].join(' ').includes(q))} return rows }
+visibleTransactions=function(){ let rows=db.transactions||[]; if(!isCentral())rows=rows.filter(t=>t.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(t=>(t.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(t=>t.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(t=>t.section===state.sectionFilter || (t.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(t=>[itemName(getItemById(t.itemId)),t.college,t.mainDepartment,t.section,t.type,t.notes,t.status,actorName(t.createdBy),actorName(t.reviewedBy)].join(' ').includes(q))} return rows.sort((a,b)=>(b.transactionAt||'').localeCompare(a.transactionAt||'')) }
+filteredNeeds=function(){ let rows=db.needsRequests||[]; if(!isCentral())rows=rows.filter(r=>r.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.erpCode,r.college,r.mainDepartment,r.section,r.itemNameAr,r.itemNameEn,r.description,r.specifications,r.notes,statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)].join(' ').includes(q))} return rows }
+filteredSupport=function(){ let rows=db.supportRequests||[]; if(!isCentral())rows=rows.filter(r=>r.fromCollege===state.currentUser.college||r.toCollege===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.fromCollege===state.collegeFilter||r.toCollege===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.fromCollege,r.toCollege,r.mainDepartment,r.section,r.itemName,r.notes,statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)].join(' ').includes(q))} return rows }
+metrics=function(){const items=isCentral()?visibleItems(true):visibleItems(), tx=visibleTransactions(), needs=filteredNeeds(), support=filteredSupport(); return {items:items.length,colleges:new Set(items.map(i=>i.college)).size,low:items.filter(i=>i.qty<=i.minQty).length,devices:items.filter(i=>i.section==='الأجهزة التعليمية').length,pendingIssue:tx.filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length,pendingNeeds:needs.filter(n=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(n.status||'pending_sector_approval')).length,pendingSupport:support.filter(s=>['pending_owner','owner_approved','pending_equipment'].includes(s.status||'pending_owner')).length,approvedSupport:support.filter(s=>s.status==='approved').length}}
+alertsHtml=function(){ const lows=lowStock().length, pendingIssue=visibleTransactions().filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length; const pendingNeeds=filteredNeeds().filter(n=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(n.status||'pending_sector_approval')).length; const noEvidenceNeeds=filteredNeeds().filter(n=>evidenceCountForNeed(n.id)===0).length; const pendingSupport=filteredSupport().filter(s=>['pending_owner','owner_approved','pending_equipment'].includes(s.status||'pending_owner')).length; const cards=[['مواد تحت الحد الأدنى',lows,'تحتاج معالجة أو رفع احتياج'],['طلبات صرف معلقة',pendingIssue,'بانتظار قرار المسؤول'],['طلبات احتياج قيد الإجراء',pendingNeeds,'بين القطاع وإدارة التجهيزات'],['طلبات احتياج بلا شواهد',noEvidenceNeeds,'يفضل استكمالها قبل الاعتماد'],['طلبات دعم بين القطاعات',pendingSupport,'بانتظار الموافقات']]; return `<div class="alert-grid">${cards.map(c=>`<div class="alert-card"><strong>${c[0]}</strong><b>${c[1]}</b><span>${c[2]}</span></div>`).join('')}</div>` }
 function locationOptionsForCollege(college){ return (db.settings?.locations||[]).filter(x=>!x.college || x.college===college).map(x=>x.name) }
-function itemModalHtml(){ const item=state.editId?getItemById(state.editId):{college:isCentral()?COLLEGE_OPTIONS[0]:state.currentUser.college,mainDepartment:currentDepartmentName(),section:SECTION_OPTIONS[0],unit:UNIT_OPTIONS[0],qty:0,minQty:0,location:'',serialNumber:'',deviceStatus:'يعمل',nameAr:'',nameEn:'',notes:''}; const college=item.college||(!isCentral()?state.currentUser.college:COLLEGE_OPTIONS[0]); const locs=locationOptionsForCollege(college); return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">${state.editId?'تعديل صنف':'إضافة صنف'}</div><div class="panel-subtitle">تمت إضافة القسم الرئيسي وربط المواقع بقائمة قابلة للاختيار أو الإدخال اليدوي.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">القطاع</label>${isCentral()?`<select id="item-college" class="select">${collegeOptions(college,false)}</select>`:`<input id="item-college" class="input" value="${state.currentUser.college}" readonly>`}</div><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="item-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="item-mainDepartment" class="select">${departmentOptions(item.mainDepartment||currentDepartmentName(),false)}</select>`}</div><div><label class="label">القسم الفرعي</label><select id="item-section" class="select">${sectionOptions(item.section,false)}</select></div><div><label class="label">اسم الصنف بالعربية</label><input id="item-name" class="input" value="${item.nameAr||''}"></div><div><label class="label">اسم الصنف بالإنجليزية</label><input id="item-name-en" class="input" value="${item.nameEn||''}"></div><div><label class="label">الوحدة</label><select id="item-unit" class="select">${UNIT_OPTIONS.map(u=>`<option ${item.unit===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="label">الكمية</label><input id="item-qty" class="input" type="number" min="0" value="${item.qty||0}"></div><div><label class="label">الحد الأدنى</label><input id="item-minQty" class="input" type="number" min="0" value="${item.minQty||0}"></div><div><label class="label">الموقع</label><input id="item-location" class="input" list="item-location-list" value="${item.location||''}"><datalist id="item-location-list">${locs.map(x=>`<option value="${x}">`).join('')}</datalist></div><div><label class="label">الرقم التسلسلي</label><input id="item-serialNumber" class="input" value="${item.serialNumber||''}"></div><div><label class="label">حالة الجهاز</label><select id="item-deviceStatus" class="select">${deviceStatuses().map(s=>`<option ${item.deviceStatus===s?'selected':''}>${s}</option>`).join('')}</select></div><div class="full"><label class="label">ملاحظات</label><textarea id="item-notes" class="textarea">${item.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveItem()">حفظ</button></div></div></div>` }
-function saveItem(){ const id=state.editId, item=id?getItemById(id):{id:nextId(db.items),createdAt:nowLocalString(),createdBy:state.currentUser.id}; item.college=isCentral()?document.getElementById('item-college').value:state.currentUser.college; item.mainDepartment=document.getElementById('item-mainDepartment')?.value || currentDepartmentName(); item.nameAr=document.getElementById('item-name').value.trim(); item.nameEn=document.getElementById('item-name-en').value.trim(); item.name=item.nameAr; item.section=document.getElementById('item-section').value; item.code=generateItemCode(item.college,item.section,id); item.unit=document.getElementById('item-unit').value; item.qty=Number(document.getElementById('item-qty').value||0); item.minQty=Number(document.getElementById('item-minQty').value||0); item.location=document.getElementById('item-location').value.trim(); item.serialNumber=document.getElementById('item-serialNumber').value.trim(); item.deviceStatus=document.getElementById('item-deviceStatus').value; item.notes=document.getElementById('item-notes').value.trim(); if(!item.nameAr)return alert('أدخل اسم الصنف'); if(item.section!=='الأجهزة التعليمية'){ const keyAr=normalizeText(item.nameAr), keyEn=normalizeText(item.nameEn); const duplicate=(db.items||[]).find(x=>Number(x.id)!==Number(id||0)&&x.college===item.college&&(x.mainDepartment||'القسم العام')===item.mainDepartment&&x.section===item.section&&(normalizeText(itemName(x))===keyAr || (keyEn&&normalizeText(x.nameEn)===keyEn))); if(duplicate)return alert('هذا الصنف موجود مسبقًا في نفس القطاع والقسم الرئيسي والقسم الفرعي.') } if(!id){db.items.push(item);auditLog('إضافة صنف','item',item.id,`تمت إضافة ${item.nameAr}`,item.college,item.mainDepartment)}else{auditLog('تعديل صنف','item',item.id,`تم تعديل ${item.nameAr}`,item.college,item.mainDepartment)} saveDb(); closeModal() }
+itemModalHtml=function(){ const item=state.editId?getItemById(state.editId):{college:isCentral()?COLLEGE_OPTIONS[0]:state.currentUser.college,mainDepartment:currentDepartmentName(),section:SECTION_OPTIONS[0],unit:UNIT_OPTIONS[0],qty:0,minQty:0,location:'',serialNumber:'',deviceStatus:'يعمل',nameAr:'',nameEn:'',notes:''}; const college=item.college||(!isCentral()?state.currentUser.college:COLLEGE_OPTIONS[0]); const locs=locationOptionsForCollege(college); return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">${state.editId?'تعديل صنف':'إضافة صنف'}</div><div class="panel-subtitle">تمت إضافة القسم الرئيسي وربط المواقع بقائمة قابلة للاختيار أو الإدخال اليدوي.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">القطاع</label>${isCentral()?`<select id="item-college" class="select">${collegeOptions(college,false)}</select>`:`<input id="item-college" class="input" value="${state.currentUser.college}" readonly>`}</div><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="item-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="item-mainDepartment" class="select">${departmentOptions(item.mainDepartment||currentDepartmentName(),false)}</select>`}</div><div><label class="label">القسم الفرعي</label><select id="item-section" class="select">${sectionOptions(item.section,false)}</select></div><div><label class="label">اسم الصنف بالعربية</label><input id="item-name" class="input" value="${item.nameAr||''}"></div><div><label class="label">اسم الصنف بالإنجليزية</label><input id="item-name-en" class="input" value="${item.nameEn||''}"></div><div><label class="label">الوحدة</label><select id="item-unit" class="select">${UNIT_OPTIONS.map(u=>`<option ${item.unit===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="label">الكمية</label><input id="item-qty" class="input" type="number" min="0" value="${item.qty||0}"></div><div><label class="label">الحد الأدنى</label><input id="item-minQty" class="input" type="number" min="0" value="${item.minQty||0}"></div><div><label class="label">الموقع</label><input id="item-location" class="input" list="item-location-list" value="${item.location||''}"><datalist id="item-location-list">${locs.map(x=>`<option value="${x}">`).join('')}</datalist></div><div><label class="label">الرقم التسلسلي</label><input id="item-serialNumber" class="input" value="${item.serialNumber||''}"></div><div><label class="label">حالة الجهاز</label><select id="item-deviceStatus" class="select">${deviceStatuses().map(s=>`<option ${item.deviceStatus===s?'selected':''}>${s}</option>`).join('')}</select></div><div class="full"><label class="label">ملاحظات</label><textarea id="item-notes" class="textarea">${item.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveItem()">حفظ</button></div></div></div>` }
+saveItem=function(){ const id=state.editId, item=id?getItemById(id):{id:nextId(db.items),createdAt:nowLocalString(),createdBy:state.currentUser.id}; item.college=isCentral()?document.getElementById('item-college').value:state.currentUser.college; item.mainDepartment=document.getElementById('item-mainDepartment')?.value || currentDepartmentName(); item.nameAr=document.getElementById('item-name').value.trim(); item.nameEn=document.getElementById('item-name-en').value.trim(); item.name=item.nameAr; item.section=document.getElementById('item-section').value; item.code=generateItemCode(item.college,item.section,id); item.unit=document.getElementById('item-unit').value; item.qty=Number(document.getElementById('item-qty').value||0); item.minQty=Number(document.getElementById('item-minQty').value||0); item.location=document.getElementById('item-location').value.trim(); item.serialNumber=document.getElementById('item-serialNumber').value.trim(); item.deviceStatus=document.getElementById('item-deviceStatus').value; item.notes=document.getElementById('item-notes').value.trim(); if(!item.nameAr)return alert('أدخل اسم الصنف'); if(item.section!=='الأجهزة التعليمية'){ const keyAr=normalizeText(item.nameAr), keyEn=normalizeText(item.nameEn); const duplicate=(db.items||[]).find(x=>Number(x.id)!==Number(id||0)&&x.college===item.college&&(x.mainDepartment||'القسم العام')===item.mainDepartment&&x.section===item.section&&(normalizeText(itemName(x))===keyAr || (keyEn&&normalizeText(x.nameEn)===keyEn))); if(duplicate)return alert('هذا الصنف موجود مسبقًا في نفس القطاع والقسم الرئيسي والقسم الفرعي.') } if(!id){db.items.push(item);auditLog('إضافة صنف','item',item.id,`تمت إضافة ${item.nameAr}`,item.college,item.mainDepartment)}else{auditLog('تعديل صنف','item',item.id,`تم تعديل ${item.nameAr}`,item.college,item.mainDepartment)} saveDb(); closeModal() }
 function itemActionButtons(i){
   const actions=[]
   if(hasPermission('edit_item'))actions.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('item',${i.id})">تعديل</button>`)
   if(hasPermission('delete_item'))actions.push(`<button class="btn btn-danger btn-sm" onclick="removeItem(${i.id})">حذف</button>`)
   return actions.length?`<div class="flex-actions">${actions.join('')}</div>`:'—'
 }
-function renderItems(){ const rows=visibleItems().map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),itemActionButtons(i)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">تمت إضافة القسم الرئيسي والقسم الفرعي وربط الموقع بقائمة مواقع قابلة للاختيار.</div></div>${table(['القطاع','القسم الرئيسي','الرمز','العربي','English','القسم الفرعي','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>` }
+renderItems=function(){ const rows=visibleItems().map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),itemActionButtons(i)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">تمت إضافة القسم الرئيسي والقسم الفرعي وربط الموقع بقائمة مواقع قابلة للاختيار.</div></div>${table(['القطاع','القسم الرئيسي','الرمز','العربي','English','القسم الفرعي','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>` }
 function removeItem(id){
   if(!hasPermission('delete_item'))return alert('لا تملك صلاحية حذف الصنف')
   const idx=(db.items||[]).findIndex(x=>Number(x.id)===Number(id))
@@ -840,49 +840,49 @@ function removeItem(id){
   saveDb()
   render()
 }
-function renderTransactions(){ const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.mainDepartment||'القسم العام',t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]}); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>` }
-function saveTransaction(){ if(!hasPermission('add_issue'))return alert('لا تملك صلاحية إنشاء طلب الصرف'); const type=document.getElementById('tx-type').value, itemId=Number(document.getElementById('tx-item').value), qty=Number(document.getElementById('tx-qty').value||0), notes=document.getElementById('tx-notes').value.trim(); const item=getItemById(itemId); if(!item)return alert('اختر الصنف'); if(qty<=0)return alert('الكمية يجب أن تكون أكبر من صفر'); if(type==='issue'&&item.qty<qty)return alert(`الكمية المطلوبة أعلى من المتاح. المتاح: ${item.qty} ${item.unit}`); const tx={id:nextId(db.transactions),type,status:type==='receive'?'approved':'pending',itemId:item.id,college:item.college,mainDepartment:item.mainDepartment||'القسم العام',section:item.section,qty,unit:item.unit,transactionAt:nowLocalString(),notes,createdBy:state.currentUser.id}; if(type==='receive'){item.qty+=qty; item.createdBy=state.currentUser.id} db.transactions.unshift(tx); auditLog(type==='receive'?'إدخال كمية':'طلب صرف','transaction',tx.id,`${itemName(item)} - كمية ${qty} ${item.unit}`,item.college,item.mainDepartment); saveDb(); closeModal() }
+renderTransactions=function(){ const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.mainDepartment||'القسم العام',t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]}); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>` }
+saveTransaction=function(){ if(!hasPermission('add_issue'))return alert('لا تملك صلاحية إنشاء طلب الصرف'); const type=document.getElementById('tx-type').value, itemId=Number(document.getElementById('tx-item').value), qty=Number(document.getElementById('tx-qty').value||0), notes=document.getElementById('tx-notes').value.trim(); const item=getItemById(itemId); if(!item)return alert('اختر الصنف'); if(qty<=0)return alert('الكمية يجب أن تكون أكبر من صفر'); if(type==='issue'&&item.qty<qty)return alert(`الكمية المطلوبة أعلى من المتاح. المتاح: ${item.qty} ${item.unit}`); const tx={id:nextId(db.transactions),type,status:type==='receive'?'approved':'pending',itemId:item.id,college:item.college,mainDepartment:item.mainDepartment||'القسم العام',section:item.section,qty,unit:item.unit,transactionAt:nowLocalString(),notes,createdBy:state.currentUser.id}; if(type==='receive'){item.qty+=qty; item.createdBy=state.currentUser.id} db.transactions.unshift(tx); auditLog(type==='receive'?'إدخال كمية':'طلب صرف','transaction',tx.id,`${itemName(item)} - كمية ${qty} ${item.unit}`,item.college,item.mainDepartment); saveDb(); closeModal() }
 function getNeedPrefillByErp(code){ const q=String(code||'').trim(); if(!q) return null; const need=(db.needsRequests||[]).find(r=>String(r.erpCode||'').trim()===q); if(need) return {itemNameAr:need.itemNameAr||'',itemNameEn:need.itemNameEn||'',unit:need.unit||'',category:need.section||'',description:need.description||'',specifications:need.specifications||''}; const item=(db.items||[]).find(i=>String(i.erpCode||i.code||'').trim()===q); if(item) return {itemNameAr:item.nameAr||'',itemNameEn:item.nameEn||'',unit:item.unit||'',category:item.section||'',description:item.notes||'',specifications:item.notes||''}; return null }
 function fillNeedFromErp(){ const erp=document.getElementById('need-erpCode')?.value; const pref=getNeedPrefillByErp(erp); if(!pref) return; if(document.getElementById('need-itemNameAr')) document.getElementById('need-itemNameAr').value=pref.itemNameAr||''; if(document.getElementById('need-itemNameEn')) document.getElementById('need-itemNameEn').value=pref.itemNameEn||''; if(document.getElementById('need-unit')) document.getElementById('need-unit').value=pref.unit||UNIT_OPTIONS[0]; if(document.getElementById('need-section') && pref.category) document.getElementById('need-section').value=pref.category; if(document.getElementById('need-description')) document.getElementById('need-description').value=pref.description||''; if(document.getElementById('need-specifications')) document.getElementById('need-specifications').value=pref.specifications||'' }
 function toggleMandatoryConstructionCode(prefix='need'){ const yn=document.getElementById(`${prefix}-mandatoryProduct`)?.value; const box=document.getElementById(`${prefix}-construction-wrap`); const input=document.getElementById(`${prefix}-constructionCode`); if(box) box.style.display = yn==='نعم' ? 'block' : 'none'; if(input && yn!=='نعم') input.value='' }
-function needModalHtml(){ const currentCollege=!isCentral()?state.currentUser.college:(state.collegeFilter!=='all'?state.collegeFilter:COLLEGE_OPTIONS[0]); return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">رفع طلب احتياج رسمي</div><div class="panel-subtitle">تمت مواءمة النموذج مع جدول الكميات: ERP، الفئة/البند، القائمة الإلزامية، سنوات الكميات، ورقم أمر الاحتياج.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">القطاع</label>${isCentral()?`<select id="need-college" class="select">${(db.settings?.colleges||[]).filter(c=>c.name!=='إدارة التجهيزات').map(c=>`<option value="${c.name}" ${c.name===currentCollege?'selected':''}>${c.name}</option>`).join('')}</select>`:`<input id="need-college" class="input" value="${state.currentUser.college}" readonly>`}</div><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="need-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="need-mainDepartment" class="select">${departmentOptions(currentDepartmentName(),false)}</select>`}</div><div><label class="label">القسم الفرعي (الفئة)</label><select id="need-section" class="select">${sectionOptions(SECTION_OPTIONS[0],false)}</select></div><div><label class="label">رمز ERP</label><input id="need-erpCode" class="input" list="erp-suggestions" onblur="fillNeedFromErp()" placeholder="يدويًا أو مرتبط بصنف/طلب سابق"><datalist id="erp-suggestions">${[...(db.items||[]).map(i=>i.erpCode||i.code).filter(Boolean),...(db.needsRequests||[]).map(r=>r.erpCode).filter(Boolean)].map(x=>`<option value="${x}">`).join('')}</datalist></div><div><label class="label">البند بالعربي</label><input id="need-itemNameAr" class="input"></div><div><label class="label">البند بالإنجليزية</label><input id="need-itemNameEn" class="input"></div><div><label class="label">وحدة القياس</label><select id="need-unit" class="select">${UNIT_OPTIONS.map(u=>`<option>${u}</option>`).join('')}</select></div><div><label class="label">منتج من القائمة الإلزامية</label><select id="need-mandatoryProduct" class="select" onchange="toggleMandatoryConstructionCode('need')"><option>لا</option><option>نعم</option></select></div><div id="need-construction-wrap" style="display:none"><label class="label">الرمز الإنشائي</label><input id="need-constructionCode" class="input"></div><div><label class="label">بند متماثل</label><input id="need-similarItem" class="input"></div><div><label class="label">تم ذكر علامة تجارية</label><select id="need-brandMention" class="select"><option>لا</option><option>نعم</option></select></div><div><label class="label">عدد السنوات المطلوبة</label><select id="need-yearsCount" class="select" onchange="toggleNeedYears()"><option value="1">سنة واحدة</option><option value="2">سنتان</option><option value="3">ثلاث سنوات</option></select></div><div><label class="label">السنة الأولى - الكمية</label><input id="need-year1Qty" class="input" type="number" min="0" value="0"></div><div id="need-year2-wrap" style="display:none"><label class="label">السنة الثانية - الكمية</label><input id="need-year2Qty" class="input" type="number" min="0" value="0"></div><div id="need-year3-wrap" style="display:none"><label class="label">السنة الثالثة - الكمية</label><input id="need-year3Qty" class="input" type="number" min="0" value="0"></div><div><label class="label">رقم أمر الاحتياج</label><input id="need-requestOrderNo" class="input"></div><div><label class="label">طريقة إرسال الطلب</label><select id="need-sendGrouping" class="select"><option value="subsection">مقسم حسب القسم الفرعي</option><option value="department">مقسم حسب القسم الرئيسي</option></select></div><div><label class="label">الجهة المستفيدة</label><input id="need-targetEntity" class="input" value="إدارة التجهيزات" readonly></div><div class="full"><label class="label">وصف البند</label><textarea id="need-description" class="textarea"></textarea></div><div class="full"><label class="label">المواصفات</label><textarea id="need-specifications" class="textarea"></textarea></div><div class="full"><label class="label">المبررات والأسباب</label><textarea id="need-justification" class="textarea"></textarea></div><div class="full"><label class="label">مبررات ذكر العلامة التجارية</label><textarea id="need-brandReason" class="textarea"></textarea></div><div class="full"><label class="label">ملاحظات إضافية</label><textarea id="need-notes" class="textarea"></textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeed()">رفع الطلب</button></div></div></div>` }
+needModalHtml=function(){ const currentCollege=!isCentral()?state.currentUser.college:(state.collegeFilter!=='all'?state.collegeFilter:COLLEGE_OPTIONS[0]); return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">رفع طلب احتياج رسمي</div><div class="panel-subtitle">تمت مواءمة النموذج مع جدول الكميات: ERP، الفئة/البند، القائمة الإلزامية، سنوات الكميات، ورقم أمر الاحتياج.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">القطاع</label>${isCentral()?`<select id="need-college" class="select">${(db.settings?.colleges||[]).filter(c=>c.name!=='إدارة التجهيزات').map(c=>`<option value="${c.name}" ${c.name===currentCollege?'selected':''}>${c.name}</option>`).join('')}</select>`:`<input id="need-college" class="input" value="${state.currentUser.college}" readonly>`}</div><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="need-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="need-mainDepartment" class="select">${departmentOptions(currentDepartmentName(),false)}</select>`}</div><div><label class="label">القسم الفرعي (الفئة)</label><select id="need-section" class="select">${sectionOptions(SECTION_OPTIONS[0],false)}</select></div><div><label class="label">رمز ERP</label><input id="need-erpCode" class="input" list="erp-suggestions" onblur="fillNeedFromErp()" placeholder="يدويًا أو مرتبط بصنف/طلب سابق"><datalist id="erp-suggestions">${[...(db.items||[]).map(i=>i.erpCode||i.code).filter(Boolean),...(db.needsRequests||[]).map(r=>r.erpCode).filter(Boolean)].map(x=>`<option value="${x}">`).join('')}</datalist></div><div><label class="label">البند بالعربي</label><input id="need-itemNameAr" class="input"></div><div><label class="label">البند بالإنجليزية</label><input id="need-itemNameEn" class="input"></div><div><label class="label">وحدة القياس</label><select id="need-unit" class="select">${UNIT_OPTIONS.map(u=>`<option>${u}</option>`).join('')}</select></div><div><label class="label">منتج من القائمة الإلزامية</label><select id="need-mandatoryProduct" class="select" onchange="toggleMandatoryConstructionCode('need')"><option>لا</option><option>نعم</option></select></div><div id="need-construction-wrap" style="display:none"><label class="label">الرمز الإنشائي</label><input id="need-constructionCode" class="input"></div><div><label class="label">بند متماثل</label><input id="need-similarItem" class="input"></div><div><label class="label">تم ذكر علامة تجارية</label><select id="need-brandMention" class="select"><option>لا</option><option>نعم</option></select></div><div><label class="label">عدد السنوات المطلوبة</label><select id="need-yearsCount" class="select" onchange="toggleNeedYears()"><option value="1">سنة واحدة</option><option value="2">سنتان</option><option value="3">ثلاث سنوات</option></select></div><div><label class="label">السنة الأولى - الكمية</label><input id="need-year1Qty" class="input" type="number" min="0" value="0"></div><div id="need-year2-wrap" style="display:none"><label class="label">السنة الثانية - الكمية</label><input id="need-year2Qty" class="input" type="number" min="0" value="0"></div><div id="need-year3-wrap" style="display:none"><label class="label">السنة الثالثة - الكمية</label><input id="need-year3Qty" class="input" type="number" min="0" value="0"></div><div><label class="label">رقم أمر الاحتياج</label><input id="need-requestOrderNo" class="input"></div><div><label class="label">طريقة إرسال الطلب</label><select id="need-sendGrouping" class="select"><option value="subsection">مقسم حسب القسم الفرعي</option><option value="department">مقسم حسب القسم الرئيسي</option></select></div><div><label class="label">الجهة المستفيدة</label><input id="need-targetEntity" class="input" value="إدارة التجهيزات" readonly></div><div class="full"><label class="label">وصف البند</label><textarea id="need-description" class="textarea"></textarea></div><div class="full"><label class="label">المواصفات</label><textarea id="need-specifications" class="textarea"></textarea></div><div class="full"><label class="label">المبررات والأسباب</label><textarea id="need-justification" class="textarea"></textarea></div><div class="full"><label class="label">مبررات ذكر العلامة التجارية</label><textarea id="need-brandReason" class="textarea"></textarea></div><div class="full"><label class="label">ملاحظات إضافية</label><textarea id="need-notes" class="textarea"></textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeed()">رفع الطلب</button></div></div></div>` }
 function toggleNeedYears(prefix='need'){ const c=Number(document.getElementById(`${prefix}-yearsCount`)?.value||1); const w2=document.getElementById(`${prefix}-year2-wrap`), w3=document.getElementById(`${prefix}-year3-wrap`); if(w2) w2.style.display = c>=2 ? 'block':'none'; if(w3) w3.style.display = c>=3 ? 'block':'none' }
-function needEditModalHtml(){ const r=(db.needsRequests||[]).find(x=>x.id===state.editId); if(!r)return ''; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">تعديل طلب الاحتياج</div><div class="panel-subtitle">عند تعديل الطلب بعد الإرجاع أو الاعتماد يعاد للمسار المناسب مع الاحتفاظ بالملاحظات.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="edit-need-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="edit-need-mainDepartment" class="select">${departmentOptions(r.mainDepartment||'القسم العام',false)}</select>`}</div><div><label class="label">القسم الفرعي</label><select id="edit-need-section" class="select">${sectionOptions(r.section,false)}</select></div><div><label class="label">رمز ERP</label><input id="edit-need-erpCode" class="input" value="${r.erpCode||''}"></div><div><label class="label">البند بالعربي</label><input id="edit-need-ar" class="input" value="${r.itemNameAr||''}"></div><div><label class="label">البند بالإنجليزية</label><input id="edit-need-en" class="input" value="${r.itemNameEn||''}"></div><div><label class="label">وحدة القياس</label><select id="edit-need-unit" class="select">${UNIT_OPTIONS.map(u=>`<option ${r.unit===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="label">منتج من القائمة الإلزامية</label><select id="edit-need-mandatoryProduct" class="select" onchange="toggleMandatoryConstructionCode('edit-need')"><option ${r.mandatoryProduct==='لا'?'selected':''}>لا</option><option ${r.mandatoryProduct==='نعم'?'selected':''}>نعم</option></select></div><div id="edit-need-construction-wrap" style="${r.mandatoryProduct==='نعم'?'display:block':'display:none'}"><label class="label">الرمز الإنشائي</label><input id="edit-need-constructionCode" class="input" value="${r.constructionCode||''}"></div><div><label class="label">بند متماثل</label><input id="edit-need-similarItem" class="input" value="${r.similarItem||''}"></div><div><label class="label">تم ذكر علامة تجارية</label><select id="edit-need-brandMention" class="select"><option ${r.brandMention==='لا'?'selected':''}>لا</option><option ${r.brandMention==='نعم'?'selected':''}>نعم</option></select></div><div><label class="label">عدد السنوات المطلوبة</label><select id="edit-need-yearsCount" class="select" onchange="toggleNeedYears('edit-need')"><option value="1" ${Number(r.yearsCount||1)===1?'selected':''}>سنة واحدة</option><option value="2" ${Number(r.yearsCount||1)===2?'selected':''}>سنتان</option><option value="3" ${Number(r.yearsCount||1)===3?'selected':''}>ثلاث سنوات</option></select></div><div><label class="label">السنة الأولى - الكمية</label><input id="edit-need-year1Qty" class="input" type="number" min="0" value="${r.year1Qty||0}"></div><div id="edit-need-year2-wrap" style="${Number(r.yearsCount||1)>=2?'display:block':'display:none'}"><label class="label">السنة الثانية - الكمية</label><input id="edit-need-year2Qty" class="input" type="number" min="0" value="${r.year2Qty||0}"></div><div id="edit-need-year3-wrap" style="${Number(r.yearsCount||1)>=3?'display:block':'display:none'}"><label class="label">السنة الثالثة - الكمية</label><input id="edit-need-year3Qty" class="input" type="number" min="0" value="${r.year3Qty||0}"></div><div><label class="label">رقم أمر الاحتياج</label><input id="edit-need-requestOrderNo" class="input" value="${r.requestOrderNo||''}"></div><div><label class="label">طريقة الإرسال</label><select id="edit-need-sendGrouping" class="select"><option value="subsection" ${r.sendGrouping==='subsection'?'selected':''}>مقسم حسب القسم الفرعي</option><option value="department" ${r.sendGrouping==='department'?'selected':''}>مقسم حسب القسم الرئيسي</option></select></div><div class="full"><label class="label">وصف البند</label><textarea id="edit-need-description" class="textarea">${r.description||''}</textarea></div><div class="full"><label class="label">المواصفات</label><textarea id="edit-need-specifications" class="textarea">${r.specifications||''}</textarea></div><div class="full"><label class="label">المبررات والأسباب</label><textarea id="edit-need-justification" class="textarea">${r.justification||''}</textarea></div><div class="full"><label class="label">مبررات ذكر العلامة التجارية</label><textarea id="edit-need-brandReason" class="textarea">${r.brandReason||''}</textarea></div><div class="full"><label class="label">ملاحظات التعديل / ملاحظات عامة</label><textarea id="edit-need-notes" class="textarea">${r.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEdit()">حفظ التعديل</button></div></div></div>` }
+needEditModalHtml=function(){ const r=(db.needsRequests||[]).find(x=>x.id===state.editId); if(!r)return ''; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">تعديل طلب الاحتياج</div><div class="panel-subtitle">عند تعديل الطلب بعد الإرجاع أو الاعتماد يعاد للمسار المناسب مع الاحتفاظ بالملاحظات.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="edit-need-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="edit-need-mainDepartment" class="select">${departmentOptions(r.mainDepartment||'القسم العام',false)}</select>`}</div><div><label class="label">القسم الفرعي</label><select id="edit-need-section" class="select">${sectionOptions(r.section,false)}</select></div><div><label class="label">رمز ERP</label><input id="edit-need-erpCode" class="input" value="${r.erpCode||''}"></div><div><label class="label">البند بالعربي</label><input id="edit-need-ar" class="input" value="${r.itemNameAr||''}"></div><div><label class="label">البند بالإنجليزية</label><input id="edit-need-en" class="input" value="${r.itemNameEn||''}"></div><div><label class="label">وحدة القياس</label><select id="edit-need-unit" class="select">${UNIT_OPTIONS.map(u=>`<option ${r.unit===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="label">منتج من القائمة الإلزامية</label><select id="edit-need-mandatoryProduct" class="select" onchange="toggleMandatoryConstructionCode('edit-need')"><option ${r.mandatoryProduct==='لا'?'selected':''}>لا</option><option ${r.mandatoryProduct==='نعم'?'selected':''}>نعم</option></select></div><div id="edit-need-construction-wrap" style="${r.mandatoryProduct==='نعم'?'display:block':'display:none'}"><label class="label">الرمز الإنشائي</label><input id="edit-need-constructionCode" class="input" value="${r.constructionCode||''}"></div><div><label class="label">بند متماثل</label><input id="edit-need-similarItem" class="input" value="${r.similarItem||''}"></div><div><label class="label">تم ذكر علامة تجارية</label><select id="edit-need-brandMention" class="select"><option ${r.brandMention==='لا'?'selected':''}>لا</option><option ${r.brandMention==='نعم'?'selected':''}>نعم</option></select></div><div><label class="label">عدد السنوات المطلوبة</label><select id="edit-need-yearsCount" class="select" onchange="toggleNeedYears('edit-need')"><option value="1" ${Number(r.yearsCount||1)===1?'selected':''}>سنة واحدة</option><option value="2" ${Number(r.yearsCount||1)===2?'selected':''}>سنتان</option><option value="3" ${Number(r.yearsCount||1)===3?'selected':''}>ثلاث سنوات</option></select></div><div><label class="label">السنة الأولى - الكمية</label><input id="edit-need-year1Qty" class="input" type="number" min="0" value="${r.year1Qty||0}"></div><div id="edit-need-year2-wrap" style="${Number(r.yearsCount||1)>=2?'display:block':'display:none'}"><label class="label">السنة الثانية - الكمية</label><input id="edit-need-year2Qty" class="input" type="number" min="0" value="${r.year2Qty||0}"></div><div id="edit-need-year3-wrap" style="${Number(r.yearsCount||1)>=3?'display:block':'display:none'}"><label class="label">السنة الثالثة - الكمية</label><input id="edit-need-year3Qty" class="input" type="number" min="0" value="${r.year3Qty||0}"></div><div><label class="label">رقم أمر الاحتياج</label><input id="edit-need-requestOrderNo" class="input" value="${r.requestOrderNo||''}"></div><div><label class="label">طريقة الإرسال</label><select id="edit-need-sendGrouping" class="select"><option value="subsection" ${r.sendGrouping==='subsection'?'selected':''}>مقسم حسب القسم الفرعي</option><option value="department" ${r.sendGrouping==='department'?'selected':''}>مقسم حسب القسم الرئيسي</option></select></div><div class="full"><label class="label">وصف البند</label><textarea id="edit-need-description" class="textarea">${r.description||''}</textarea></div><div class="full"><label class="label">المواصفات</label><textarea id="edit-need-specifications" class="textarea">${r.specifications||''}</textarea></div><div class="full"><label class="label">المبررات والأسباب</label><textarea id="edit-need-justification" class="textarea">${r.justification||''}</textarea></div><div class="full"><label class="label">مبررات ذكر العلامة التجارية</label><textarea id="edit-need-brandReason" class="textarea">${r.brandReason||''}</textarea></div><div class="full"><label class="label">ملاحظات التعديل / ملاحظات عامة</label><textarea id="edit-need-notes" class="textarea">${r.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEdit()">حفظ التعديل</button></div></div></div>` }
 function totalNeedQty(prefix){ const years=Number(document.getElementById(`${prefix}-yearsCount`)?.value||1); let total=Number(document.getElementById(`${prefix}-year1Qty`)?.value||0); if(years>=2) total+=Number(document.getElementById(`${prefix}-year2Qty`)?.value||0); if(years>=3) total+=Number(document.getElementById(`${prefix}-year3Qty`)?.value||0); return total }
-function saveNeed(){ if(!hasPermission('create_need'))return alert('لا تملك صلاحية رفع الاحتياج'); const req={id:nextId(db.needsRequests),requestNo:nextNo('NR',db.needsRequests),erpCode:document.getElementById('need-erpCode').value.trim(),college:document.getElementById('need-college').value,mainDepartment:document.getElementById('need-mainDepartment')?.value || currentDepartmentName(),section:document.getElementById('need-section').value,category:document.getElementById('need-section').value,itemNameAr:document.getElementById('need-itemNameAr').value.trim(),itemNameEn:document.getElementById('need-itemNameEn').value.trim(),unit:document.getElementById('need-unit').value,mandatoryProduct:document.getElementById('need-mandatoryProduct').value,constructionCode:document.getElementById('need-constructionCode').value.trim(),similarItem:document.getElementById('need-similarItem').value.trim(),brandMention:document.getElementById('need-brandMention').value,yearsCount:Number(document.getElementById('need-yearsCount').value||1),year1Qty:Number(document.getElementById('need-year1Qty').value||0),year2Qty:Number(document.getElementById('need-year2Qty')?.value||0),year3Qty:Number(document.getElementById('need-year3Qty')?.value||0),qty:totalNeedQty('need'),requestOrderNo:document.getElementById('need-requestOrderNo').value.trim(),sendGrouping:document.getElementById('need-sendGrouping').value,targetEntity:'إدارة التجهيزات',description:document.getElementById('need-description').value.trim(),specifications:document.getElementById('need-specifications').value.trim(),justification:document.getElementById('need-justification').value.trim(),brandReason:document.getElementById('need-brandReason').value.trim(),notes:document.getElementById('need-notes').value.trim(),status:'pending_sector_approval',workflowStage:'بانتظار اعتماد مسؤول القطاع',createdAt:nowLocalString(),createdBy:state.currentUser.id}; if(!req.itemNameAr && !req.itemNameEn) return alert('أدخل اسم البند'); if(req.qty<=0) return alert('أدخل كمية صحيحة لسنة واحدة أو أكثر'); if(req.mandatoryProduct==='نعم' && !req.constructionCode) return alert('عند اختيار "نعم" للقائمة الإلزامية يجب إدخال الرمز الإنشائي'); db.needsRequests.unshift(req); auditLog('رفع طلب احتياج','need',req.requestNo,`${req.itemNameAr||req.itemNameEn} - إجمالي ${req.qty} ${req.unit}`,req.college,req.mainDepartment); saveDb(); closeModal() }
-function saveNeedEdit(){ const r=(db.needsRequests||[]).find(x=>x.id===state.editId); if(!r)return; const oldQty=Number(r.qty)||0; r.mainDepartment=document.getElementById('edit-need-mainDepartment')?.value || currentDepartmentName(); r.section=document.getElementById('edit-need-section').value; r.category=r.section; r.erpCode=document.getElementById('edit-need-erpCode').value.trim(); r.itemNameAr=document.getElementById('edit-need-ar').value.trim(); r.itemNameEn=document.getElementById('edit-need-en').value.trim(); r.unit=document.getElementById('edit-need-unit').value; r.mandatoryProduct=document.getElementById('edit-need-mandatoryProduct').value; r.constructionCode=document.getElementById('edit-need-constructionCode').value.trim(); r.similarItem=document.getElementById('edit-need-similarItem').value.trim(); r.brandMention=document.getElementById('edit-need-brandMention').value; r.yearsCount=Number(document.getElementById('edit-need-yearsCount').value||1); r.year1Qty=Number(document.getElementById('edit-need-year1Qty').value||0); r.year2Qty=Number(document.getElementById('edit-need-year2Qty')?.value||0); r.year3Qty=Number(document.getElementById('edit-need-year3Qty')?.value||0); r.qty=totalNeedQty('edit-need'); r.requestOrderNo=document.getElementById('edit-need-requestOrderNo').value.trim(); r.sendGrouping=document.getElementById('edit-need-sendGrouping').value; r.description=document.getElementById('edit-need-description').value.trim(); r.specifications=document.getElementById('edit-need-specifications').value.trim(); r.justification=document.getElementById('edit-need-justification').value.trim(); r.brandReason=document.getElementById('edit-need-brandReason').value.trim(); r.notes=document.getElementById('edit-need-notes').value.trim(); if(!r.itemNameAr && !r.itemNameEn) return alert('أدخل اسم البند'); if(r.qty<=0) return alert('أدخل كمية صحيحة'); if(r.mandatoryProduct==='نعم' && !r.constructionCode) return alert('أدخل الرمز الإنشائي'); r.lastEditedAt=nowLocalString(); r.lastEditedBy=state.currentUser.id; if(isCentral()){ r.status='pending_equipment_review'; r.workflowStage='تم تعديل الطلب ويحتاج مراجعة إدارة التجهيزات' } else { r.status='pending_sector_approval'; r.workflowStage='أعيد لمرحلة اعتماد مسؤول القطاع بعد التعديل'; r.reviewedBy=null; r.reviewedAt=null } auditLog('تعديل طلب احتياج','need',r.requestNo,`الكمية من ${oldQty} إلى ${r.qty}. ${r.notes}`,r.college,r.mainDepartment); saveDb(); closeModal() }
-function renderNeeds(){ const rows=filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.itemNameEn||'—',`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),r.requestOrderNo||'—',formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج</div><div class="panel-subtitle">المسار الحالي: منشئ الطلب ← مسؤول القطاع ← إدارة التجهيزات، مع إمكانية الإرجاع للتعديل بملاحظة.</div></div>${table(['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','البند بالعربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','الشواهد','المسار','رقم أمر الاحتياج','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>` }
-function needActions(r){ const buttons=[]; const sameCollege=r.college===state.currentUser.college; const sectorApprover=sameCollege && !isCentral() && hasPermission('approve_need'); if((r.status||'pending_sector_approval')==='pending_sector_approval' && sectorApprover){ buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد القطاع</button>`); buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`); buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للتعديل</button>`) } if((r.status||'pending_sector_approval')==='pending_equipment_review' && isCentral() && hasPermission('approve_need')){ buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد</button>`); buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`); buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للقطاع</button>`) } if((sameCollege||isCentral())&&hasPermission('create_need'))buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('needEdit',${r.id})">تعديل</button>`); if((sameCollege||isCentral())&&hasPermission('create_need_evidence'))buttons.push(`<button class="btn btn-warning btn-sm" onclick="openModal('evidence',${r.id})">شاهد</button>`); return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—' }
-function approveNeed(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية اعتماد طلبات الاحتياج'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const evidenceCount=evidenceCountForNeed(r.id); if((r.status||'pending_sector_approval')==='pending_sector_approval' && !isCentral()){ r.status='pending_equipment_review'; r.workflowStage='أحيل إلى إدارة التجهيزات بعد اعتماد مسؤول القطاع'; r.sectorApprovedAt=nowLocalString(); r.sectorApprovedBy=state.currentUser.id; auditLog('اعتماد طلب احتياج من مسؤول القطاع','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} | شواهد: ${evidenceCount}`,r.college,r.mainDepartment); saveDb();render(); return } if(evidenceCount===0){ const proceed=confirm('هذا الطلب لا يحتوي على شاهد احتياج. هل ترغب في اعتماده رغم ذلك؟'); if(!proceed) return } r.status='approved'; r.workflowStage='معتمد من إدارة التجهيزات'; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; auditLog('اعتماد طلب احتياج','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} | شواهد: ${evidenceCount}`,r.college,r.mainDepartment); saveDb();render() }
-function rejectNeed(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية رفض طلبات الاحتياج'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const note=prompt('أدخل سبب الرفض',''); if(note===null)return; r.status='rejected'; r.workflowStage='مرفوض'; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; r.returnNote=note; auditLog('رفض طلب احتياج','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} ${note?'- '+note:''}`,r.college,r.mainDepartment); saveDb();render() }
+saveNeed=function(){ if(!hasPermission('create_need'))return alert('لا تملك صلاحية رفع الاحتياج'); const req={id:nextId(db.needsRequests),requestNo:nextNo('NR',db.needsRequests),erpCode:document.getElementById('need-erpCode').value.trim(),college:document.getElementById('need-college').value,mainDepartment:document.getElementById('need-mainDepartment')?.value || currentDepartmentName(),section:document.getElementById('need-section').value,category:document.getElementById('need-section').value,itemNameAr:document.getElementById('need-itemNameAr').value.trim(),itemNameEn:document.getElementById('need-itemNameEn').value.trim(),unit:document.getElementById('need-unit').value,mandatoryProduct:document.getElementById('need-mandatoryProduct').value,constructionCode:document.getElementById('need-constructionCode').value.trim(),similarItem:document.getElementById('need-similarItem').value.trim(),brandMention:document.getElementById('need-brandMention').value,yearsCount:Number(document.getElementById('need-yearsCount').value||1),year1Qty:Number(document.getElementById('need-year1Qty').value||0),year2Qty:Number(document.getElementById('need-year2Qty')?.value||0),year3Qty:Number(document.getElementById('need-year3Qty')?.value||0),qty:totalNeedQty('need'),requestOrderNo:document.getElementById('need-requestOrderNo').value.trim(),sendGrouping:document.getElementById('need-sendGrouping').value,targetEntity:'إدارة التجهيزات',description:document.getElementById('need-description').value.trim(),specifications:document.getElementById('need-specifications').value.trim(),justification:document.getElementById('need-justification').value.trim(),brandReason:document.getElementById('need-brandReason').value.trim(),notes:document.getElementById('need-notes').value.trim(),status:'pending_sector_approval',workflowStage:'بانتظار اعتماد مسؤول القطاع',createdAt:nowLocalString(),createdBy:state.currentUser.id}; if(!req.itemNameAr && !req.itemNameEn) return alert('أدخل اسم البند'); if(req.qty<=0) return alert('أدخل كمية صحيحة لسنة واحدة أو أكثر'); if(req.mandatoryProduct==='نعم' && !req.constructionCode) return alert('عند اختيار "نعم" للقائمة الإلزامية يجب إدخال الرمز الإنشائي'); db.needsRequests.unshift(req); auditLog('رفع طلب احتياج','need',req.requestNo,`${req.itemNameAr||req.itemNameEn} - إجمالي ${req.qty} ${req.unit}`,req.college,req.mainDepartment); saveDb(); closeModal() }
+saveNeedEdit=function(){ const r=(db.needsRequests||[]).find(x=>x.id===state.editId); if(!r)return; const oldQty=Number(r.qty)||0; r.mainDepartment=document.getElementById('edit-need-mainDepartment')?.value || currentDepartmentName(); r.section=document.getElementById('edit-need-section').value; r.category=r.section; r.erpCode=document.getElementById('edit-need-erpCode').value.trim(); r.itemNameAr=document.getElementById('edit-need-ar').value.trim(); r.itemNameEn=document.getElementById('edit-need-en').value.trim(); r.unit=document.getElementById('edit-need-unit').value; r.mandatoryProduct=document.getElementById('edit-need-mandatoryProduct').value; r.constructionCode=document.getElementById('edit-need-constructionCode').value.trim(); r.similarItem=document.getElementById('edit-need-similarItem').value.trim(); r.brandMention=document.getElementById('edit-need-brandMention').value; r.yearsCount=Number(document.getElementById('edit-need-yearsCount').value||1); r.year1Qty=Number(document.getElementById('edit-need-year1Qty').value||0); r.year2Qty=Number(document.getElementById('edit-need-year2Qty')?.value||0); r.year3Qty=Number(document.getElementById('edit-need-year3Qty')?.value||0); r.qty=totalNeedQty('edit-need'); r.requestOrderNo=document.getElementById('edit-need-requestOrderNo').value.trim(); r.sendGrouping=document.getElementById('edit-need-sendGrouping').value; r.description=document.getElementById('edit-need-description').value.trim(); r.specifications=document.getElementById('edit-need-specifications').value.trim(); r.justification=document.getElementById('edit-need-justification').value.trim(); r.brandReason=document.getElementById('edit-need-brandReason').value.trim(); r.notes=document.getElementById('edit-need-notes').value.trim(); if(!r.itemNameAr && !r.itemNameEn) return alert('أدخل اسم البند'); if(r.qty<=0) return alert('أدخل كمية صحيحة'); if(r.mandatoryProduct==='نعم' && !r.constructionCode) return alert('أدخل الرمز الإنشائي'); r.lastEditedAt=nowLocalString(); r.lastEditedBy=state.currentUser.id; if(isCentral()){ r.status='pending_equipment_review'; r.workflowStage='تم تعديل الطلب ويحتاج مراجعة إدارة التجهيزات' } else { r.status='pending_sector_approval'; r.workflowStage='أعيد لمرحلة اعتماد مسؤول القطاع بعد التعديل'; r.reviewedBy=null; r.reviewedAt=null } auditLog('تعديل طلب احتياج','need',r.requestNo,`الكمية من ${oldQty} إلى ${r.qty}. ${r.notes}`,r.college,r.mainDepartment); saveDb(); closeModal() }
+renderNeeds=function(){ const rows=filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.itemNameEn||'—',`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusBadge(r.status),needEvidenceBadge(r.id),approvalPath('need',r.status),r.requestOrderNo||'—',formatDateTime(r.createdAt),actorName(r.createdBy),needActions(r)]); return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need')?`<button class="btn btn-primary" onclick="openModal('need')">+ رفع احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeeds()">تقرير Excel</button><button class="btn btn-secondary" onclick="exportNeedsDetailedExact()">تقرير Excel مفصل</button><button class="btn btn-secondary" onclick="printNeeds()">تقرير PDF</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الاحتياج</div><div class="panel-subtitle">المسار الحالي: منشئ الطلب ← مسؤول القطاع ← إدارة التجهيزات، مع إمكانية الإرجاع للتعديل بملاحظة.</div></div>${table(['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','البند بالعربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','الشواهد','المسار','رقم أمر الاحتياج','تاريخ الرفع','صاحب الإجراء','إجراء'],rows)}</div>` }
+needActions=function(r){ const buttons=[]; const sameCollege=r.college===state.currentUser.college; const sectorApprover=sameCollege && !isCentral() && hasPermission('approve_need'); if((r.status||'pending_sector_approval')==='pending_sector_approval' && sectorApprover){ buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد القطاع</button>`); buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`); buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للتعديل</button>`) } if((r.status||'pending_sector_approval')==='pending_equipment_review' && isCentral() && hasPermission('approve_need')){ buttons.push(`<button class="btn btn-success btn-sm" onclick="approveNeed(${r.id})">اعتماد</button>`); buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectNeed(${r.id})">رفض</button>`); buttons.push(`<button class="btn btn-warning btn-sm" onclick="returnNeed(${r.id})">إعادة للقطاع</button>`) } if((sameCollege||isCentral())&&hasPermission('create_need'))buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('needEdit',${r.id})">تعديل</button>`); if((sameCollege||isCentral())&&hasPermission('create_need_evidence'))buttons.push(`<button class="btn btn-warning btn-sm" onclick="openModal('evidence',${r.id})">شاهد</button>`); return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—' }
+approveNeed=function(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية اعتماد طلبات الاحتياج'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const evidenceCount=evidenceCountForNeed(r.id); if((r.status||'pending_sector_approval')==='pending_sector_approval' && !isCentral()){ r.status='pending_equipment_review'; r.workflowStage='أحيل إلى إدارة التجهيزات بعد اعتماد مسؤول القطاع'; r.sectorApprovedAt=nowLocalString(); r.sectorApprovedBy=state.currentUser.id; auditLog('اعتماد طلب احتياج من مسؤول القطاع','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} | شواهد: ${evidenceCount}`,r.college,r.mainDepartment); saveDb();render(); return } if(evidenceCount===0){ const proceed=confirm('هذا الطلب لا يحتوي على شاهد احتياج. هل ترغب في اعتماده رغم ذلك؟'); if(!proceed) return } r.status='approved'; r.workflowStage='معتمد من إدارة التجهيزات'; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; auditLog('اعتماد طلب احتياج','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} | شواهد: ${evidenceCount}`,r.college,r.mainDepartment); saveDb();render() }
+rejectNeed=function(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية رفض طلبات الاحتياج'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const note=prompt('أدخل سبب الرفض',''); if(note===null)return; r.status='rejected'; r.workflowStage='مرفوض'; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; r.returnNote=note; auditLog('رفض طلب احتياج','need',r.requestNo,`${r.itemNameAr||r.itemNameEn} ${note?'- '+note:''}`,r.college,r.mainDepartment); saveDb();render() }
 function returnNeed(id){ if(!hasPermission('approve_need'))return alert('لا تملك صلاحية إعادة الطلب'); const r=db.needsRequests.find(x=>x.id===id); if(!r)return; const note=prompt('أدخل ملاحظة الإعادة للتعديل',''); if(note===null)return; r.status='returned_to_sector'; r.workflowStage='معاد للقطاع للتعديل'; r.returnNote=note; r.reviewedAt=nowLocalString(); r.reviewedBy=state.currentUser.id; auditLog('إعادة طلب احتياج للتعديل','need',r.requestNo,note||'بدون ملاحظة',r.college,r.mainDepartment); saveDb();render() }
-function visibleNeedEvidence(){ let rows=db.needEvidence||[]; if(!isCentral())rows=rows.filter(r=>r.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.college,r.mainDepartment,r.section,r.itemNameAr,r.itemNameEn,r.courseName,r.courseCode,r.academicYear,r.semester,r.justification,r.recommendation,r.notes].join(' ').includes(q))} return rows.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')) }
-function renderNeedEvidence(){ const rows=visibleNeedEvidence().map(r=>[r.requestNo,r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.courseName||'—',r.courseCode||'—',r.academicYear||'—',r.semester||'—',r.studentsCount||0,r.sectionsCount||0,r.estimatedNeed||0,r.stockAvailable||0,r.deficit||0,actorName(r.createdBy),`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('evidenceEdit',${r.id})">تعديل</button></div>`]); return `<div class="hero"><div class="hero-title">شواهد الاحتياج</div><div class="hero-text">يمكنك الآن إضافة أكثر من شاهد في نفس العملية قبل الحفظ؛ مثل تعدد المقررات أو الأدلة أو الجهات المستفيدة للصنف نفسه.</div></div><div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة شاهد احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeedEvidenceExecutive()">Excel تنفيذي</button><button class="btn btn-secondary" onclick="printNeedEvidenceExecutive()">PDF تنفيذي</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجل شواهد الاحتياج</div><div class="panel-subtitle">كل سطر يمثل شاهدًا مستقلًا مرتبطًا بطلب احتياج محدد.</div></div>${table(['رقم الطلب','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','اسم المقرر/الدليل','رمز المقرر','السنة','الفصل','عدد الطلاب','عدد الشعب','الاحتياج النظري','المتاح','العجز','صاحب الإجراء','إجراء'],rows)}</div>` }
-function evidenceNeedOptions(selected){ const rows=filteredNeeds(); return rows.map(r=>`<option value="${r.id}" ${Number(selected)===Number(r.id)?'selected':''}>${r.requestNo} - ${r.college} - ${r.mainDepartment||'القسم العام'} - ${r.section} - ${r.itemNameAr||r.itemNameEn}</option>`).join('') }
-function needEvidenceModalHtml(){ const firstNeed=filteredNeeds()[0]; if(!firstNeed)return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">شواهد الاحتياج</div><div class="panel-subtitle">لا يمكن إضافة شاهد قبل وجود طلب احتياج واحد على الأقل.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div></div></div>`; const need=getNeedById(state.editId)||firstNeed; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">إضافة شواهد احتياج</div><div class="panel-subtitle">يمكنك إضافة أكثر من شاهد أو مقرر قبل الحفظ النهائي عبر زر (+).</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div class="full"><label class="label">طلب الاحتياج المرتبط</label><select id="ev-need-id" class="select" onchange="fillEvidenceNeedDefaults();calcEvidenceMetrics()">${evidenceNeedOptions(need.id)}</select></div></div><div id="evidence-rows"></div><button class="btn btn-secondary" type="button" onclick="addEvidenceRow()">+ إضافة شاهد آخر</button></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEvidence()">حفظ الشواهد</button></div></div></div>` }
+visibleNeedEvidence=function(){ let rows=db.needEvidence||[]; if(!isCentral())rows=rows.filter(r=>r.college===state.currentUser.college); if(hasDepartmentScope())rows=rows.filter(r=>(r.mainDepartment||'القسم العام')===state.currentUser.department); if(state.collegeFilter!=='all')rows=rows.filter(r=>r.college===state.collegeFilter); if(state.sectionFilter!=='all')rows=rows.filter(r=>r.section===state.sectionFilter || (r.mainDepartment||'')===state.sectionFilter); if(state.search){const q=state.search.trim(); rows=rows.filter(r=>[r.requestNo,r.college,r.mainDepartment,r.section,r.itemNameAr,r.itemNameEn,r.courseName,r.courseCode,r.academicYear,r.semester,r.justification,r.recommendation,r.notes].join(' ').includes(q))} return rows.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')) }
+renderNeedEvidence=function(){ const rows=visibleNeedEvidence().map(r=>[r.requestNo,r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||'—',r.courseName||'—',r.courseCode||'—',r.academicYear||'—',r.semester||'—',r.studentsCount||0,r.sectionsCount||0,r.estimatedNeed||0,r.stockAvailable||0,r.deficit||0,actorName(r.createdBy),`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('evidenceEdit',${r.id})">تعديل</button></div>`]); return `<div class="hero"><div class="hero-title">شواهد الاحتياج</div><div class="hero-text">يمكنك الآن إضافة أكثر من شاهد في نفس العملية قبل الحفظ؛ مثل تعدد المقررات أو الأدلة أو الجهات المستفيدة للصنف نفسه.</div></div><div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة شاهد احتياج</button>`:''}<button class="btn btn-secondary" onclick="exportNeedEvidenceExecutive()">Excel تنفيذي</button><button class="btn btn-secondary" onclick="printNeedEvidenceExecutive()">PDF تنفيذي</button></div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجل شواهد الاحتياج</div><div class="panel-subtitle">كل سطر يمثل شاهدًا مستقلًا مرتبطًا بطلب احتياج محدد.</div></div>${table(['رقم الطلب','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','اسم المقرر/الدليل','رمز المقرر','السنة','الفصل','عدد الطلاب','عدد الشعب','الاحتياج النظري','المتاح','العجز','صاحب الإجراء','إجراء'],rows)}</div>` }
+evidenceNeedOptions=function(selected){ const rows=filteredNeeds(); return rows.map(r=>`<option value="${r.id}" ${Number(selected)===Number(r.id)?'selected':''}>${r.requestNo} - ${r.college} - ${r.mainDepartment||'القسم العام'} - ${r.section} - ${r.itemNameAr||r.itemNameEn}</option>`).join('') }
+needEvidenceModalHtml=function(){ const firstNeed=filteredNeeds()[0]; if(!firstNeed)return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">شواهد الاحتياج</div><div class="panel-subtitle">لا يمكن إضافة شاهد قبل وجود طلب احتياج واحد على الأقل.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div></div></div>`; const need=getNeedById(state.editId)||firstNeed; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">إضافة شواهد احتياج</div><div class="panel-subtitle">يمكنك إضافة أكثر من شاهد أو مقرر قبل الحفظ النهائي عبر زر (+).</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div class="full"><label class="label">طلب الاحتياج المرتبط</label><select id="ev-need-id" class="select" onchange="fillEvidenceNeedDefaults();calcEvidenceMetrics()">${evidenceNeedOptions(need.id)}</select></div></div><div id="evidence-rows"></div><button class="btn btn-secondary" type="button" onclick="addEvidenceRow()">+ إضافة شاهد آخر</button></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEvidence()">حفظ الشواهد</button></div></div></div>` }
 function evidenceRowHtml(idx, ev={}){ return `<div class="panel" data-ev-row="${idx}" style="margin-bottom:12px"><div class="panel-title">شاهد رقم ${idx+1}</div><div class="form-grid"><div><label class="label">اسم المقرر / الدليل</label><input class="input ev-courseName" value="${ev.courseName||''}" placeholder="مثال: الكيمياء الصيدلية أو دليل تشغيلي"></div><div><label class="label">رمز المقرر</label><input class="input ev-courseCode" value="${ev.courseCode||''}" placeholder="PHAR301"></div><div><label class="label">السنة الدراسية</label><input class="input ev-academicYear" value="${ev.academicYear||''}" placeholder="2026/2027"></div><div><label class="label">الفصل الدراسي</label><select class="select ev-semester"><option ${(ev.semester||'الأول')==='الأول'?'selected':''}>الأول</option><option ${ev.semester==='الثاني'?'selected':''}>الثاني</option><option ${ev.semester==='الصيفي'?'selected':''}>الصيفي</option></select></div><div><label class="label">عدد الشعب</label><input class="input ev-sections" type="number" min="1" value="${ev.sectionsCount||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">عدد الطلاب</label><input class="input ev-students" type="number" min="1" value="${ev.studentsCount||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">عدد مرات الاستخدام خلال الفصل</label><input class="input ev-uses" type="number" min="1" value="${ev.usesCount||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">الكمية التقديرية لكل طالب</label><input class="input ev-qtyPerStudent" type="number" min="0" step="0.01" value="${ev.qtyPerStudent||1}" oninput="calcEvidenceMetrics()"></div><div><label class="label">الرصيد الحالي المتاح</label><input class="input ev-stock" type="number" min="0" step="0.01" value="${ev.stockAvailable||stockForNeed(getNeedById(Number(document.getElementById('ev-need-id')?.value||0)))}" oninput="calcEvidenceMetrics()"></div><div class="full"><div class="alert ev-metrics">الاحتياج النظري: 0 | المتاح: 0 | العجز: 0</div></div><div class="full"><label class="label">مبررات الاحتياج</label><textarea class="textarea ev-justification">${ev.justification||''}</textarea></div><div class="full"><label class="label">التوصية النهائية</label><textarea class="textarea ev-recommendation">${ev.recommendation||''}</textarea></div><div class="full"><label class="label">ملاحظات إضافية</label><textarea class="textarea ev-notes">${ev.notes||''}</textarea></div><div class="full" style="text-align:left"><button class="btn btn-danger btn-sm" type="button" onclick="removeEvidenceRow(${idx})">حذف هذا الشاهد</button></div></div></div>` }
 function ensureEvidenceRows(){ const box=document.getElementById('evidence-rows'); if(box && !box.children.length){ addEvidenceRow(); calcEvidenceMetrics() } }
 function addEvidenceRow(prefill={}){ const box=document.getElementById('evidence-rows'); if(!box) return; const idx=box.children.length; box.insertAdjacentHTML('beforeend', evidenceRowHtml(idx,prefill)); calcEvidenceMetrics() }
 function removeEvidenceRow(idx){ const row=document.querySelector(`[data-ev-row="${idx}"]`); if(row) row.remove(); calcEvidenceMetrics() }
-function fillEvidenceNeedDefaults(){ document.querySelectorAll('.ev-stock').forEach(inp=>{ inp.value=stockForNeed(getNeedById(Number(document.getElementById('ev-need-id')?.value||0))) }); calcEvidenceMetrics() }
-function calcEvidenceMetrics(){ document.querySelectorAll('[data-ev-row]').forEach(row=>{ const students=Number(row.querySelector('.ev-students')?.value||0), uses=Number(row.querySelector('.ev-uses')?.value||0), qtyPerStudent=Number(row.querySelector('.ev-qtyPerStudent')?.value||0), stock=Number(row.querySelector('.ev-stock')?.value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); const hint=row.querySelector('.ev-metrics'); if(hint) hint.innerHTML=`الاحتياج النظري: <b>${estimated}</b> | المتاح: <b>${stock}</b> | العجز: <b>${deficit}</b>` }) }
-function saveNeedEvidence(){ if(!hasPermission('create_need_evidence')) return alert('لا تملك صلاحية إضافة شواهد الاحتياج'); const need=getNeedById(Number(document.getElementById('ev-need-id').value||0)); if(!need) return alert('اختر طلب احتياج صحيح'); const rows=[...document.querySelectorAll('[data-ev-row]')]; if(!rows.length) return alert('أضف شاهدًا واحدًا على الأقل'); rows.forEach(row=>{ const students=Number(row.querySelector('.ev-students')?.value||0), sections=Number(row.querySelector('.ev-sections')?.value||0), uses=Number(row.querySelector('.ev-uses')?.value||0), qtyPerStudent=Number(row.querySelector('.ev-qtyPerStudent')?.value||0), stock=Number(row.querySelector('.ev-stock')?.value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); const ev={id:nextId(db.needEvidence),needId:need.id,requestNo:need.requestNo,college:need.college,mainDepartment:need.mainDepartment,section:need.section,itemNameAr:need.itemNameAr,itemNameEn:need.itemNameEn,unit:need.unit,courseName:(row.querySelector('.ev-courseName')?.value||'').trim()||'غير محدد',courseCode:(row.querySelector('.ev-courseCode')?.value||'').trim()||'غير محدد',academicYear:(row.querySelector('.ev-academicYear')?.value||'').trim(),semester:row.querySelector('.ev-semester')?.value,sectionsCount:sections,studentsCount:students,usesCount:uses,qtyPerStudent,stockAvailable:stock,estimatedNeed:estimated,deficit,justification:(row.querySelector('.ev-justification')?.value||'').trim(),recommendation:(row.querySelector('.ev-recommendation')?.value||'').trim(),notes:(row.querySelector('.ev-notes')?.value||'').trim(),createdAt:nowLocalString(),createdBy:state.currentUser.id}; db.needEvidence.unshift(ev); auditLog('إضافة شاهد احتياج','evidence',ev.requestNo,`${ev.courseName} - عجز ${ev.deficit} ${ev.unit}`,ev.college,ev.mainDepartment) }); saveDb(); state.currentPage='needEvidence'; closeModal(); alert('تم حفظ الشواهد بنجاح') }
-function needEvidenceEditModalHtml(){ const ev=(db.needEvidence||[]).find(x=>Number(x.id)===Number(state.editId)); if(!ev) return ''; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">تعديل شاهد احتياج</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div class="full"><label class="label">طلب الاحتياج المرتبط</label><select id="ev-need-id" class="select">${evidenceNeedOptions(ev.needId)}</select></div><div><label class="label">اسم المقرر / الدليل</label><input id="ev-courseName" class="input" value="${ev.courseName||''}"></div><div><label class="label">رمز المقرر</label><input id="ev-courseCode" class="input" value="${ev.courseCode||''}"></div><div><label class="label">السنة الدراسية</label><input id="ev-academicYear" class="input" value="${ev.academicYear||''}"></div><div><label class="label">الفصل الدراسي</label><select id="ev-semester" class="select">${['الأول','الثاني','الصيفي'].map(s=>`<option ${ev.semester===s?'selected':''}>${s}</option>`).join('')}</select></div><div><label class="label">عدد الشعب</label><input id="ev-sections" class="input" type="number" min="1" value="${ev.sectionsCount||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">عدد الطلاب</label><input id="ev-students" class="input" type="number" min="1" value="${ev.studentsCount||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">عدد مرات الاستخدام</label><input id="ev-uses" class="input" type="number" min="1" value="${ev.usesCount||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">الكمية التقديرية لكل طالب</label><input id="ev-qtyPerStudent" class="input" type="number" min="0" step="0.01" value="${ev.qtyPerStudent||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">الرصيد الحالي المتاح</label><input id="ev-stock" class="input" type="number" min="0" step="0.01" value="${ev.stockAvailable||0}" oninput="calcEvidenceSingleEdit()"></div><div class="full"><div id="ev-metrics" class="alert">الاحتياج النظري: ${ev.estimatedNeed||0} | المتاح: ${ev.stockAvailable||0} | العجز: ${ev.deficit||0}</div></div><div class="full"><label class="label">مبررات الاحتياج</label><textarea id="ev-justification" class="textarea">${ev.justification||''}</textarea></div><div class="full"><label class="label">التوصية النهائية</label><textarea id="ev-recommendation" class="textarea">${ev.recommendation||''}</textarea></div><div class="full"><label class="label">ملاحظات إضافية</label><textarea id="ev-notes" class="textarea">${ev.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEvidenceEdit()">حفظ التعديل</button></div></div></div>` }
+fillEvidenceNeedDefaults=function(){ document.querySelectorAll('.ev-stock').forEach(inp=>{ inp.value=stockForNeed(getNeedById(Number(document.getElementById('ev-need-id')?.value||0))) }); calcEvidenceMetrics() }
+calcEvidenceMetrics=function(){ document.querySelectorAll('[data-ev-row]').forEach(row=>{ const students=Number(row.querySelector('.ev-students')?.value||0), uses=Number(row.querySelector('.ev-uses')?.value||0), qtyPerStudent=Number(row.querySelector('.ev-qtyPerStudent')?.value||0), stock=Number(row.querySelector('.ev-stock')?.value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); const hint=row.querySelector('.ev-metrics'); if(hint) hint.innerHTML=`الاحتياج النظري: <b>${estimated}</b> | المتاح: <b>${stock}</b> | العجز: <b>${deficit}</b>` }) }
+saveNeedEvidence=function(){ if(!hasPermission('create_need_evidence')) return alert('لا تملك صلاحية إضافة شواهد الاحتياج'); const need=getNeedById(Number(document.getElementById('ev-need-id').value||0)); if(!need) return alert('اختر طلب احتياج صحيح'); const rows=[...document.querySelectorAll('[data-ev-row]')]; if(!rows.length) return alert('أضف شاهدًا واحدًا على الأقل'); rows.forEach(row=>{ const students=Number(row.querySelector('.ev-students')?.value||0), sections=Number(row.querySelector('.ev-sections')?.value||0), uses=Number(row.querySelector('.ev-uses')?.value||0), qtyPerStudent=Number(row.querySelector('.ev-qtyPerStudent')?.value||0), stock=Number(row.querySelector('.ev-stock')?.value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); const ev={id:nextId(db.needEvidence),needId:need.id,requestNo:need.requestNo,college:need.college,mainDepartment:need.mainDepartment,section:need.section,itemNameAr:need.itemNameAr,itemNameEn:need.itemNameEn,unit:need.unit,courseName:(row.querySelector('.ev-courseName')?.value||'').trim()||'غير محدد',courseCode:(row.querySelector('.ev-courseCode')?.value||'').trim()||'غير محدد',academicYear:(row.querySelector('.ev-academicYear')?.value||'').trim(),semester:row.querySelector('.ev-semester')?.value,sectionsCount:sections,studentsCount:students,usesCount:uses,qtyPerStudent,stockAvailable:stock,estimatedNeed:estimated,deficit,justification:(row.querySelector('.ev-justification')?.value||'').trim(),recommendation:(row.querySelector('.ev-recommendation')?.value||'').trim(),notes:(row.querySelector('.ev-notes')?.value||'').trim(),createdAt:nowLocalString(),createdBy:state.currentUser.id}; db.needEvidence.unshift(ev); auditLog('إضافة شاهد احتياج','evidence',ev.requestNo,`${ev.courseName} - عجز ${ev.deficit} ${ev.unit}`,ev.college,ev.mainDepartment) }); saveDb(); state.currentPage='needEvidence'; closeModal(); alert('تم حفظ الشواهد بنجاح') }
+needEvidenceEditModalHtml=function(){ const ev=(db.needEvidence||[]).find(x=>Number(x.id)===Number(state.editId)); if(!ev) return ''; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">تعديل شاهد احتياج</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div class="full"><label class="label">طلب الاحتياج المرتبط</label><select id="ev-need-id" class="select">${evidenceNeedOptions(ev.needId)}</select></div><div><label class="label">اسم المقرر / الدليل</label><input id="ev-courseName" class="input" value="${ev.courseName||''}"></div><div><label class="label">رمز المقرر</label><input id="ev-courseCode" class="input" value="${ev.courseCode||''}"></div><div><label class="label">السنة الدراسية</label><input id="ev-academicYear" class="input" value="${ev.academicYear||''}"></div><div><label class="label">الفصل الدراسي</label><select id="ev-semester" class="select">${['الأول','الثاني','الصيفي'].map(s=>`<option ${ev.semester===s?'selected':''}>${s}</option>`).join('')}</select></div><div><label class="label">عدد الشعب</label><input id="ev-sections" class="input" type="number" min="1" value="${ev.sectionsCount||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">عدد الطلاب</label><input id="ev-students" class="input" type="number" min="1" value="${ev.studentsCount||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">عدد مرات الاستخدام</label><input id="ev-uses" class="input" type="number" min="1" value="${ev.usesCount||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">الكمية التقديرية لكل طالب</label><input id="ev-qtyPerStudent" class="input" type="number" min="0" step="0.01" value="${ev.qtyPerStudent||1}" oninput="calcEvidenceSingleEdit()"></div><div><label class="label">الرصيد الحالي المتاح</label><input id="ev-stock" class="input" type="number" min="0" step="0.01" value="${ev.stockAvailable||0}" oninput="calcEvidenceSingleEdit()"></div><div class="full"><div id="ev-metrics" class="alert">الاحتياج النظري: ${ev.estimatedNeed||0} | المتاح: ${ev.stockAvailable||0} | العجز: ${ev.deficit||0}</div></div><div class="full"><label class="label">مبررات الاحتياج</label><textarea id="ev-justification" class="textarea">${ev.justification||''}</textarea></div><div class="full"><label class="label">التوصية النهائية</label><textarea id="ev-recommendation" class="textarea">${ev.recommendation||''}</textarea></div><div class="full"><label class="label">ملاحظات إضافية</label><textarea id="ev-notes" class="textarea">${ev.notes||''}</textarea></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEvidenceEdit()">حفظ التعديل</button></div></div></div>` }
 function calcEvidenceSingleEdit(){ const students=Number(document.getElementById('ev-students')?.value||0), uses=Number(document.getElementById('ev-uses')?.value||0), qtyPerStudent=Number(document.getElementById('ev-qtyPerStudent')?.value||0), stock=Number(document.getElementById('ev-stock')?.value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); const hint=document.getElementById('ev-metrics'); if(hint) hint.innerHTML=`الاحتياج النظري: ${estimated} | المتاح: ${stock} | العجز: ${deficit}` }
-function saveNeedEvidenceEdit(){ const ev=(db.needEvidence||[]).find(x=>Number(x.id)===Number(state.editId)); if(!ev) return alert('الشاهد غير موجود'); const need=getNeedById(Number(document.getElementById('ev-need-id').value||0)); if(!need) return alert('اختر طلب احتياج صحيح'); const students=Number(document.getElementById('ev-students').value||0), sections=Number(document.getElementById('ev-sections').value||0), uses=Number(document.getElementById('ev-uses').value||0), qtyPerStudent=Number(document.getElementById('ev-qtyPerStudent').value||0), stock=Number(document.getElementById('ev-stock').value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); Object.assign(ev,{needId:need.id,requestNo:need.requestNo,college:need.college,mainDepartment:need.mainDepartment,section:need.section,itemNameAr:need.itemNameAr,itemNameEn:need.itemNameEn,unit:need.unit,courseName:(document.getElementById('ev-courseName').value||'').trim()||'غير محدد',courseCode:(document.getElementById('ev-courseCode').value||'').trim()||'غير محدد',academicYear:document.getElementById('ev-academicYear').value.trim(),semester:document.getElementById('ev-semester').value,sectionsCount:sections,studentsCount:students,usesCount:uses,qtyPerStudent,stockAvailable:stock,estimatedNeed:estimated,deficit,justification:document.getElementById('ev-justification').value.trim(),recommendation:document.getElementById('ev-recommendation').value.trim(),notes:document.getElementById('ev-notes').value.trim(),updatedAt:nowLocalString(),updatedBy:state.currentUser.id}); auditLog('تعديل شاهد احتياج','evidence',ev.requestNo,`${ev.courseName} - عجز ${ev.deficit} ${ev.unit}`,ev.college,ev.mainDepartment); saveDb(); state.currentPage='needEvidence'; closeModal(); alert('تم تحديث شاهد الاحتياج بنجاح') }
+saveNeedEvidenceEdit=function(){ const ev=(db.needEvidence||[]).find(x=>Number(x.id)===Number(state.editId)); if(!ev) return alert('الشاهد غير موجود'); const need=getNeedById(Number(document.getElementById('ev-need-id').value||0)); if(!need) return alert('اختر طلب احتياج صحيح'); const students=Number(document.getElementById('ev-students').value||0), sections=Number(document.getElementById('ev-sections').value||0), uses=Number(document.getElementById('ev-uses').value||0), qtyPerStudent=Number(document.getElementById('ev-qtyPerStudent').value||0), stock=Number(document.getElementById('ev-stock').value||0); const estimated=Math.ceil(students*uses*qtyPerStudent), deficit=Math.max(estimated-stock,0); Object.assign(ev,{needId:need.id,requestNo:need.requestNo,college:need.college,mainDepartment:need.mainDepartment,section:need.section,itemNameAr:need.itemNameAr,itemNameEn:need.itemNameEn,unit:need.unit,courseName:(document.getElementById('ev-courseName').value||'').trim()||'غير محدد',courseCode:(document.getElementById('ev-courseCode').value||'').trim()||'غير محدد',academicYear:document.getElementById('ev-academicYear').value.trim(),semester:document.getElementById('ev-semester').value,sectionsCount:sections,studentsCount:students,usesCount:uses,qtyPerStudent,stockAvailable:stock,estimatedNeed:estimated,deficit,justification:document.getElementById('ev-justification').value.trim(),recommendation:document.getElementById('ev-recommendation').value.trim(),notes:document.getElementById('ev-notes').value.trim(),updatedAt:nowLocalString(),updatedBy:state.currentUser.id}); auditLog('تعديل شاهد احتياج','evidence',ev.requestNo,`${ev.courseName} - عجز ${ev.deficit} ${ev.unit}`,ev.college,ev.mainDepartment); saveDb(); state.currentPage='needEvidence'; closeModal(); alert('تم تحديث شاهد الاحتياج بنجاح') }
 function linkedDepartmentStats(name){ return {items:(db.items||[]).filter(i=>(i.mainDepartment||'القسم العام')===name).length,users:(db.users||[]).filter(u=>u.department===name).length,tx:(db.transactions||[]).filter(t=>(t.mainDepartment||'القسم العام')===name).length,needs:(db.needsRequests||[]).filter(r=>(r.mainDepartment||'القسم العام')===name).length,support:(db.supportRequests||[]).filter(r=>(r.mainDepartment||'القسم العام')===name).length} }
-function renderOrg(){ const colleges=(db.settings?.colleges||[]).map((c,idx)=>[c.name,c.code,`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('collegeEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeCollegeSetting(${idx})">حذف</button></div>`]); const departments=(db.settings?.departments||[]).map((d,idx)=>[d.name,`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('departmentEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeDepartmentSetting(${idx})">حذف</button></div>`]); const sections=(db.settings?.sections||[]).map((c,idx)=>[c.name,c.code,`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('sectionEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeSectionSetting(${idx})">حذف</button></div>`]); const locations=(db.settings?.locations||[]).map((l,idx)=>[l.name,l.college||'عام',`<div class="flex-actions"><button class="btn btn-danger btn-sm" onclick="removeLocationSetting(${idx})">حذف</button></div>`]); return `<div class="hero"><div class="hero-title">القطاعات والأقسام والترميز</div><div class="hero-text">أصبحت البنية ثلاثية: قطاع ← قسم رئيسي ← قسم فرعي. الترميز يقتصر على القطاع والقسم الفرعي، مع إدارة مستقلة للمواقع.</div></div><div class="section-split"><div class="panel"><div class="panel-title">إضافة قطاع</div><div class="form-grid"><div><label class="label">اسم القطاع</label><input id="new-college-name" class="input"></div><div><label class="label">الرمز</label><input id="new-college-code" class="input"></div></div><button class="btn btn-primary" onclick="addCollegeSetting()">+ إضافة القطاع</button></div><div class="panel"><div class="panel-title">إضافة قسم رئيسي</div><div class="form-grid"><div><label class="label">اسم القسم الرئيسي</label><input id="new-department-name" class="input"></div></div><button class="btn btn-primary" onclick="addDepartmentSetting()">+ إضافة القسم الرئيسي</button></div><div class="panel"><div class="panel-title">إضافة قسم فرعي</div><div class="form-grid"><div><label class="label">اسم القسم الفرعي</label><input id="new-section-name" class="input"></div><div><label class="label">الرمز</label><input id="new-section-code" class="input"></div></div><button class="btn btn-primary" onclick="addSectionSetting()">+ إضافة القسم الفرعي</button></div></div><div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">القطاعات الحالية</div></div>${table(['القطاع','الرمز','إجراء'],colleges)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">الأقسام الرئيسية</div></div>${table(['القسم الرئيسي','إجراء'],departments)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">الأقسام الفرعية</div></div>${table(['القسم الفرعي','الرمز','إجراء'],sections)}</div></div><div class="panel"><div class="panel-title">إضافة موقع</div><div class="form-grid"><div><label class="label">اسم الموقع</label><input id="new-location-name" class="input" placeholder="مثال: 129 SSL 008 - معمل الكيمياء"></div><div><label class="label">القطاع</label><select id="new-location-college" class="select"><option value="">عام</option>${collegeOptions('',false)}</select></div></div><button class="btn btn-primary" onclick="addLocationSetting()">+ إضافة موقع</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">المواقع المتاحة</div></div>${table(['الموقع','القطاع','إجراء'],locations)}</div>` }
+renderOrg=function(){ const colleges=(db.settings?.colleges||[]).map((c,idx)=>[c.name,c.code,`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('collegeEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeCollegeSetting(${idx})">حذف</button></div>`]); const departments=(db.settings?.departments||[]).map((d,idx)=>[d.name,`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('departmentEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeDepartmentSetting(${idx})">حذف</button></div>`]); const sections=(db.settings?.sections||[]).map((c,idx)=>[c.name,c.code,`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('sectionEdit',${idx})">تعديل</button><button class="btn btn-danger btn-sm" onclick="removeSectionSetting(${idx})">حذف</button></div>`]); const locations=(db.settings?.locations||[]).map((l,idx)=>[l.name,l.college||'عام',`<div class="flex-actions"><button class="btn btn-danger btn-sm" onclick="removeLocationSetting(${idx})">حذف</button></div>`]); return `<div class="hero"><div class="hero-title">القطاعات والأقسام والترميز</div><div class="hero-text">أصبحت البنية ثلاثية: قطاع ← قسم رئيسي ← قسم فرعي. الترميز يقتصر على القطاع والقسم الفرعي، مع إدارة مستقلة للمواقع.</div></div><div class="section-split"><div class="panel"><div class="panel-title">إضافة قطاع</div><div class="form-grid"><div><label class="label">اسم القطاع</label><input id="new-college-name" class="input"></div><div><label class="label">الرمز</label><input id="new-college-code" class="input"></div></div><button class="btn btn-primary" onclick="addCollegeSetting()">+ إضافة القطاع</button></div><div class="panel"><div class="panel-title">إضافة قسم رئيسي</div><div class="form-grid"><div><label class="label">اسم القسم الرئيسي</label><input id="new-department-name" class="input"></div></div><button class="btn btn-primary" onclick="addDepartmentSetting()">+ إضافة القسم الرئيسي</button></div><div class="panel"><div class="panel-title">إضافة قسم فرعي</div><div class="form-grid"><div><label class="label">اسم القسم الفرعي</label><input id="new-section-name" class="input"></div><div><label class="label">الرمز</label><input id="new-section-code" class="input"></div></div><button class="btn btn-primary" onclick="addSectionSetting()">+ إضافة القسم الفرعي</button></div></div><div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">القطاعات الحالية</div></div>${table(['القطاع','الرمز','إجراء'],colleges)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">الأقسام الرئيسية</div></div>${table(['القسم الرئيسي','إجراء'],departments)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">الأقسام الفرعية</div></div>${table(['القسم الفرعي','الرمز','إجراء'],sections)}</div></div><div class="panel"><div class="panel-title">إضافة موقع</div><div class="form-grid"><div><label class="label">اسم الموقع</label><input id="new-location-name" class="input" placeholder="مثال: 129 SSL 008 - معمل الكيمياء"></div><div><label class="label">القطاع</label><select id="new-location-college" class="select"><option value="">عام</option>${collegeOptions('',false)}</select></div></div><button class="btn btn-primary" onclick="addLocationSetting()">+ إضافة موقع</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">المواقع المتاحة</div></div>${table(['الموقع','القطاع','إجراء'],locations)}</div>` }
 function addDepartmentSetting(){ const name=document.getElementById('new-department-name').value.trim(); if(!name)return alert('أدخل اسم القسم الرئيسي'); if((db.settings.departments||[]).some(c=>c.name===name))return alert('اسم القسم الرئيسي موجود مسبقًا'); db.settings.departments.push({name}); refreshSettingCaches(); auditLog('إضافة قسم رئيسي','settings',name,'تمت الإضافة','جامعة طيبة','الكل'); saveDb(); render() }
 function saveDepartmentSettingEdit(){ const idx=state.editId, current=(db.settings.departments||[])[idx]; if(!current)return alert('القسم الرئيسي غير موجود'); const name=document.getElementById('edit-department-name').value.trim(); if(!name)return alert('أدخل اسم القسم الرئيسي'); if((db.settings.departments||[]).some((c,i)=>i!==idx&&c.name===name))return alert('اسم القسم الرئيسي مستخدم مسبقًا'); const oldName=current.name; current.name=name; if(oldName!==name){ ;(db.items||[]).forEach(i=>{if((i.mainDepartment||'القسم العام')===oldName)i.mainDepartment=name}); ;(db.transactions||[]).forEach(t=>{if((t.mainDepartment||'القسم العام')===oldName)t.mainDepartment=name}); ;(db.needsRequests||[]).forEach(r=>{if((r.mainDepartment||'القسم العام')===oldName)r.mainDepartment=name}); ;(db.supportRequests||[]).forEach(r=>{if((r.mainDepartment||'القسم العام')===oldName)r.mainDepartment=name}); ;(db.users||[]).forEach(u=>{if(u.department===oldName)u.department=name}); if(state.currentUser?.department===oldName)state.currentUser.department=name } refreshSettingCaches(); auditLog('تعديل قسم رئيسي','settings',name,`من ${oldName} إلى ${name}`,'جامعة طيبة','الكل'); saveDb(); closeModal() }
 function removeDepartmentSetting(idx){ const c=db.settings.departments[idx]; if(!c)return; const stats=linkedDepartmentStats(c.name), total=stats.items+stats.users+stats.tx+stats.needs+stats.support; if(total>0)return alert(`لا يمكن حذف هذا القسم الرئيسي لأنه مرتبط ببيانات: أصناف ${stats.items}، مستخدمون ${stats.users}، حركات ${stats.tx}، احتياجات ${stats.needs}، دعم ${stats.support}.`); if(confirm(`حذف القسم الرئيسي "${c.name}"؟`)){ db.settings.departments.splice(idx,1); refreshSettingCaches(); auditLog('حذف قسم رئيسي','settings',c.name,'تم الحذف','جامعة طيبة','الكل'); saveDb(); render() } }
 function departmentEditModalHtml(){ const c=(db.settings.departments||[])[state.editId]; if(!c)return ''; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">تعديل قسم رئيسي</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid"><div><label class="label">اسم القسم الرئيسي</label><input id="edit-department-name" class="input" value="${c.name}"></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveDepartmentSettingEdit()">حفظ</button></div></div></div>` }
 function addLocationSetting(){ const name=document.getElementById('new-location-name').value.trim(), college=document.getElementById('new-location-college').value.trim(); if(!name)return alert('أدخل اسم الموقع'); if((db.settings.locations||[]).some(x=>x.name===name && (x.college||'')===(college||''))) return alert('هذا الموقع موجود مسبقًا'); db.settings.locations.push({name,college}); auditLog('إضافة موقع','settings',name,`القطاع: ${college||'عام'}`,'جامعة طيبة','الكل'); saveDb(); render() }
 function removeLocationSetting(idx){ const loc=(db.settings.locations||[])[idx]; if(!loc)return; if(confirm(`حذف الموقع "${loc.name}"؟`)){ db.settings.locations.splice(idx,1); auditLog('حذف موقع','settings',loc.name,'تم الحذف','جامعة طيبة','الكل'); saveDb(); render() } }
-function modalHtml(){ if(!state.modal)return ''; if(state.modal==='item')return itemModalHtml(); if(state.modal==='transaction')return txModalHtml(); if(state.modal==='need')return needModalHtml(); if(state.modal==='support')return supportModalHtml(); if(state.modal==='supportEdit')return supportEditModalHtml(); if(state.modal==='needEdit')return needEditModalHtml(); if(state.modal==='evidence')return needEvidenceModalHtml(); if(state.modal==='evidenceEdit')return needEvidenceEditModalHtml(); if(state.modal==='txEdit')return txEditModalHtml(); if(state.modal==='user')return userModalHtml(); if(state.modal==='collegeEdit')return collegeEditModalHtml(); if(state.modal==='departmentEdit')return departmentEditModalHtml(); if(state.modal==='sectionEdit')return sectionEditModalHtml(); if(state.modal==='importItems')return importItemsModalHtml(); return '' }
+modalHtml=function(){ if(!state.modal)return ''; if(state.modal==='item')return itemModalHtml(); if(state.modal==='transaction')return txModalHtml(); if(state.modal==='need')return needModalHtml(); if(state.modal==='support')return supportModalHtml(); if(state.modal==='supportEdit')return supportEditModalHtml(); if(state.modal==='needEdit')return needEditModalHtml(); if(state.modal==='evidence')return needEvidenceModalHtml(); if(state.modal==='evidenceEdit')return needEvidenceEditModalHtml(); if(state.modal==='txEdit')return txEditModalHtml(); if(state.modal==='user')return userModalHtml(); if(state.modal==='collegeEdit')return collegeEditModalHtml(); if(state.modal==='departmentEdit')return departmentEditModalHtml(); if(state.modal==='sectionEdit')return sectionEditModalHtml(); if(state.modal==='importItems')return importItemsModalHtml(); return '' }
 openModal=function(type,id=null,txType='receive'){ state.modal=type; state.editId=id; state.transactionType=txType; render(); setTimeout(()=>{ if(type==='evidence') ensureEvidenceRows(); if(type==='need') toggleNeedYears('need'); if(type==='needEdit') toggleNeedYears('edit-need') },0) }
-function renderUsers(){const rows=db.users.map(u=>[u.fullName,u.username,u.role==='admin'?'مدير النظام':'مستخدم',u.college,u.department,u.isActive?'نشط':'موقوف',`<button class="btn btn-secondary btn-sm" onclick="openModal('user',${u.id})">تعديل</button>`]);return `<div class="hero"><div class="hero-title">إدارة المستخدمين والصلاحيات</div><div class="hero-text">القسم في حساب المستخدم أصبح يمثل القسم الرئيسي، أما القسم الفرعي فيدار داخل الأصناف والطلبات.</div></div><div class="toolbar"><div></div><button class="btn btn-primary" onclick="openModal('user')">+ إضافة مستخدم</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">المستخدمون والصلاحيات</div></div>${table(['الاسم','المستخدم','النوع','القطاع','القسم الرئيسي','الحالة','إجراء'],rows)}</div>` }
-function userModalHtml(){const u=state.editId?getUserById(state.editId):{fullName:'',username:'',password:'123',role:'user',jobTitle:'',college:'كلية الصيدلة',department:'القسم العام',phone:'',email:'',nationalId:'',isActive:true,permissions:[]}; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">${state.editId?'تعديل مستخدم':'إضافة مستخدم'}</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid-3"><div><label class="label">الاسم</label><input id="user-fullName" class="input" value="${u.fullName}"></div><div><label class="label">اسم المستخدم</label><input id="user-username" class="input" value="${u.username}"></div><div><label class="label">كلمة المرور</label><input id="user-password" class="input" value="${u.password}"></div><div><label class="label">النوع</label><select id="user-role" class="select"><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="user" ${u.role==='user'?'selected':''}>User</option></select></div><div><label class="label">المسمى</label><input id="user-jobTitle" class="input" value="${u.jobTitle}"></div><div><label class="label">القطاع/الإدارة</label><select id="user-college" class="select"><option value="إدارة التجهيزات" ${u.college==='إدارة التجهيزات'?'selected':''}>إدارة التجهيزات</option>${collegeOptions(u.college,false)}</select></div><div><label class="label">القسم الرئيسي</label><select id="user-department" class="select">${userDepartmentOptions(u.department||'القسم العام')}</select></div><div><label class="label">الهاتف</label><input id="user-phone" class="input" value="${u.phone}"></div><div><label class="label">البريد</label><input id="user-email" class="input" value="${u.email}"></div><div><label class="label">الهوية</label><input id="user-nationalId" class="input" value="${u.nationalId}"></div><div><label class="checkbox"><input id="user-active" type="checkbox" ${u.isActive?'checked':''}> نشط</label></div><div class="full"><label class="label">الصلاحيات التشغيلية</label><div class="permissions-grid">${PERMISSIONS.filter(p=>!p.key.startsWith('report_')).map(p=>`<label class="checkbox"><input class="perm-box" type="checkbox" value="${p.key}" ${(u.permissions||[]).includes(p.key)||u.role==='admin'?'checked':''}>${p.label}</label>`).join('')}</div></div><div class="full"><label class="label">أنواع التقارير المسموح بها</label><div class="permissions-grid">${PERMISSIONS.filter(p=>p.key.startsWith('report_')).map(p=>`<label class="checkbox"><input class="perm-box" type="checkbox" value="${p.key}" ${(u.permissions||[]).includes(p.key)||u.role==='admin'?'checked':''}>${p.label}</label>`).join('')}</div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveUser()">حفظ</button></div></div></div>` }
-function reportData(){ if(state.reportTab==='senior')return {title:'تقرير الإدارة العليا',headers:['المؤشر','القيمة','قراءة إدارية'],rows:[['إجمالي القطاعات المفعلة',COLLEGE_OPTIONS.length,'نطاق التشغيل الحالي للنظام'],['إجمالي الأصناف',visibleItems(true).length,'حجم قاعدة بيانات المخزون'],['الأصناف تحت الحد الأدنى',lowStock().length,'تتطلب معالجة أو رفع احتياج'],['طلبات الصرف المعلقة',visibleTransactions().filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length,'تتطلب اعتمادًا من المسؤول'],['طلبات الاحتياج المعلقة',filteredNeeds().filter(r=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(r.status||'pending_sector_approval')).length,'بين القطاع وإدارة التجهيزات'],['طلبات الدعم بين القطاعات',filteredSupport().filter(r=>['pending_owner','owner_approved','pending_equipment'].includes(r.status||'pending_owner')).length,'تتطلب موافقات تشغيلية'],...COLLEGE_OPTIONS.map(c=>{const items=(db.items||[]).filter(i=>i.college===c);return [c,items.length+' صنف',`تحت الحد: ${items.filter(i=>i.qty<=i.minQty).length}`]})]}; if(state.reportTab==='transactions')return {title:'تقرير الصرف والحركات',headers:['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','تاريخ الحركة','صاحب الإجراء','اعتمد بواسطة'],rows:visibleTransactions().map(t=>[t.type==='receive'?'إدخال':'صرف',t.college,t.mainDepartment||'القسم العام',t.section,itemName(getItemById(t.itemId)),t.qty,t.unit,statusText(t.status||'completed'),formatDateTime(t.transactionAt),actorName(t.createdBy),actorName(t.reviewedBy)])}; if(state.reportTab==='needs')return {title:'تقرير طلبات الاحتياج',headers:['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','العربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','تمت المراجعة بواسطة'],rows:filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr,r.itemNameEn,`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusText(r.status),r.workflowStage||statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)])}; if(state.reportTab==='support')return {title:'تقرير الدعم بين القطاعات',headers:['رقم الطلب','نوع الطلب','من','إلى','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','موافقة الجهة','اعتماد التجهيزات'],rows:filteredSupport().map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.fromCollege,r.toCollege,r.mainDepartment||'القسم العام',r.section,r.itemName,r.qty,r.unit,statusText(r.status),r.workflowStage||statusText(r.status),actorName(r.createdBy),actorName(r.ownerReviewedBy),actorName(r.reviewedBy)])}; if(state.reportTab==='low')return {title:'تقرير الأصناف تحت الحد الأدنى',headers:['القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الحد الأدنى','الوحدة','آخر تحديث بواسطة'],rows:lowStock().map(i=>[i.college,i.mainDepartment||'القسم العام',i.section,itemName(i),i.qty,i.minQty,i.unit,actorName(i.createdBy)])}; return {title:'تقرير المخزون العام',headers:['القطاع','القسم الرئيسي','الرمز','القسم الفرعي','العربي','English','الكمية','الوحدة','الموقع','صاحب الإجراء'],rows:(isCentral()?visibleItems(true):visibleItems()).map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,i.section,itemName(i),i.nameEn||'—',i.qty,i.unit,i.location||'—',actorName(i.createdBy)])} }
+renderUsers=function(){const rows=db.users.map(u=>[u.fullName,u.username,u.role==='admin'?'مدير النظام':'مستخدم',u.college,u.department,u.isActive?'نشط':'موقوف',`<button class="btn btn-secondary btn-sm" onclick="openModal('user',${u.id})">تعديل</button>`]);return `<div class="hero"><div class="hero-title">إدارة المستخدمين والصلاحيات</div><div class="hero-text">القسم في حساب المستخدم أصبح يمثل القسم الرئيسي، أما القسم الفرعي فيدار داخل الأصناف والطلبات.</div></div><div class="toolbar"><div></div><button class="btn btn-primary" onclick="openModal('user')">+ إضافة مستخدم</button></div><div class="table-panel"><div class="table-head"><div class="panel-title">المستخدمون والصلاحيات</div></div>${table(['الاسم','المستخدم','النوع','القطاع','القسم الرئيسي','الحالة','إجراء'],rows)}</div>` }
+userModalHtml=function(){const u=state.editId?getUserById(state.editId):{fullName:'',username:'',password:'123',role:'user',jobTitle:'',college:'كلية الصيدلة',department:'القسم العام',phone:'',email:'',nationalId:'',isActive:true,permissions:[]}; return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">${state.editId?'تعديل مستخدم':'إضافة مستخدم'}</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid-3"><div><label class="label">الاسم</label><input id="user-fullName" class="input" value="${u.fullName}"></div><div><label class="label">اسم المستخدم</label><input id="user-username" class="input" value="${u.username}"></div><div><label class="label">كلمة المرور</label><input id="user-password" class="input" value="${u.password}"></div><div><label class="label">النوع</label><select id="user-role" class="select"><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="user" ${u.role==='user'?'selected':''}>User</option></select></div><div><label class="label">المسمى</label><input id="user-jobTitle" class="input" value="${u.jobTitle}"></div><div><label class="label">القطاع/الإدارة</label><select id="user-college" class="select"><option value="إدارة التجهيزات" ${u.college==='إدارة التجهيزات'?'selected':''}>إدارة التجهيزات</option>${collegeOptions(u.college,false)}</select></div><div><label class="label">القسم الرئيسي</label><select id="user-department" class="select">${userDepartmentOptions(u.department||'القسم العام')}</select></div><div><label class="label">الهاتف</label><input id="user-phone" class="input" value="${u.phone}"></div><div><label class="label">البريد</label><input id="user-email" class="input" value="${u.email}"></div><div><label class="label">الهوية</label><input id="user-nationalId" class="input" value="${u.nationalId}"></div><div><label class="checkbox"><input id="user-active" type="checkbox" ${u.isActive?'checked':''}> نشط</label></div><div class="full"><label class="label">الصلاحيات التشغيلية</label><div class="permissions-grid">${PERMISSIONS.filter(p=>!p.key.startsWith('report_')).map(p=>`<label class="checkbox"><input class="perm-box" type="checkbox" value="${p.key}" ${(u.permissions||[]).includes(p.key)||u.role==='admin'?'checked':''}>${p.label}</label>`).join('')}</div></div><div class="full"><label class="label">أنواع التقارير المسموح بها</label><div class="permissions-grid">${PERMISSIONS.filter(p=>p.key.startsWith('report_')).map(p=>`<label class="checkbox"><input class="perm-box" type="checkbox" value="${p.key}" ${(u.permissions||[]).includes(p.key)||u.role==='admin'?'checked':''}>${p.label}</label>`).join('')}</div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveUser()">حفظ</button></div></div></div>` }
+reportData=function(){ if(state.reportTab==='senior')return {title:'تقرير الإدارة العليا',headers:['المؤشر','القيمة','قراءة إدارية'],rows:[['إجمالي القطاعات المفعلة',COLLEGE_OPTIONS.length,'نطاق التشغيل الحالي للنظام'],['إجمالي الأصناف',visibleItems(true).length,'حجم قاعدة بيانات المخزون'],['الأصناف تحت الحد الأدنى',lowStock().length,'تتطلب معالجة أو رفع احتياج'],['طلبات الصرف المعلقة',visibleTransactions().filter(t=>t.type==='issue'&&(t.status||'pending')==='pending').length,'تتطلب اعتمادًا من المسؤول'],['طلبات الاحتياج المعلقة',filteredNeeds().filter(r=>['pending_sector_approval','pending_equipment_review','returned_to_sector'].includes(r.status||'pending_sector_approval')).length,'بين القطاع وإدارة التجهيزات'],['طلبات الدعم بين القطاعات',filteredSupport().filter(r=>['pending_owner','owner_approved','pending_equipment'].includes(r.status||'pending_owner')).length,'تتطلب موافقات تشغيلية'],...COLLEGE_OPTIONS.map(c=>{const items=(db.items||[]).filter(i=>i.college===c);return [c,items.length+' صنف',`تحت الحد: ${items.filter(i=>i.qty<=i.minQty).length}`]})]}; if(state.reportTab==='transactions')return {title:'تقرير الصرف والحركات',headers:['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','تاريخ الحركة','صاحب الإجراء','اعتمد بواسطة'],rows:visibleTransactions().map(t=>[t.type==='receive'?'إدخال':'صرف',t.college,t.mainDepartment||'القسم العام',t.section,itemName(getItemById(t.itemId)),t.qty,t.unit,statusText(t.status||'completed'),formatDateTime(t.transactionAt),actorName(t.createdBy),actorName(t.reviewedBy)])}; if(state.reportTab==='needs')return {title:'تقرير طلبات الاحتياج',headers:['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','القسم الفرعي','العربي','English','كميات السنوات','الإجمالي','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','تمت المراجعة بواسطة'],rows:filteredNeeds().map(r=>[r.requestNo,r.erpCode||'—',r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr,r.itemNameEn,`${r.year1Qty||0}${Number(r.yearsCount||1)>=2?` / ${r.year2Qty||0}`:''}${Number(r.yearsCount||1)>=3?` / ${r.year3Qty||0}`:''}`,r.qty,r.unit,statusText(r.status),r.workflowStage||statusText(r.status),actorName(r.createdBy),actorName(r.reviewedBy)])}; if(state.reportTab==='support')return {title:'تقرير الدعم بين القطاعات',headers:['رقم الطلب','نوع الطلب','من','إلى','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','موافقة الجهة','اعتماد التجهيزات'],rows:filteredSupport().map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.fromCollege,r.toCollege,r.mainDepartment||'القسم العام',r.section,r.itemName,r.qty,r.unit,statusText(r.status),r.workflowStage||statusText(r.status),actorName(r.createdBy),actorName(r.ownerReviewedBy),actorName(r.reviewedBy)])}; if(state.reportTab==='low')return {title:'تقرير الأصناف تحت الحد الأدنى',headers:['القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الحد الأدنى','الوحدة','آخر تحديث بواسطة'],rows:lowStock().map(i=>[i.college,i.mainDepartment||'القسم العام',i.section,itemName(i),i.qty,i.minQty,i.unit,actorName(i.createdBy)])}; return {title:'تقرير المخزون العام',headers:['القطاع','القسم الرئيسي','الرمز','القسم الفرعي','العربي','English','الكمية','الوحدة','الموقع','صاحب الإجراء'],rows:(isCentral()?visibleItems(true):visibleItems()).map(i=>[i.college,i.mainDepartment||'القسم العام',i.code,i.section,itemName(i),i.nameEn||'—',i.qty,i.unit,i.location||'—',actorName(i.createdBy)])} }
 /* ===== end v5.8 customizations ===== */
 
 
@@ -952,7 +952,7 @@ function canManageListedItem(i){
   if(hasDepartmentScope() && (i.mainDepartment||'القسم العام') !== state.currentUser.department) return false
   return true
 }
-function itemActionButtons(i){
+itemActionButtons=function(i){
   const actions=[]
   if(canManageListedItem(i) && hasPermission('edit_item')) actions.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('item',${i.id})">تعديل</button>`)
   if(canManageListedItem(i) && hasPermission('delete_item')) actions.push(`<button class="btn btn-danger btn-sm" onclick="removeItem(${i.id})">حذف</button>`)
@@ -1400,6 +1400,7 @@ function buildExecutiveDemoDb(){
     'view_executive','view_dashboard','view_items','add_item','edit_item',
     'view_transactions','add_issue','approve_issue','view_exchange','request_support','approve_support',
     'view_needs','create_need','approve_need','view_need_evidence','create_need_evidence',
+    'view_maintenance','view_maintenance_assets','create_maintenance_ticket','approve_entity_maintenance','view_maintenance_reports',
     'view_reports','report_inventory','report_transactions','report_needs','report_support','report_low'
   ];
   const reportPerms=['view_executive','view_dashboard','view_items','view_transactions','view_exchange','view_needs','view_need_evidence','view_reports','report_senior','report_inventory','report_transactions','report_needs','report_support','report_low'];
@@ -1754,10 +1755,11 @@ function topAnalysisRows(map,sorter,limit=5){
   return Object.values(map).sort(sorter).slice(0,limit);
 }
 
-function mostSpentItems(limit=5){
+function mostSpentItems(limit=5,scopeFilter=null){
   ensureAnalysisState();
   const map={};
   (db.transactions||[])
+    .filter(t=>!scopeFilter||scopeFilter(t))
     .filter(t=>t.type==='issue' && ['approved','completed'].includes(t.status||'pending'))
     .filter(t=>withinAnalysisRange(t,['transactionAt','approvedAt','createdAt']))
     .forEach(t=>{
@@ -1766,16 +1768,20 @@ function mostSpentItems(limit=5){
       addAnalysisBucket(map,`${label}|${unit}`,label,unit,t.qty,'صرف معتمد');
     });
   (db.supportRequests||[])
+    .filter(r=>!scopeFilter||scopeFilter(r))
     .filter(r=>r.status==='approved')
     .filter(r=>withinAnalysisRange(r,['reviewedAt','createdAt']))
     .forEach(r=>addAnalysisBucket(map,`${r.itemName}|${r.unit}`,r.itemName,r.unit,r.qty,'دعم معتمد'));
   return topAnalysisRows(map,(a,b)=>(b.qty-a.qty)||(b.count-a.count),limit);
 }
 
-function mostNeededByUsage(limit=5){
+function mostNeededByUsage(limit=5,scopeFilter=null){
   ensureAnalysisState();
   const map={};
-  (db.needEvidence||[]).filter(e=>withinAnalysisRange(e,['createdAt','updatedAt'])).forEach(e=>{
+  (db.needEvidence||[])
+    .filter(e=>!scopeFilter||scopeFilter(e))
+    .filter(e=>withinAnalysisRange(e,['createdAt','updatedAt']))
+    .forEach(e=>{
     const label=e.itemNameAr||e.itemNameEn||'غير محدد';
     const unit=e.unit||'';
     const key=`${label}|${unit}`;
@@ -1789,17 +1795,27 @@ function mostNeededByUsage(limit=5){
   return topAnalysisRows(map,(a,b)=>(b.qty-a.qty)||(b.deficit-a.deficit),limit).map(r=>({...r,coursesCount:r.courses?r.courses.size:0}));
 }
 
-function mostRequestedItems(limit=5){
+function mostRequestedItems(limit=5,scopeFilter=null){
   ensureAnalysisState();
   const map={};
-  (db.needsRequests||[]).filter(r=>withinAnalysisRange(r,['createdAt','reviewedAt','sectorApprovedAt'])).forEach(r=>{
+  (db.needsRequests||[])
+    .filter(r=>!scopeFilter||scopeFilter(r))
+    .filter(r=>withinAnalysisRange(r,['createdAt','reviewedAt','sectorApprovedAt']))
+    .forEach(r=>{
     const label=r.itemNameAr||r.itemNameEn||'غير محدد';
     addAnalysisBucket(map,`${label}|${r.unit||''}`,label,r.unit||'',r.qty,'احتياج');
   });
-  (db.supportRequests||[]).filter(r=>withinAnalysisRange(r,['createdAt','reviewedAt','ownerReviewedAt'])).forEach(r=>{
+  (db.supportRequests||[])
+    .filter(r=>!scopeFilter||scopeFilter(r))
+    .filter(r=>withinAnalysisRange(r,['createdAt','reviewedAt','ownerReviewedAt']))
+    .forEach(r=>{
     addAnalysisBucket(map,`${r.itemName}|${r.unit||''}`,r.itemName,r.unit||'',r.qty,'دعم');
   });
-  (db.transactions||[]).filter(t=>t.type==='issue').filter(t=>withinAnalysisRange(t,['transactionAt','createdAt'])).forEach(t=>{
+  (db.transactions||[])
+    .filter(t=>!scopeFilter||scopeFilter(t))
+    .filter(t=>t.type==='issue')
+    .filter(t=>withinAnalysisRange(t,['transactionAt','createdAt']))
+    .forEach(t=>{
     const label=analysisItemLabel(t.itemId,t.itemName);
     const unit=analysisUnit(t.itemId,t.unit);
     addAnalysisBucket(map,`${label}|${unit}`,label,unit,t.qty,'صرف');
@@ -1903,6 +1919,8 @@ function ensureSmartAnalystState(){
   ensureAnalysisState();
   if(typeof state.smartAnalystMode==='undefined') state.smartAnalystMode='executive';
   if(typeof state.smartAnalystQuestion==='undefined') state.smartAnalystQuestion='';
+  if(typeof state.smartAnalystCollegeFilter==='undefined') state.smartAnalystCollegeFilter=isCentral()?'all':(state.currentUser?.college||'');
+  if(typeof state.smartAnalystSectionFilter==='undefined') state.smartAnalystSectionFilter=hasDepartmentScope()?(state.currentUser?.department||'all'):'all';
 }
 
 function smartEscape(value){
@@ -1954,38 +1972,198 @@ function askSmartAnalyst(){
   render();
 }
 
+function smartAnalystScopeCollege(){
+  ensureSmartAnalystState();
+  if(!isCentral()) return state.currentUser?.college||'';
+  return state.smartAnalystCollegeFilter||'all';
+}
+
+function smartAnalystScopeSection(){
+  ensureSmartAnalystState();
+  if(hasDepartmentScope()) return state.currentUser?.department||'all';
+  return state.smartAnalystSectionFilter||'all';
+}
+
+function setSmartAnalystRange(value){
+  ensureSmartAnalystState();
+  state.analysisRange=value||'month';
+  render();
+}
+
+function setSmartAnalystCollege(value){
+  ensureSmartAnalystState();
+  state.smartAnalystCollegeFilter=isCentral()?(value||'all'):(state.currentUser?.college||'');
+  render();
+}
+
+function setSmartAnalystSection(value){
+  ensureSmartAnalystState();
+  state.smartAnalystSectionFilter=hasDepartmentScope()?(state.currentUser?.department||'all'):(value||'all');
+  render();
+}
+
+function resetSmartAnalystFilters(){
+  ensureSmartAnalystState();
+  state.analysisRange='month';
+  state.smartAnalystCollegeFilter=isCentral()?'all':(state.currentUser?.college||'');
+  state.smartAnalystSectionFilter=hasDepartmentScope()?(state.currentUser?.department||'all'):'all';
+  render();
+}
+
+function smartAnalystRowColleges(row){
+  return [row?.college,row?.sector,row?.fromCollege,row?.toCollege,row?.requesterSector,row?.sourceSector,row?.requesterCollege,row?.sourceCollege]
+    .map(v=>String(v||'').trim())
+    .filter(Boolean);
+}
+
+function smartAnalystRowSections(row){
+  return [row?.section,row?.mainDepartment,row?.department,row?.subDepartment]
+    .map(v=>String(v||'').trim())
+    .filter(Boolean);
+}
+
+function smartAnalystWithinScope(row){
+  const college=smartAnalystScopeCollege();
+  const section=smartAnalystScopeSection();
+  const colleges=smartAnalystRowColleges(row);
+  if(!isCentral()){
+    const current=state.currentUser?.college||'';
+    if(current && !colleges.includes(current) && row?.college!==current) return false;
+  }else if(college && college!=='all' && !colleges.includes(college) && row?.college!==college){
+    return false;
+  }
+  if(section && section!=='all'){
+    const rowSections=smartAnalystRowSections(row);
+    if(rowSections.length && !rowSections.includes(section)) return false;
+  }
+  return true;
+}
+
+function smartScopedItems(){
+  return (db.items||[]).filter(item=>smartAnalystWithinScope(item));
+}
+
+function smartScopedTransactions(){
+  return (db.transactions||[]).filter(tx=>smartAnalystWithinScope(tx));
+}
+
+function smartScopedNeedEvidence(){
+  return (db.needEvidence||[]).filter(row=>smartAnalystWithinScope(row));
+}
+
+function smartScopedMaintenanceAssets(){
+  return (db.maintenanceAssets||[]).filter(row=>smartAnalystWithinScope(row));
+}
+
+function smartAnalystRangeControls(){
+  ensureSmartAnalystState();
+  const opts=[['month','هذا الشهر'],['semester','هذا الفصل'],['year','هذه السنة'],['all','كل البيانات']];
+  return `<div class="analysis-range smart-range">${opts.map(([value,label])=>`<button type="button" class="${state.analysisRange===value?'active':''}" onclick="setSmartAnalystRange('${value}')">${label}</button>`).join('')}</div>`;
+}
+
+function smartAnalystCollegeControl(){
+  if(!isCentral()){
+    return `<div class="smart-scope-chip">${smartEscape(state.currentUser?.college||'نطاق المستخدم')}</div>`;
+  }
+  return `<select class="select smart-filter-select" onchange="setSmartAnalystCollege(this.value)">${collegeOptions(smartAnalystScopeCollege(),true)}</select>`;
+}
+
+function smartAnalystSectionControl(){
+  if(hasDepartmentScope()){
+    return `<div class="smart-scope-chip">${smartEscape(state.currentUser?.department||'القسم المحدد')}</div>`;
+  }
+  return `<select class="select smart-filter-select" onchange="setSmartAnalystSection(this.value)">${sectionOptions(smartAnalystScopeSection(),true)}</select>`;
+}
+
+function smartAnalystFilterBar(){
+  return `<div class="smart-filterbar">
+    <div class="smart-filter-heading">
+      <strong>نطاق القراءة</strong>
+      <span>فلتر واحد موحد لكل مؤشرات المحلل، بدل تكرار نفس الاختيارات داخل الصفحة.</span>
+    </div>
+    <div class="smart-filter-group smart-filter-period"><span>الفترة</span>${smartAnalystRangeControls()}</div>
+    <label class="smart-filter-group"><span>القطاع</span>${smartAnalystCollegeControl()}</label>
+    <label class="smart-filter-group"><span>القسم</span>${smartAnalystSectionControl()}</label>
+    <button type="button" class="btn btn-secondary btn-sm smart-filter-reset" onclick="resetSmartAnalystFilters()">إعادة ضبط</button>
+  </div>`;
+}
+
+function smartAnalystKpis(){
+  const stats=smartCurrentStats();
+  const deviceReady=stats.devices?Math.round((stats.readyDevices/stats.devices)*100):0;
+  const cards=[
+    ['الأصناف ضمن النطاق',stats.items,'قاعدة القراءة الحالية','blue'],
+    ['تحت الحد الأدنى',stats.low,'تحتاج قرار دعم أو احتياج','yellow'],
+    ['احتياجات نشطة',stats.activeNeeds,'طلبات ما زالت تحت المعالجة','green'],
+    ['طلبات دعم نشطة',stats.activeSupport,'تحتاج متابعة مسار الدعم','pink'],
+    ['جاهزية الأجهزة',`${deviceReady}%`,`${stats.readyDevices} من ${stats.devices} جهاز جاهز`,'teal']
+  ];
+  return `<div class="smart-kpi-grid">${cards.map(([label,value,note,tone])=>`<div class="smart-kpi smart-kpi-${tone}"><span>${label}</span><strong>${value}</strong><em>${note}</em></div>`).join('')}</div>`;
+}
+
+function smartAnalystSignals(answer){
+  const signal=(title,row,empty,meta='')=>`<div class="smart-signal-card">
+    <span>${title}</span>
+    <strong>${row?smartEscape(row.label||row.college||'—'):empty}</strong>
+    <em>${row?smartEscape(meta||`${row.qty??row.count??row.score??''} ${row.unit||''}`):'لا توجد بيانات كافية في النطاق الحالي'}</em>
+  </div>`;
+  return `<div class="smart-signal-grid">
+    ${signal('الأعلى صرفًا',answer.spent[0],'لا يوجد صرف',answer.spent[0]?`${answer.spent[0].qty} ${answer.spent[0].unit||''}`:'')}
+    ${signal('الأعلى احتياجًا',answer.usage[0],'لا توجد شواهد',answer.usage[0]?`عجز ${answer.usage[0].deficit||0} | احتياج ${answer.usage[0].qty} ${answer.usage[0].unit||''}`:'')}
+    ${signal('الأكثر طلبًا',answer.requested[0],'لا توجد طلبات',answer.requested[0]?`${answer.requested[0].count} طلب | ${answer.requested[0].qty} ${answer.requested[0].unit||''}`:'')}
+    ${signal('أعلى ضغط قطاعي',answer.pressure[0],'لا يوجد ضغط واضح',answer.pressure[0]?`درجة ${answer.pressure[0].score}`:'')}
+  </div>`;
+}
+
 function smartIsActiveStatus(status){
   return !['approved','rejected','completed','closed'].includes(status||'pending');
 }
 
 function smartScopedNeeds(){
-  return filteredNeeds()
+  return (db.needsRequests||[])
+    .filter(r=>smartAnalystWithinScope(r))
     .filter(r=>smartIsActiveStatus(r.status))
     .filter(r=>withinAnalysisRange(r,['createdAt','reviewedAt','sectorApprovedAt','updatedAt']));
 }
 
 function smartScopedSupport(){
-  return filteredSupport()
+  return (db.supportRequests||[])
+    .filter(r=>smartAnalystWithinScope(r))
     .filter(r=>smartIsActiveStatus(r.status))
     .filter(r=>withinAnalysisRange(r,['createdAt','reviewedAt','ownerReviewedAt','updatedAt']));
 }
 
 function smartCurrentStats(){
-  const s=typeof demoExecutiveStats==='function'?demoExecutiveStats():metrics();
+  const items=smartScopedItems();
+  const needs=smartScopedNeeds();
+  const support=smartScopedSupport();
+  const assets=smartScopedMaintenanceAssets();
+  const lowItems=items.filter(i=>Number(i.qty)<=Number(i.minQty));
+  const collegeScope=smartAnalystScopeCollege();
+  const visibleColleges=collegeScope&&collegeScope!=='all'
+    ? 1
+    : new Set([
+      ...items.map(i=>i.college),
+      ...needs.map(n=>n.college),
+      ...support.flatMap(r=>[r.fromCollege,r.toCollege,r.requesterSector,r.sourceSector])
+    ].filter(Boolean)).size || (isCentral()?COLLEGE_OPTIONS.length:1);
+  const readyStatuses=['جاهز','متاح','تشغيلي','يعمل'];
+  const readyDevices=assets.filter(a=>readyStatuses.includes(a.status||'')||!['متوقف','تحت الصيانة','خارج الخدمة'].includes(a.status||'')).length;
   return {
-    colleges:s.colleges||COLLEGE_OPTIONS.length,
-    items:s.items||visibleItems(true).length,
-    low:s.low||lowStock().length,
-    activeNeeds:s.activeNeeds??smartScopedNeeds().length,
-    activeSupport:s.activeSupport??smartScopedSupport().length,
-    devices:s.devices||0,
-    readyDevices:s.readyDevices||0
+    colleges:visibleColleges,
+    items:items.length,
+    low:lowItems.length,
+    activeNeeds:needs.length,
+    activeSupport:support.length,
+    transactions:smartScopedTransactions().filter(t=>withinAnalysisRange(t,['transactionAt','createdAt','approvedAt'])).length,
+    devices:assets.length,
+    readyDevices
   };
 }
 
 function smartSurplusItemFor(label){
   const wanted=smartNormalize(label);
-  return (db.items||[])
+  return smartScopedItems()
     .filter(i=>smartNormalize(itemName(i))===wanted || smartNormalize(i.nameEn)===wanted)
     .filter(i=>Number(i.qty)>Math.max(Number(i.minQty||0)*1.5,Number(i.minQty||0)+1))
     .sort((a,b)=>(Number(b.qty)-Number(b.minQty||0))-(Number(a.qty)-Number(a.minQty||0)))[0];
@@ -1999,16 +2177,19 @@ function smartCollegePressure(limit=5){
     map[college].score+=Number(score)||0;
     if(label) map[college].signals.push(label);
   };
-  lowStock().forEach(i=>add(i.college,3,`رصيد منخفض: ${itemName(i)}`));
+  smartScopedItems().filter(i=>Number(i.qty)<=Number(i.minQty)).forEach(i=>add(i.college,3,`رصيد منخفض: ${itemName(i)}`));
   smartScopedNeeds().forEach(n=>add(n.college,2,`احتياج نشط: ${n.itemNameAr||n.itemNameEn}`));
-  smartScopedSupport().forEach(r=>add(r.fromCollege,2,`طلب دعم: ${r.itemName}`));
+  smartScopedSupport().forEach(r=>{
+    const supportCollege=isCentral()?(r.requesterSector||r.toCollege||r.fromCollege||r.college):(state.currentUser?.college||r.college);
+    add(supportCollege,2,`طلب دعم: ${r.itemName}`);
+  });
   return Object.values(map).sort((a,b)=>b.score-a.score).slice(0,limit);
 }
 
 function smartDecisionRows(){
-  const spent=mostSpentItems(5);
-  const usage=mostNeededByUsage(5);
-  const requested=mostRequestedItems(5);
+  const spent=mostSpentItems(5,smartAnalystWithinScope);
+  const usage=mostNeededByUsage(5,smartAnalystWithinScope);
+  const requested=mostRequestedItems(5,smartAnalystWithinScope);
   const rows=[];
   if(usage[0]){
     rows.push({
@@ -2059,9 +2240,9 @@ function smartMainActions(mode,spent,usage,requested,pressure){
 
 function smartAnalystAnswer(mode){
   ensureSmartAnalystState();
-  const spent=mostSpentItems(5);
-  const usage=mostNeededByUsage(5);
-  const requested=mostRequestedItems(5);
+  const spent=mostSpentItems(5,smartAnalystWithinScope);
+  const usage=mostNeededByUsage(5,smartAnalystWithinScope);
+  const requested=mostRequestedItems(5,smartAnalystWithinScope);
   const pressure=smartCollegePressure(5);
   const stats=smartCurrentStats();
   const topSpent=spent[0], topUsage=usage[0], topRequested=requested[0], topPressure=pressure[0];
@@ -2118,6 +2299,10 @@ function smartAnalystApiPayload(){
     version:'local-rules-v1',
     range:state.analysisRange,
     rangeLabel:analysisRangeLabel(),
+    scope:{
+      college:smartAnalystScopeCollege(),
+      section:smartAnalystScopeSection()
+    },
     question:state.smartAnalystQuestion||smartAnalystPresets().find(p=>p.id===state.smartAnalystMode)?.question||'',
     metrics:smartCurrentStats(),
     signals:{
@@ -2179,6 +2364,9 @@ function renderSmartAnalyst(){
         <em>جاهز للربط لاحقًا عبر backend</em>
       </div>
     </div>
+    ${smartAnalystFilterBar()}
+    ${smartAnalystKpis()}
+    ${smartAnalystSignals(answer)}
     <div class="smart-controls">
       <div>
         <div class="smart-section-title">اسأل المحلل</div>
@@ -2188,7 +2376,7 @@ function renderSmartAnalyst(){
         <label class="label" for="smart-question">سؤال حر</label>
         <textarea id="smart-question" class="textarea smart-question" placeholder="مثال: ما الأصناف التي تحتاج رفع احتياج هذا الشهر؟">${smartEscape(state.smartAnalystQuestion)}</textarea>
         <div class="smart-question-actions">
-          ${analysisRangeControls()}
+          <div class="smart-question-hint">يتم تطبيق نطاق القراءة أعلاه على السؤال والمؤشرات والتوصيات.</div>
           <button class="btn btn-primary" onclick="askSmartAnalyst()">تحليل السؤال</button>
         </div>
       </div>
@@ -2482,7 +2670,7 @@ function eduNeedEvidenceSummary(agg){
   return `احتياج محسوب من الشواهد التعليمية: ${experiments}. إجمالي الطلاب المحتسبين عبر الشواهد ${totalStudents}، وعدد الشعب ${totalSections}. تم احتساب الاحتياج الإجمالي ${agg.grossTotal} ${agg.unit} وخصم الرصيد المتاح ${eduNeedRoundQty(agg.stockAvailable,agg.unit)} ${agg.unit}.`;
 }
 
-function needModalHtml(){
+needModalHtml=function(){
   const currentCollege=eduNeedCurrentCollege();
   const currentDepartment=(!isCentral()&&hasDepartmentScope()) ? state.currentUser.department : currentDepartmentName();
   const year=new Date().getFullYear();
@@ -2533,7 +2721,7 @@ function needModalHtml(){
   </div>`;
 }
 
-function saveNeed(){
+saveNeed=function(){
   if(!hasPermission('create_need')) return alert('لا تملك صلاحية رفع الاحتياج');
   db.needsRequests=db.needsRequests||[];
   db.needEvidence=db.needEvidence||[];
@@ -2661,7 +2849,7 @@ function saveNeed(){
   alert(`تم توليد ${aggregates.length} طلب احتياج من ${rows.length} شاهد تعليمي`);
 }
 
-function renderNeeds(){
+renderNeeds=function(){
   const rows=filteredNeeds().map(r=>{
     const source=r.calculationSource==='educational_evidence_v5_9'
       ? `<span class="badge badge-ok">محسوب من الشواهد</span>`
@@ -2686,7 +2874,7 @@ function renderNeeds(){
   </div>`;
 }
 
-function renderNeedEvidence(){
+renderNeedEvidence=function(){
   const rows=visibleNeedEvidence().map(r=>[
     r.requestNo,
     r.college,
@@ -2759,7 +2947,7 @@ function eduNeedConvertQty(qty,fromUnit,toUnit){
   return (Number(qty)||0)*eduNeedUnitFactor(from)/eduNeedUnitFactor(to);
 }
 
-function eduNeedRoundQty(value){
+eduNeedRoundQty=function(value){
   return Math.ceil(Number(value)||0);
 }
 
@@ -2792,7 +2980,7 @@ function eduNeedMaterialRowHtml(groupIdx,materialIdx,material={}){
   </div>`;
 }
 
-function eduNeedRowHtml(idx,row={}){
+eduNeedRowHtml=function(idx,row={}){
   const semester=row.semester||'الأول';
   return `<div class="edu-need-row edu-experiment-card" data-edu-need-row="${idx}">
     <div class="edu-need-row-head">
@@ -2823,7 +3011,7 @@ function eduNeedRowHtml(idx,row={}){
   </div>`;
 }
 
-function addEduNeedRow(prefill={}){
+addEduNeedRow=function(prefill={}){
   const wrap=document.getElementById('edu-need-rows');
   if(!wrap) return;
   const idx=`e${Date.now().toString(36)}${wrap.children.length}`;
@@ -2843,7 +3031,7 @@ function removeEduNeedMaterial(groupIdx,materialIdx){
   renderEduNeedPreview();
 }
 
-function eduNeedReadRows(){
+eduNeedReadRows=function(){
   const rows=[];
   [...document.querySelectorAll('[data-edu-need-row]')].forEach(group=>{
     const common={
@@ -2876,7 +3064,7 @@ function eduNeedReadRows(){
   return rows;
 }
 
-function eduNeedCalcRow(row){
+eduNeedCalcRow=function(row){
   const maleStudents=row.maleSections*row.malePerSection;
   const femaleStudents=row.femaleSections*row.femalePerSection;
   const students=maleStudents+femaleStudents;
@@ -2899,7 +3087,7 @@ function eduNeedCalcRow(row){
   return {...row,maleStudents,femaleStudents,students,sections,groups,baseQty:baseUsage,effectiveRepeats,grossNeedUsage:grossUsage,grossNeed:grossRequest,unit:row.requestUnit};
 }
 
-function eduNeedAggregateRows(rows){
+eduNeedAggregateRows=function(rows){
   const department=document.getElementById('need-mainDepartment')?.value||currentDepartmentName();
   const section=document.getElementById('need-section')?.value||(typeof SECTION_OPTIONS!=='undefined'?SECTION_OPTIONS[0]:'القسم العام');
   const map=new Map();
@@ -2958,7 +3146,7 @@ function eduNeedFindMergeTarget(agg,ctx){
   });
 }
 
-function renderEduNeedPreview(){
+renderEduNeedPreview=function(){
   const target=document.getElementById('edu-need-preview');
   if(!target) return;
   const aggregates=eduNeedAggregateRows(eduNeedReadRows());
@@ -2975,7 +3163,7 @@ function renderEduNeedPreview(){
   target.innerHTML=`<div class="table-panel edu-preview-panel"><div class="table-head"><div class="panel-title">المخرجات المحسوبة قبل الرفع</div><div class="panel-subtitle">يجمع النظام نفس الصنف داخل كل التجارب، يحول إلى وحدة الطلب النهائية، ثم يقرب الصافي للأعلى كعدد صحيح.</div></div>${table(['البند','وحدة الاستخدام','وحدة الطلب','التجارب','الفصل الأول','الفصل الثاني','الرصيد','الصافي المرفوع'],rows)}</div>`;
 }
 
-function eduNeedEvidenceSummary(agg){
+eduNeedEvidenceSummary=function(agg){
   const experiments=[...agg.experiments].filter(Boolean).join('، ')||'تجارب غير مسماة';
   const usageUnits=[...agg.usageUnits].filter(Boolean).join('، ')||agg.unit;
   const totalStudents=agg.evidenceRows.reduce((sum,r)=>sum+r.students,0);
@@ -2983,7 +3171,7 @@ function eduNeedEvidenceSummary(agg){
   return `احتياج محسوب من المراجع التعليمية: ${experiments}. إجمالي الطلاب المحتسبين عبر المراجع ${totalStudents}، وعدد الشعب ${totalSections}. تم تحويل وحدات الاستخدام (${usageUnits}) إلى وحدة الطلب النهائية (${agg.unit})، ثم خصم الرصيد ${eduNeedRoundPreview(agg.stockAvailable)} ${agg.unit} وتقريب الصافي للأعلى إلى ${agg.netTotal} ${agg.unit}.`;
 }
 
-function needModalHtml(){
+needModalHtml=function(){
   const currentCollege=eduNeedCurrentCollege();
   const currentDepartment=(!isCentral()&&hasDepartmentScope()) ? state.currentUser.department : currentDepartmentName();
   const year=new Date().getFullYear();
@@ -3034,7 +3222,7 @@ function needModalHtml(){
   </div>`;
 }
 
-function saveNeed(){
+saveNeed=function(){
   if(!hasPermission('create_need')) return alert('لا تملك صلاحية رفع الاحتياج');
   db.needsRequests=db.needsRequests||[];
   db.needEvidence=db.needEvidence||[];
@@ -3190,7 +3378,7 @@ function saveNeed(){
   alert(`تم إنشاء ${createdCount} طلب ودمج ${mergedCount} بند قائم من ${rows.length} مادة/أداة داخل الشواهد`);
 }
 
-function renderNeeds(){
+renderNeeds=function(){
   const rows=filteredNeeds().map(r=>{
     const source=['educational_evidence_v5_9','educational_evidence_v5_9_1'].includes(r.calculationSource)
       ? `<span class="badge badge-ok">مجمّع من الشواهد</span>`
@@ -3215,7 +3403,7 @@ function renderNeeds(){
   </div>`;
 }
 
-function renderNeedEvidence(){
+renderNeedEvidence=function(){
   const rows=visibleNeedEvidence().map(r=>[
     r.requestNo,
     r.college,
@@ -3252,53 +3440,53 @@ function eduNeedEngine(){
   throw new Error('NeedEngine is not loaded. تأكد من تحميل need-engine.js قبل app.js');
 }
 
-function eduNeedDefaultRequestUnit(unit){
+eduNeedDefaultRequestUnit=function(unit){
   return eduNeedEngine().defaultRequestUnit(unit);
 }
 
-function eduNeedCanonicalUnit(unit){
+eduNeedCanonicalUnit=function(unit){
   return eduNeedEngine().canonicalUnit(unit);
 }
 
-function eduNeedUnitFamily(unit){
+eduNeedUnitFamily=function(unit){
   return eduNeedEngine().unitFamily(unit);
 }
 
-function eduNeedUnitFactor(unit){
+eduNeedUnitFactor=function(unit){
   return eduNeedEngine().unitFactor(unit);
 }
 
-function eduNeedConvertQty(qty,fromUnit,toUnit){
+eduNeedConvertQty=function(qty,fromUnit,toUnit){
   return eduNeedEngine().convertQty(qty,fromUnit,toUnit);
 }
 
-function eduNeedRoundQty(value){
+eduNeedRoundQty=function(value){
   return eduNeedEngine().roundQty(value);
 }
 
-function eduNeedRoundPreview(value){
+eduNeedRoundPreview=function(value){
   return eduNeedEngine().roundPreview(value);
 }
 
-function eduNeedNormalizeKey(value){
+eduNeedNormalizeKey=function(value){
   return eduNeedEngine().normalizeKey(value);
 }
 
-function eduNeedBasisLabel(basis){
+eduNeedBasisLabel=function(basis){
   return eduNeedEngine().basisLabel(basis);
 }
 
-function eduNeedCalcRow(row){
+eduNeedCalcRow=function(row){
   return eduNeedEngine().calcMaterial(row);
 }
 
-function eduNeedAggregateRows(rows){
+eduNeedAggregateRows=function(rows){
   const department=document.getElementById('need-mainDepartment')?.value||currentDepartmentName();
   const section=document.getElementById('need-section')?.value||(typeof SECTION_OPTIONS!=='undefined'?SECTION_OPTIONS[0]:'القسم العام');
   return eduNeedEngine().aggregateRows(rows,{mainDepartment:department,section});
 }
 
-function eduNeedFindMergeTarget(agg,ctx){
+eduNeedFindMergeTarget=function(agg,ctx){
   return eduNeedEngine().findMergeTarget(agg,ctx,db.needsRequests||[]);
 }
 /* ===== end Educational Need Engine bridge v5.9.2 ===== */
@@ -4471,8 +4659,8 @@ const EDU_REFERENCE_CATEGORIES={
     englishPlaceholder:'Analytical balance',
     usageUnit:'جهاز',
     requestUnit:'جهاز',
-    basis:'per_group',
-    qtyLabel:'عدد الأجهزة المطلوبة',
+    basis:'per_section',
+    qtyLabel:'عدد الأجهزة لكل شعبة / معمل',
     stockLabel:'الأجهزة المتاحة',
     specALabel:'المواصفة / الموديل',
     specBLabel:'حالة التشغيل المطلوبة',
@@ -6690,7 +6878,7 @@ saveSupport=function(){
   const ASSET_STATUSES=['يعمل','يحتاج متابعة','متوقف','خارج الخدمة'];
   const PM_FREQUENCIES=['أسبوعية','شهرية','ربع سنوية','نصف سنوية','سنوية'];
   const PM_STATUSES=['مجدولة','مستحقة','متأخرة','مكتملة','تحتاج متابعة'];
-  const TICKET_STATUSES=['جديد','تحت الفرز','بانتظار الزيارة','تحت المعالجة','بانتظار قطع غيار','محال لمورد خارجي','مكتمل بانتظار اعتماد الجهة','مغلق','مرفوض'];
+  const TICKET_STATUSES=['جديد','تحت الفرز','بانتظار الزيارة','تحت المعالجة','بانتظار قطع غيار','محال لمورد خارجي','مكتمل بانتظار اعتماد الجهة','مكتمل بانتظار إغلاق إدارة التجهيزات','مغلق','مرفوض'];
   const TICKET_PRIORITIES=['حرج يمس السلامة العامة','عالٍ يؤثر على استمرارية التشغيل','متوسط / عطل جزئي','منخفض / ملاحظة تشغيلية'];
   const VISIT_RECOMMENDATIONS=['إصلاح داخلي','طلب قطع غيار','إحالة لمورد','استبدال','تكهين','متابعة لاحقة'];
   const SPARE_STATUSES=['جديد','قيد المراجعة','معتمد','مرفوض','تم التوريد','تم التركيب'];
@@ -6823,18 +7011,29 @@ saveSupport=function(){
 
   function ensureMaintenancePermissions(){
     maintenancePushPermission('view_maintenance','عرض صيانة الأجهزة التعليمية والطبية');
+    maintenancePushPermission('view_maintenance_assets','عرض أصول الصيانة');
     maintenancePushPermission('manage_maintenance_assets','إدارة أصول الصيانة');
     maintenancePushPermission('create_maintenance_ticket','إنشاء بلاغات الأعطال');
-    maintenancePushPermission('approve_maintenance','اعتماد وإغلاق أعمال الصيانة');
+    maintenancePushPermission('perform_maintenance_visit','تنفيذ الزيارات الفنية للصيانة');
+    maintenancePushPermission('request_spare_parts','طلب قطع غيار للصيانة');
+    maintenancePushPermission('approve_entity_maintenance','اعتماد الجهة لبلاغات الصيانة');
+    maintenancePushPermission('final_close_maintenance','الإغلاق النهائي لبلاغات الصيانة');
     maintenancePushPermission('view_maintenance_reports','تقارير الصيانة');
+    maintenancePushPermission('manage_maintenance_settings','إعدادات الصيانة');
     (db.users||[]).forEach(user=>{
       if(user.role==='admin' || (user.permissions||[]).includes('all')) return;
       const perms=new Set(user.permissions||[]);
       if(perms.has('view_items') || perms.has('view_dashboard')) perms.add('view_maintenance');
-      if(perms.has('add_item') || perms.has('edit_item')) perms.add('manage_maintenance_assets');
-      if(perms.has('add_issue') || perms.has('create_need')) perms.add('create_maintenance_ticket');
-      if(perms.has('approve_issue') || perms.has('approve_need') || scopeIsCentralCollege(user.college)){
-        perms.add('approve_maintenance');
+      if(perms.has('approve_maintenance_entity')) perms.add('approve_entity_maintenance');
+      if(perms.has('close_maintenance_ticket')) perms.add('final_close_maintenance');
+      if(scopeIsCentralCollege(user.college)){
+        perms.add('view_maintenance');
+        perms.add('view_maintenance_assets');
+        perms.add('manage_maintenance_assets');
+        perms.add('perform_maintenance_visit');
+        perms.add('request_spare_parts');
+        perms.add('final_close_maintenance');
+        perms.add('view_maintenance_reports');
       }
       if(perms.has('view_reports')) perms.add('view_maintenance_reports');
       user.permissions=[...perms];
@@ -7053,7 +7252,7 @@ saveSupport=function(){
     ensureMaintenanceState();
     let rows=maintenanceScopeRows(db.sparePartRequests,row=>row.college,row=>row.mainDepartment||row.section);
     rows=rows.filter(maintenanceRowAssetIsDevice);
-    rows=rows.filter(row=>maintenanceIncludes(row,['requestNo','ticketNumber','assetNameAr','partName','suggestedSupplier','status','requestReason']));
+    rows=rows.filter(row=>maintenanceIncludes(row,['spareNo','requestNo','ticketNumber','assetNameAr','partName','suggestedSupplier','status','requestReason']));
     if(state.maintenanceStatus!=='all') rows=rows.filter(row=>row.status===state.maintenanceStatus);
     rows=rows.filter(row=>maintenanceWithinDate(row,['requestedAt','suppliedAt','installedAt','createdAt','updatedAt']));
     return rows;
@@ -7228,7 +7427,7 @@ saveSupport=function(){
 
   function renderMaintenanceSpares(){
     const rows=maintenanceSpares().map(req=>[
-      req.requestNo,
+      req.spareNo||req.requestNo,
       req.ticketNumber||'—',
       req.assetNameAr||'—',
       req.partName||'—',
@@ -7247,7 +7446,7 @@ saveSupport=function(){
     const type=state.maintenanceReportType||'tickets';
     if(type==='assets') return {title:'تقرير الأجهزة والأصول',headers:['الجهاز','الرقم التسلسلي','القطاع','القسم','الموقع','النوع','الخطورة','الحالة','آخر صيانة','الصيانة القادمة'],rows:maintenanceAssets().map(a=>[a.assetNameAr,a.serialNumber,a.college,a.mainDepartment,a.labRoom||a.location,a.assetType,a.riskLevel,a.status,a.lastMaintenanceDate,a.nextMaintenanceDate])};
     if(type==='preventive') return {title:'تقرير الصيانة الوقائية',headers:['رقم الخطة','الجهاز','القطاع','الدورية','آخر صيانة','الصيانة القادمة','الحالة','الفني'],rows:maintenancePlans().map(p=>[p.planNo,p.assetNameAr,p.college,p.frequency,p.lastMaintenanceDate,p.nextDueDate,p.effectiveStatus,p.assignedToName])};
-    if(type==='spares') return {title:'تقرير قطع الغيار',headers:['رقم الطلب','البلاغ','الجهاز','القطعة','الكمية','المورد','التكلفة','الحالة'],rows:maintenanceSpares().map(r=>[r.requestNo,r.ticketNumber,r.assetNameAr,r.partName,r.quantity,r.suggestedSupplier,r.estimatedCost,r.status])};
+    if(type==='spares') return {title:'تقرير قطع الغيار',headers:['رقم الطلب','البلاغ','الجهاز','القطعة','الكمية','المورد','التكلفة','الحالة'],rows:maintenanceSpares().map(r=>[r.spareNo||r.requestNo,r.ticketNumber,r.assetNameAr,r.partName,r.quantity,r.suggestedSupplier,r.estimatedCost,r.status])};
     if(type==='kpi') return maintenanceKpiReportData();
     return {title:'تقرير بلاغات الأعطال',headers:['رقم البلاغ','الجهاز','القطاع','الأولوية','الحالة','تاريخ البلاغ','تاريخ الإغلاق','زمن الاستجابة','زمن التوقف'],rows:maintenanceTickets().map(t=>[t.ticketNumber,t.assetNameAr,t.college,t.priority,t.status,formatDateTime(t.reportedAt),formatDateTime(t.closedAt),`${t.responseTimeMinutes||0} دقيقة`,`${t.downtimeMinutes||0} دقيقة`])};
   }
@@ -7427,7 +7626,7 @@ saveSupport=function(){
     if(!asset) return alert('اختر جهازًا صحيحًا');
     const assignedId=Number(document.getElementById('pm-assigned')?.value||0);
     const assigned=getUserById(assignedId);
-    const plan=id?maintenancePlanById(id):{id:nextId(db.preventiveMaintenancePlans),planNo:nextNo('PM',db.preventiveMaintenancePlans),createdAt:nowLocalString(),createdBy:state.currentUser.id};
+    const plan=id?maintenancePlanById(id):{id:nextId(db.preventiveMaintenancePlans),planNo:window.generateUniqueNo('PM',db.preventiveMaintenancePlans,'planNo'),createdAt:nowLocalString(),createdBy:state.currentUser.id};
     Object.assign(plan,{
       assetId:asset.id,
       itemId:asset.itemId||null,
@@ -7482,7 +7681,7 @@ saveSupport=function(){
     const result=document.getElementById('pm-record-result')?.value;
     const record={
       id:nextId(db.preventiveMaintenanceRecords),
-      recordNo:nextNo('PMR',db.preventiveMaintenanceRecords),
+      recordNo:window.generateUniqueNo('PME',db.preventiveMaintenanceRecords,'recordNo'),
       planId:plan.id,
       assetId:plan.assetId,
       assetNameAr:plan.assetNameAr,
@@ -7532,7 +7731,7 @@ saveSupport=function(){
       <div><label class="label">خطر على السلامة؟</label><select id="mt-safety" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
       <div><label class="label">يؤثر على العملية؟</label><select id="mt-affects" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
       <div><label class="label">عطل متكرر؟</label><select id="mt-recurring" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
-      <div><label class="label">رقم وثيق</label><input id="mt-wathiq" class="input"></div>
+      <div><label class="label">رقم البلاغ الإلكتروني</label><input class="input" value="سيتم توليده تلقائيًا عند الحفظ" readonly></div>
       <div class="full"><label class="label">وصف العطل</label><textarea id="mt-desc" class="textarea"></textarea></div>
     </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveMaintenanceTicket()">حفظ البلاغ</button></div></div></div>`;
   }
@@ -7552,7 +7751,7 @@ saveSupport=function(){
     };
     const ticket={
       id:nextId(db.maintenanceTickets),
-      ticketNumber:nextNo('MT',db.maintenanceTickets),
+      ticketNumber:window.generateUniqueNo('MT',db.maintenanceTickets,'ticketNumber'),
       assetId:asset.id,
       itemId:asset.itemId||null,
       assetNameAr:asset.assetNameAr,
@@ -7574,7 +7773,6 @@ saveSupport=function(){
       isRecurring:flags.recurring,
       priority:classifyTicketPriority(flags),
       status:'جديد',
-      wathiqNumber:maintenanceText(document.getElementById('mt-wathiq')?.value),
       createdBy:state.currentUser?.id||null,
       createdAt:nowLocalString(),
       updatedAt:''
@@ -7621,7 +7819,7 @@ saveSupport=function(){
     const visitDate=document.getElementById('visit-datetime')?.value||nowLocalString();
     const visit={
       id:nextId(db.fieldVisits),
-      visitNo:nextNo('FV',db.fieldVisits),
+      visitNo:window.generateUniqueNo('FV',db.fieldVisits,'visitNo'),
       ticketId:ticket.id,
       ticketNumber:ticket.ticketNumber,
       assetId:ticket.assetId,
@@ -7678,7 +7876,8 @@ saveSupport=function(){
     if(!partName) return alert('أدخل اسم القطعة');
     const req={
       id:nextId(db.sparePartRequests),
-      requestNo:nextNo('SP',db.sparePartRequests),
+      spareNo:window.generateUniqueNo('SP',db.sparePartRequests,'spareNo'),
+      requestNo:null,
       ticketId:ticket.id,
       ticketNumber:ticket.ticketNumber,
       assetId:ticket.assetId,
@@ -7696,6 +7895,7 @@ saveSupport=function(){
       createdBy:state.currentUser?.id||null,
       createdAt:nowLocalString()
     };
+    req.requestNo=req.spareNo;
     db.sparePartRequests.unshift(req);
     ticket.status='بانتظار قطع غيار';
     maintenanceAudit('طلب قطعة غيار','sparePartRequest',req.requestNo,partName,req.college,req.mainDepartment);
@@ -7795,7 +7995,7 @@ saveSupport=function(){
     <div class="table-panel"><div class="table-head"><div class="panel-title">السجل الكامل</div></div>${table(['النوع','الرقم','التاريخ','الوصف'],[
       ...records.map(r=>['صيانة وقائية',r.recordNo,formatDateTime(r.createdAt),r.result]),
       ...visits.map(v=>['زيارة ميدانية',v.visitNo,formatDateTime(v.visitDateTime),v.recommendation]),
-      ...spares.map(s=>['قطعة غيار',s.requestNo,formatDateTime(s.requestedAt),`${s.partName} - ${s.status}`])
+      ...spares.map(s=>['قطعة غيار',s.spareNo||s.requestNo,formatDateTime(s.requestedAt),`${s.partName} - ${s.status}`])
     ])}</div></div></div></div>`;
   }
 
@@ -7816,7 +8016,7 @@ saveSupport=function(){
       ['زمن التوقف',`${ticket.downtimeMinutes||0} دقيقة`]
     ])}
     <div class="table-panel"><div class="table-head"><div class="panel-title">الزيارات</div></div>${table(['الزيارة','الفني','التوصية','التقرير'],visits.map(v=>[v.visitNo,v.technicianName,v.recommendation,v.technicianReport]))}</div>
-    <div class="table-panel"><div class="table-head"><div class="panel-title">قطع الغيار</div></div>${table(['الطلب','القطعة','الكمية','الحالة'],spares.map(s=>[s.requestNo,s.partName,s.quantity,maintenanceStatusBadge(s.status)]))}</div></div></div></div>`;
+    <div class="table-panel"><div class="table-head"><div class="panel-title">قطع الغيار</div></div>${table(['الطلب','القطعة','الكمية','الحالة'],spares.map(s=>[s.spareNo||s.requestNo,s.partName,s.quantity,maintenanceStatusBadge(s.status)]))}</div></div></div></div>`;
   }
 
   function printMaintenanceReport(){ openPrint(maintenanceReportData()); }
@@ -7930,3 +8130,3985 @@ saveSupport=function(){
   ensureMaintenanceData();
 })();
 /* ===== end Maintenance and Operations Module v7.1 ===== */
+
+/* ===== Equipment-managed Support Routing v7.2 ===== */
+;(function(){
+  const EQUIPMENT_COLLEGE='إدارة التجهيزات';
+  const ACTIVE_SUPPORT_STATUSES=['pending','pending_owner','owner_approved','pending_equipment'];
+  const FINAL_SUPPORT_STATUSES=['approved','rejected','completed'];
+  const previousSupportRoutingModalHtml=typeof modalHtml==='function'?modalHtml:null;
+  const previousSupportRoutingReportData=typeof reportData==='function'?reportData:null;
+  const previousSupportRoutingStatusText=typeof statusText==='function'?statusText:null;
+  const previousSupportRoutingStatusBadge=typeof statusBadge==='function'?statusBadge:null;
+  const previousSupportRoutingApprovalPath=typeof approvalPath==='function'?approvalPath:null;
+
+  function supportRoutingText(value){
+    return String(value??'').trim();
+  }
+
+  function supportRoutingEscape(value){
+    return supportRoutingText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  function supportRoutingNormalize(value){
+    const raw=supportRoutingText(value).toLowerCase();
+    if(typeof normalizeText==='function') return normalizeText(raw);
+    return raw
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,'')
+      .trim();
+  }
+
+  function supportRoutingCanonicalUnit(unit){
+    if(typeof eduNeedCanonicalUnit==='function') return eduNeedCanonicalUnit(unit);
+    if(globalThis.NeedEngine && typeof globalThis.NeedEngine.canonicalUnit==='function') return globalThis.NeedEngine.canonicalUnit(unit);
+    return supportRoutingText(unit);
+  }
+
+  function supportRoutingIsActive(req){
+    return ACTIVE_SUPPORT_STATUSES.includes(req?.status||'pending_equipment');
+  }
+
+  function supportRoutingIsFinal(req){
+    return FINAL_SUPPORT_STATUSES.includes(req?.status||'');
+  }
+
+  function supportRoutingIsCentralCollege(college){
+    if(typeof scopeIsCentralCollege==='function') return scopeIsCentralCollege(college);
+    return ['إدارة التجهيزات','إدارة التجهيزات والمخزون'].includes(supportRoutingText(college));
+  }
+
+  function supportRoutingCanSeeAvailability(){
+    return isCentral() || hasPermission('view_support_availability');
+  }
+
+  function supportRoutingItemName(item){
+    return typeof itemName==='function'?itemName(item):(item?.nameAr||item?.name||'—');
+  }
+
+  function supportRoutingSameItem(req,item){
+    const wanted=supportRoutingNormalize(req.itemName||req.requestedItemName);
+    const current=supportRoutingNormalize([supportRoutingItemName(item),item?.nameEn,item?.code].join(' '));
+    const sameName=wanted && (current.includes(wanted)||wanted.includes(supportRoutingNormalize(supportRoutingItemName(item))));
+    const sameUnit=supportRoutingCanonicalUnit(req.unit)===supportRoutingCanonicalUnit(item?.unit);
+    return sameUnit && sameName;
+  }
+
+  function supportRoutingSourceItems(req){
+    return (db.items||[])
+      .filter(item=>Number(item.qty||0)>0)
+      .filter(item=>!supportRoutingIsCentralCollege(item.college))
+      .filter(item=>supportRoutingText(item.college)!==supportRoutingText(req.fromCollege))
+      .filter(item=>supportRoutingSameItem(req,item))
+      .sort((a,b)=>{
+        const aEnough=Number(a.qty||0)>=Number(req.qty||0) ? 0 : 1;
+        const bEnough=Number(b.qty||0)>=Number(req.qty||0) ? 0 : 1;
+        return aEnough-bEnough ||
+          supportRoutingText(a.college).localeCompare(supportRoutingText(b.college)) ||
+          Number(b.qty||0)-Number(a.qty||0);
+      });
+  }
+
+  function supportRoutingSourceLabel(req){
+    if(req.sourceCollege) return req.sourceCollege;
+    if(req.toCollege && !supportRoutingIsCentralCollege(req.toCollege)) return req.toCollege;
+    return 'لم تحدد بعد';
+  }
+
+  function normalizeSupportRoutingRecord(req){
+    if(!req || supportRoutingIsFinal(req)) return false;
+    let changed=false;
+    if(!req.routingMode){
+      req.routingMode='equipment_managed';
+      changed=true;
+    }
+    if(!req.requestedItemId && req.itemId){
+      req.requestedItemId=req.itemId;
+      changed=true;
+    }
+    if(!req.requestedItemName && req.itemName){
+      req.requestedItemName=req.itemName;
+      changed=true;
+    }
+    if(!req.candidateCollege && req.toCollege && !supportRoutingIsCentralCollege(req.toCollege)){
+      req.candidateCollege=req.toCollege;
+      changed=true;
+    }
+    if(!req.candidateItemId && req.itemId && !req.sourceItemId){
+      req.candidateItemId=req.itemId;
+      changed=true;
+    }
+    if(!supportRoutingIsCentralCollege(req.toCollege)){
+      req.toCollege=EQUIPMENT_COLLEGE;
+      changed=true;
+    }
+    if(req.status!=='pending_equipment'){
+      req.status='pending_equipment';
+      changed=true;
+    }
+    const stage='بانتظار اختيار جهة الصرف من إدارة التجهيزات';
+    if(req.workflowStage!==stage){
+      req.workflowStage=stage;
+      changed=true;
+    }
+    return changed;
+  }
+
+  function normalizeAllSupportRouting(){
+    let changed=false;
+    (db.supportRequests||[]).forEach(req=>{
+      changed=normalizeSupportRoutingRecord(req)||changed;
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+
+  function supportRoutingStatusCounts(rows){
+    const pending=rows.filter(req=>supportRoutingIsActive(req)).length;
+    const approved=rows.filter(req=>req.status==='approved').length;
+    const rejected=rows.filter(req=>req.status==='rejected').length;
+    const waitingSource=rows.filter(req=>supportRoutingIsActive(req)&&!req.sourceItemId).length;
+    return {pending,approved,rejected,waitingSource};
+  }
+
+  supportSearchResults=function(){
+    const query=supportRoutingText(state.search).toLowerCase();
+    let rows=(db.items||[]).filter(item=>Number(item.qty||0)>0);
+    if(!supportRoutingCanSeeAvailability()) rows=rows.filter(item=>!canAccessCollege(item.college));
+    if(supportRoutingCanSeeAvailability()) rows=scopeApplyCollegeFilter(rows,row=>[row.college]);
+    rows=rows.filter(scopeMatchesUiSection);
+    if(query){
+      rows=rows.filter(item=>[
+        supportRoutingItemName(item),
+        item.nameEn,
+        item.code,
+        item.college,
+        item.mainDepartment,
+        item.section,
+        item.location
+      ].join(' ').toLowerCase().includes(query));
+    }else{
+      rows=[];
+    }
+    if(!supportRoutingCanSeeAvailability()){
+      const grouped=new Map();
+      rows.forEach(item=>{
+        const key=[
+          supportRoutingNormalize(supportRoutingItemName(item)),
+          supportRoutingNormalize(item.nameEn),
+          supportRoutingNormalize(item.mainDepartment||'القسم العام'),
+          supportRoutingNormalize(item.section),
+          supportRoutingCanonicalUnit(item.unit)
+        ].join('|');
+        if(!grouped.has(key)){
+          grouped.set(key,{
+            id:item.id,
+            nameAr:supportRoutingItemName(item),
+            name:item.name,
+            nameEn:item.nameEn,
+            mainDepartment:item.mainDepartment||'القسم العام',
+            section:item.section,
+            unit:item.unit,
+            qty:null,
+            college:'محجوب',
+            location:'محجوب',
+            supportMasked:true,
+            supportSourcesCount:1
+          });
+        }else{
+          grouped.get(key).supportSourcesCount+=1;
+        }
+      });
+      return [...grouped.values()].sort((a,b)=>
+        supportRoutingText(a.section).localeCompare(supportRoutingText(b.section)) ||
+        supportRoutingText(supportRoutingItemName(a)).localeCompare(supportRoutingText(supportRoutingItemName(b)))
+      );
+    }
+    return rows.sort((a,b)=>supportRoutingText(a.college).localeCompare(supportRoutingText(b.college)) ||
+      supportRoutingText(a.section).localeCompare(supportRoutingText(b.section)) ||
+      supportRoutingText(supportRoutingItemName(a)).localeCompare(supportRoutingText(supportRoutingItemName(b))));
+  };
+
+  supportModalHtml=function(){
+    const item=getItemById(state.editId);
+    if(!item) return '';
+    const canSee=supportRoutingCanSeeAvailability();
+    const summary=canSee
+      ? `الصنف المطلوب: <strong>${supportRoutingEscape(supportRoutingItemName(item))}</strong> — وحدة الطلب: <strong>${supportRoutingEscape(item.unit)}</strong> — مثال متاح لدى: <strong>${supportRoutingEscape(item.college)}</strong> (${Number(item.qty||0)} ${supportRoutingEscape(item.unit)})`
+      : `الصنف المطلوب: <strong>${supportRoutingEscape(supportRoutingItemName(item))}</strong> — وحدة الطلب: <strong>${supportRoutingEscape(item.unit)}</strong>. لن تظهر للقطاع بيانات الأرصدة أو مواقع القطاعات الأخرى؛ إدارة التجهيزات تختار مصدر الصرف.`;
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">إنشاء طلب دعم</div><div class="panel-subtitle">سيصل الطلب مباشرة إلى إدارة التجهيزات، وهي تختار القطاع الأنسب للصرف حسب المتاح.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body">
+      <div class="alert">${summary}</div>
+      <div class="form-grid">
+        <div><label class="label">نوع الطلب</label><select id="sup-type" class="select"><option>دعم تشغيلي</option><option>سلفة تشغيلية</option><option>نقل عهدة</option></select></div>
+        <div><label class="label">الكمية المطلوبة</label><input id="sup-qty" class="input" type="number" min="1" step="1" placeholder="أدخل الكمية"></div>
+        <div><label class="label">الجهة الطالبة</label><div class="alert">${supportRoutingEscape(state.currentUser?.college||'—')}</div></div>
+        <div><label class="label">الجهة المعالجة</label><div class="alert">${EQUIPMENT_COLLEGE}</div></div>
+        <div class="full"><label class="label">ملاحظات الطلب</label><textarea id="sup-notes" class="textarea" placeholder="اكتب سبب طلب الدعم أو أي تفاصيل تشغيلية لازمة"></textarea></div>
+      </div>
+    </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveSupport()">إرسال لإدارة التجهيزات</button></div></div></div>`;
+  };
+
+  saveSupport=function(){
+    const item=getItemById(state.editId);
+    const qty=Number(document.getElementById('sup-qty')?.value||0);
+    if(!item) return alert('الصنف غير موجود');
+    if(qty<=0) return alert('أدخل كمية صحيحة');
+    if(!isCentral() && canAccessCollege(item.college)) return alert('لا يمكن طلب دعم من مخزون قطاعك؛ استخدم طلب صرف داخلي.');
+    const notes=document.getElementById('sup-notes')?.value.trim()||'';
+    const supportType=document.getElementById('sup-type')?.value||'دعم تشغيلي';
+    const sr={
+      id:nextId(db.supportRequests),
+      requestNo:nextNo('SR',db.supportRequests),
+      itemId:item.id,
+      requestedItemId:item.id,
+      candidateItemId:item.id,
+      candidateCollege:item.college,
+      itemName:supportRoutingItemName(item),
+      requestedItemName:supportRoutingItemName(item),
+      mainDepartment:item.mainDepartment||'القسم العام',
+      section:item.section,
+      fromCollege:state.currentUser.college,
+      toCollege:EQUIPMENT_COLLEGE,
+      sourceCollege:'',
+      sourceItemId:null,
+      qty,
+      unit:item.unit,
+      notes,
+      supportType,
+      attachmentName:'',
+      status:'pending_equipment',
+      workflowStage:'بانتظار اختيار جهة الصرف من إدارة التجهيزات',
+      routingMode:'equipment_managed',
+      createdAt:nowLocalString(),
+      createdBy:state.currentUser.id,
+      sourceLocation:''
+    };
+    db.supportRequests.unshift(sr);
+    auditLog('طلب دعم موجه لإدارة التجهيزات','support',sr.requestNo,`${sr.supportType} - ${sr.itemName} - كمية ${sr.qty}`,sr.fromCollege,sr.mainDepartment||sr.section);
+    saveDb();
+    closeModal();
+  };
+
+  supportEditModalHtml=function(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req) return '';
+    if(supportRoutingIsFinal(req)){
+      return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">تعديل طلب الدعم</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا يمكن تعديل طلب دعم تم إغلاقه بالاعتماد أو الرفض.</div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إغلاق</button></div></div></div>`;
+    }
+    const sourceText=supportRoutingCanSeeAvailability()?supportRoutingSourceLabel(req):EQUIPMENT_COLLEGE;
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">تعديل طلب الدعم</div><div class="panel-subtitle">الطلب لا يزال لدى إدارة التجهيزات ولم يتم خصم الرصيد بعد.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body"><div class="alert">الصنف: ${supportRoutingEscape(req.itemName)} — الجهة المعالجة: ${supportRoutingEscape(sourceText)}</div>
+    <div class="form-grid">
+      <div><label class="label">نوع الطلب</label><select id="edit-sup-type" class="select"><option ${req.supportType==='دعم تشغيلي'?'selected':''}>دعم تشغيلي</option><option ${req.supportType==='سلفة تشغيلية'?'selected':''}>سلفة تشغيلية</option><option ${req.supportType==='نقل عهدة'?'selected':''}>نقل عهدة</option></select></div>
+      <div><label class="label">الكمية</label><input id="edit-sup-qty" class="input" type="number" min="1" step="1" value="${Number(req.qty||1)}"></div>
+      <div class="full"><label class="label">ملاحظات التعديل</label><textarea id="edit-sup-notes" class="textarea">${supportRoutingEscape(req.notes||'')}</textarea></div>
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveSupportEdit()">حفظ التعديل</button></div></div></div>`;
+  };
+
+  saveSupportEdit=function(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req) return alert('طلب الدعم غير موجود');
+    if(supportRoutingIsFinal(req)) return alert('لا يمكن تعديل طلب دعم مغلق.');
+    if(!isCentral() && supportRoutingText(req.fromCollege)!==supportRoutingText(state.currentUser?.college)) return alert('لا تملك صلاحية تعديل هذا الطلب.');
+    const oldQty=Number(req.qty||0);
+    const qty=Number(document.getElementById('edit-sup-qty')?.value||0);
+    if(qty<=0) return alert('الكمية يجب أن تكون أكبر من صفر');
+    req.qty=qty;
+    req.notes=document.getElementById('edit-sup-notes')?.value.trim()||'';
+    req.supportType=document.getElementById('edit-sup-type')?.value||req.supportType||'دعم تشغيلي';
+    req.status='pending_equipment';
+    req.workflowStage='بانتظار اختيار جهة الصرف من إدارة التجهيزات';
+    req.lastEditedAt=nowLocalString();
+    req.lastEditedBy=state.currentUser?.id||null;
+    auditLog('تعديل طلب دعم موجه لإدارة التجهيزات','support',req.requestNo,`الكمية من ${oldQty} إلى ${qty}. ${req.notes}`,req.fromCollege,req.mainDepartment||req.section);
+    saveDb();
+    closeModal();
+  };
+
+  function supportRouteModalHtml(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req) return '';
+    const candidates=supportRoutingSourceItems(req);
+    const rows=candidates.map(item=>[
+      `<input type="radio" name="support-source-item" value="${item.id}" ${Number(req.sourceItemId||0)===Number(item.id)?'checked':''}>`,
+      supportRoutingEscape(item.college),
+      supportRoutingEscape(item.mainDepartment||'القسم العام'),
+      supportRoutingEscape(item.section),
+      supportRoutingEscape(supportRoutingItemName(item)),
+      supportRoutingEscape(item.nameEn||'—'),
+      Number(item.qty||0),
+      supportRoutingEscape(item.unit),
+      supportRoutingEscape(item.location||'—'),
+      Number(item.qty||0)>=Number(req.qty||0)?'<span class="badge badge-ok">كافٍ</span>':'<span class="badge badge-warning">غير كافٍ</span>'
+    ]);
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">اختيار مصدر الصرف</div><div class="panel-subtitle">${supportRoutingEscape(req.requestNo)} - ${supportRoutingEscape(req.itemName)} - الكمية المطلوبة ${Number(req.qty||0)} ${supportRoutingEscape(req.unit)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body">
+      <div class="alert">الجهة الطالبة: <strong>${supportRoutingEscape(req.fromCollege)}</strong>. اختر القطاع المناسب، وسيتم خصم الكمية من رصيده عند الاعتماد.</div>
+      <div class="table-panel"><div class="table-head"><div class="panel-title">المتاح لدى القطاعات</div><div class="panel-subtitle">${candidates.length?`عدد الخيارات المطابقة: ${candidates.length}`:'لا توجد خيارات مطابقة بالاسم/القسم والوحدة حاليًا.'}</div></div>${table(['اختيار','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','English','المتاح','الوحدة','الموقع','الملاءمة'],rows)}</div>
+      <div class="form-grid"><div class="full"><label class="label">ملاحظة اعتماد إدارة التجهيزات</label><textarea id="support-route-notes" class="textarea" placeholder="اختياري: سبب اختيار هذا القطاع أو أي تنبيه تشغيلي">${supportRoutingEscape(req.equipmentNotes||'')}</textarea></div></div>
+    </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="approveSupportFromSource(${req.id})">اعتماد وخصم الرصيد</button></div></div></div>`;
+  }
+
+  function selectedSupportSourceItem(){
+    const value=document.querySelector('input[name="support-source-item"]:checked')?.value;
+    return getItemById(Number(value||0));
+  }
+
+  function approveSupportFromSource(id){
+    if(!isCentral() || !hasPermission('approve_support')) return alert('لا تملك صلاحية اعتماد طلبات الدعم.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود');
+    if(supportRoutingIsFinal(req)) return alert('هذا الطلب مغلق مسبقًا.');
+    const source=selectedSupportSourceItem();
+    if(!source) return alert('اختر قطاعًا/صنفًا للصرف أولًا.');
+    if(supportRoutingText(source.college)===supportRoutingText(req.fromCollege)) return alert('لا يمكن خصم طلب الدعم من نفس القطاع الطالب.');
+    if(Number(source.qty||0)<Number(req.qty||0)) return alert(`الكمية المتاحة لدى ${source.college} غير كافية: ${source.qty} ${source.unit}`);
+    source.qty=Number(source.qty||0)-Number(req.qty||0);
+    req.sourceItemId=source.id;
+    req.itemId=source.id;
+    req.sourceCollege=source.college;
+    req.toCollege=source.college;
+    req.sourceMainDepartment=source.mainDepartment||'القسم العام';
+    req.sourceSection=source.section;
+    req.sourceLocation=source.location||'';
+    req.equipmentNotes=document.getElementById('support-route-notes')?.value.trim()||'';
+    req.status='approved';
+    req.workflowStage=`معتمد من إدارة التجهيزات - تم الخصم من ${source.college}`;
+    req.reviewedAt=nowLocalString();
+    req.reviewedBy=state.currentUser?.id||null;
+    req.approvedAt=req.reviewedAt;
+    req.approvedBy=req.reviewedBy;
+    db.transactions=db.transactions||[];
+    db.transactions.unshift({
+      id:nextId(db.transactions),
+      type:'issue',
+      status:'approved',
+      itemId:source.id,
+      college:source.college,
+      mainDepartment:source.mainDepartment||'القسم العام',
+      section:source.section,
+      qty:Number(req.qty||0),
+      unit:source.unit||req.unit,
+      transactionAt:nowLocalString(),
+      notes:`دعم قطاعي لصالح ${req.fromCollege} - ${req.requestNo} - اختيار إدارة التجهيزات`,
+      createdAt:nowLocalString(),
+      createdBy:state.currentUser?.id||null,
+      reviewedAt:nowLocalString(),
+      reviewedBy:state.currentUser?.id||null,
+      approvedBy:state.currentUser?.id||null
+    });
+    auditLog('اعتماد دعم وخصم من قطاع مختار','support',req.requestNo,`${req.itemName} - ${req.qty} ${req.unit} من ${source.college} لصالح ${req.fromCollege}`,source.college,source.mainDepartment||source.section);
+    saveDb();
+    closeModal();
+  }
+
+  function openSupportRoutingModal(id){
+    state.modal='supportRoute';
+    state.editId=id;
+    render();
+  }
+
+  approveSupport=function(id){
+    if(!isCentral()) return alert('اعتماد طلب الدعم يتم من إدارة التجهيزات فقط.');
+    openSupportRoutingModal(id);
+  };
+
+  ownerApproveSupport=function(id){
+    return approveSupport(id);
+  };
+
+  rejectSupport=function(id){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود');
+    if(!isCentral() && supportRoutingText(req.fromCollege)!==supportRoutingText(state.currentUser?.college)) return alert('لا تملك صلاحية رفض هذا الطلب.');
+    if(req.status==='approved') return alert('لا يمكن رفض طلب معتمد بعد خصم الرصيد.');
+    req.status='rejected';
+    req.workflowStage='مرفوض';
+    req.reviewedAt=nowLocalString();
+    req.reviewedBy=state.currentUser?.id||null;
+    auditLog(isCentral()?'رفض طلب دعم من إدارة التجهيزات':'إلغاء طلب دعم من القطاع','support',req.requestNo,req.itemName,isCentral()?EQUIPMENT_COLLEGE:req.fromCollege,req.mainDepartment||req.section);
+    saveDb();
+    render();
+  };
+
+  supportActions=function(req){
+    const status=req.status||'pending_equipment';
+    const buttons=[];
+    const requester=supportRoutingText(req.fromCollege)===supportRoutingText(state.currentUser?.college);
+    if(supportRoutingIsActive(req) && isCentral() && hasPermission('approve_support')){
+      buttons.push(`<button class="btn btn-success btn-sm" onclick="openSupportRoutingModal(${req.id})">اختيار مصدر واعتماد</button>`);
+      buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectSupport(${req.id})">رفض</button>`);
+    }
+    if(supportRoutingIsActive(req) && requester && hasPermission('request_support')){
+      buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openModal('supportEdit',${req.id})">تعديل</button>`);
+      buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectSupport(${req.id})">إلغاء</button>`);
+    }
+    if(status==='approved'){
+      const approvedLabel=supportRoutingCanSeeAvailability()?`خصم من ${supportRoutingEscape(supportRoutingSourceLabel(req))}`:'تمت المعالجة';
+      buttons.push(`<span class="badge badge-ok">${approvedLabel}</span>`);
+    }
+    return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—';
+  };
+
+  statusText=function(status){
+    if(status==='pending_equipment') return 'بانتظار إدارة التجهيزات';
+    if(status==='approved') return 'معتمد';
+    if(status==='rejected') return 'مرفوض';
+    return previousSupportRoutingStatusText?previousSupportRoutingStatusText(status):(status||'تحت الإجراء');
+  };
+
+  statusBadge=function(status){
+    if(status==='pending_equipment') return '<span class="badge badge-warning">بانتظار إدارة التجهيزات</span>';
+    if(status==='approved') return '<span class="badge badge-ok">معتمد</span>';
+    if(status==='rejected') return '<span class="badge badge-danger">مرفوض</span>';
+    return previousSupportRoutingStatusBadge?previousSupportRoutingStatusBadge(status):`<span class="badge badge-info">${statusText(status)}</span>`;
+  };
+
+  approvalPath=function(type,status){
+    if(type!=='support') return previousSupportRoutingApprovalPath?previousSupportRoutingApprovalPath(type,status):statusBadge(status);
+    const st=status||'pending_equipment';
+    const labels=['تقديم الطلب','إدارة التجهيزات','اختيار المصدر','خصم الرصيد'];
+    const activeIndex=st==='approved'?3:st==='rejected'?1:1;
+    return `<div class="workflow workflow-approval">${labels.map((label,index)=>{
+      let cls='';
+      if(st==='approved' && index<=activeIndex) cls='done';
+      else if(st==='rejected' && index===activeIndex) cls='blocked';
+      else if(index<activeIndex) cls='done';
+      else if(index===activeIndex) cls='active';
+      return `<span class="${cls}">${label}</span>`;
+    }).join('')}</div>`;
+  };
+
+  renderExchange=function(){
+    normalizeAllSupportRouting();
+    const canSee=supportRoutingCanSeeAvailability();
+    const results=supportSearchResults();
+    const resultRows=canSee
+      ? results.map(item=>[
+        supportRoutingItemName(item),
+        item.nameEn||'—',
+        item.college,
+        item.mainDepartment||'القسم العام',
+        item.section,
+        item.qty,
+        item.unit,
+        item.location||'—',
+        hasPermission('request_support')?`<button class="btn btn-primary btn-sm" onclick="openSupportFromItem(${item.id})">طلب عبر إدارة التجهيزات</button>`:'—'
+      ])
+      : results.map(item=>[
+        supportRoutingItemName(item),
+        item.nameEn||'—',
+        item.mainDepartment||'القسم العام',
+        item.section,
+        item.unit,
+        hasPermission('request_support')?`<button class="btn btn-primary btn-sm" onclick="openSupportFromItem(${item.id})">طلب عبر إدارة التجهيزات</button>`:'—'
+      ]);
+    const requests=filteredSupport();
+    const counts=supportRoutingStatusCounts(requests);
+    const reqRows=canSee
+      ? requests.map(req=>[
+        req.requestNo,
+        req.supportType||'دعم تشغيلي',
+        req.itemName,
+        req.fromCollege,
+        supportRoutingSourceLabel(req),
+        req.qty,
+        req.unit,
+        statusBadge(req.status),
+        approvalPath('support',req.status),
+        formatDateTime(req.createdAt),
+        supportActions(req)
+      ])
+      : requests.map(req=>[
+        req.requestNo,
+        req.supportType||'دعم تشغيلي',
+        req.itemName,
+        req.fromCollege,
+        EQUIPMENT_COLLEGE,
+        req.qty,
+        req.unit,
+        statusBadge(req.status),
+        approvalPath('support',req.status),
+        formatDateTime(req.createdAt),
+        supportActions(req)
+      ]);
+    const resultHeaders=canSee
+      ? ['الصنف','English','قطاع متاح لديه','القسم الرئيسي','القسم الفرعي','المتاح','الوحدة','الموقع','إجراء']
+      : ['الصنف','English','القسم الرئيسي','القسم الفرعي','الوحدة','إجراء'];
+    const requestSourceHeader=canSee?'المصدر المختار':'الجهة المعالجة';
+    return `<div class="hero"><div class="hero-title">طلب الدعم بين القطاعات</div><div class="hero-text">يرسل القطاع طلب الدعم إلى إدارة التجهيزات مباشرة. بعد وصول الطلب، تعرض الإدارة المتاح لدى القطاعات وتختار المصدر المناسب ثم يتم خصم الكمية من رصيد القطاع المختار.</div></div>
+    <div class="need-workflow-summary">
+      <div class="workflow-card"><strong>بانتظار الإدارة</strong><b>${counts.pending}</b><span>طلبات تحتاج اختيار مصدر</span></div>
+      <div class="workflow-card"><strong>لم يحدد مصدرها</strong><b>${counts.waitingSource}</b><span>تتطلب قرار إدارة التجهيزات</span></div>
+      <div class="workflow-card"><strong>معتمدة</strong><b>${counts.approved}</b><span>تم خصم الرصيد</span></div>
+      <div class="workflow-card"><strong>مرفوضة</strong><b>${counts.rejected}</b><span>طلبات مغلقة</span></div>
+    </div>
+    ${filtersHtml({forceCollege:canSee,searchPlaceholder:'ابحث باسم الصنف أو الرمز...'})}
+    <div class="table-panel"><div class="table-head"><div class="panel-title">نتائج البحث عن الصنف</div><div class="panel-subtitle">${supportRoutingText(state.search)?`عدد النتائج: ${results.length}`:(canSee?'ابحث عن الصنف المطلوب لعرض الأرصدة والمواقع المتاحة.':'ابحث عن الصنف المطلوب. لن تظهر بيانات الأرصدة أو القطاعات المالكة لحسابات القطاعات.')}</div></div>${table(resultHeaders,resultRows)}</div>
+    <div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم بين القطاعات</div></div>${table(['رقم الطلب','نوع الطلب','الصنف','الجهة الطالبة',requestSourceHeader,'الكمية','الوحدة','الحالة','مسار الاعتماد','تاريخ الطلب','إجراء'],reqRows)}</div>`;
+  };
+
+  modalHtml=function(){
+    if(state.modal==='supportRoute') return supportRouteModalHtml();
+    return previousSupportRoutingModalHtml?previousSupportRoutingModalHtml():'';
+  };
+
+  reportData=function(){
+    if(state.reportTab==='support'){
+      const canSee=supportRoutingCanSeeAvailability();
+      return {
+        title:'تقرير الدعم بين القطاعات',
+        headers:['رقم الطلب','نوع الطلب','الجهة الطالبة',canSee?'المصدر المختار':'الجهة المعالجة','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','صاحب الإجراء','اعتماد التجهيزات',canSee?'الموقع المصدر':'ملاحظة'],
+        rows:filteredSupport().map(req=>[
+          req.requestNo,
+          req.supportType||'دعم تشغيلي',
+          req.fromCollege,
+          canSee?supportRoutingSourceLabel(req):EQUIPMENT_COLLEGE,
+          req.mainDepartment||'القسم العام',
+          req.section,
+          req.itemName,
+          req.qty,
+          req.unit,
+          statusText(req.status),
+          req.workflowStage||statusText(req.status),
+          actorName(req.createdBy),
+          actorName(req.reviewedBy||req.approvedBy),
+          canSee?(req.sourceLocation||'—'):'تفاصيل المصدر محفوظة لدى إدارة التجهيزات'
+        ])
+      };
+    }
+    return previousSupportRoutingReportData?previousSupportRoutingReportData():{title:'تقرير',headers:[],rows:[]};
+  };
+
+  Object.assign(window,{
+    openSupportRoutingModal,
+    approveSupportFromSource,
+    normalizeAllSupportRouting
+  });
+
+  normalizeAllSupportRouting();
+})();
+/* ===== end Equipment-managed Support Routing v7.2 ===== */
+
+/* ===== Maintenance Ticket Workflow Unification v7.3 ===== */
+;(function(){
+  const TICKET_STATES=[
+    'جديد',
+    'تحت الفرز',
+    'بانتظار الزيارة',
+    'تحت المعالجة',
+    'بانتظار قطع غيار',
+    'محال لمورد خارجي',
+    'مكتمل بانتظار اعتماد الجهة',
+    'مكتمل بانتظار إغلاق إدارة التجهيزات',
+    'مغلق',
+    'مرفوض'
+  ];
+  const VISIT_ALLOWED_STATES=['بانتظار الزيارة','تحت المعالجة'];
+  const FINAL_STATES=['مغلق','مرفوض'];
+  const previousTicketWorkflowModalHtml=typeof modalHtml==='function'?modalHtml:null;
+  const previousTicketWorkflowRenderPageContent=typeof renderPageContent==='function'?renderPageContent:null;
+  const previousTicketWorkflowPrintMaintenanceReport=typeof printMaintenanceReport==='function'?printMaintenanceReport:null;
+  const previousTicketWorkflowExportMaintenanceReport=typeof exportMaintenanceReport==='function'?exportMaintenanceReport:null;
+
+  function mtText(value){ return String(value??'').trim(); }
+  function mtEscape(value){
+    return mtText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function mtNow(){ return typeof nowLocalString==='function'?nowLocalString():new Date().toISOString().slice(0,16); }
+  function mtUser(){ return state.currentUser||{}; }
+  function mtUserName(id){ return typeof actorName==='function'?actorName(id):(db.users||[]).find(user=>String(user.id)===String(id))?.fullName||'—'; }
+  function mtIsEquipmentUser(user=mtUser()){
+    const college=mtText(user.college||user.sector||user.department);
+    return user.role==='admin' || ['إدارة التجهيزات','إدارة التجهيزات والمخزون'].includes(college);
+  }
+  function mtHasUserPermission(user,key){
+    if(!user) return false;
+    if(user.role==='admin') return true;
+    const permissions=user.permissions||[];
+    return permissions.includes('all') || permissions.includes(key);
+  }
+  function mtHas(key){ return mtHasUserPermission(mtUser(),key) || (typeof hasPermission==='function' && hasPermission(key)); }
+  function mtHasAny(keys){ return keys.some(key=>mtHas(key)); }
+  function mtUserHasAny(user,keys){ return keys.some(key=>mtHasUserPermission(user,key)); }
+  function mtCanSeeAllSectors(){ return mtIsEquipmentUser() || mtHas('view_all_maintenance_tickets'); }
+  function mtSameCollege(row,user=mtUser()){
+    return mtText(row?.college) && mtText(row.college)===mtText(user.college||user.sector||user.department);
+  }
+  function mtCanReachRow(row){
+    if(mtCanSeeAllSectors()) return true;
+    if(!mtSameCollege(row)) return false;
+    if(typeof hasDepartmentScope==='function' && hasDepartmentScope()){
+      const dep=mtText(mtUser().department);
+      return [row.mainDepartment,row.department,row.section].map(mtText).includes(dep);
+    }
+    return true;
+  }
+  function mtCanVisit(ticket){
+    if(FINAL_STATES.includes(ticket?.status)) return false;
+    if(!VISIT_ALLOWED_STATES.includes(ticket?.status||'جديد')) return false;
+    return mtIsEquipmentUser() || mtHas('perform_maintenance_visit') || String(ticket?.technicianId||ticket?.assignedTo||'')===String(mtUser().id||'');
+  }
+  function mtCanRequestSpare(ticket){
+    if(FINAL_STATES.includes(ticket?.status)) return false;
+    if(!['تحت المعالجة','بانتظار قطع غيار'].includes(ticket?.status||'')) return false;
+    return mtIsEquipmentUser() || mtHasAny(['request_spare_parts','perform_maintenance_visit']) || String(ticket?.technicianId||ticket?.assignedTo||'')===String(mtUser().id||'');
+  }
+  function mtCanApproveEntity(ticket){
+    if((ticket?.status||'')!=='مكتمل بانتظار اعتماد الجهة') return false;
+    if(mtUser().role==='admin') return true;
+    if(!mtSameCollege(ticket)) return false;
+    return mtHasAny(['approve_entity_maintenance','approve_maintenance_entity']) || String(ticket?.coordinatorId||'')===String(mtUser().id||'');
+  }
+  function mtCanFinalClose(ticket){
+    return (ticket?.status||'')==='مكتمل بانتظار إغلاق إدارة التجهيزات' &&
+      (mtIsEquipmentUser() || mtHasAny(['final_close_maintenance','close_maintenance_ticket']) || mtUser().role==='admin');
+  }
+  function mtCanAcceptTicket(ticket){
+    if(!ticket || FINAL_STATES.includes(ticket.status)) return false;
+    if(!['جديد','تحت الفرز'].includes(ticket.status||'جديد')) return false;
+    return mtIsEquipmentUser() ||
+      mtHasAny(['perform_maintenance_visit','final_close_maintenance','close_maintenance_ticket']) ||
+      String(ticket.technicianId||ticket.assignedTo||'')===String(mtUser().id||'');
+  }
+  function mtCanRejectTicket(ticket){
+    if(!ticket || FINAL_STATES.includes(ticket.status)) return false;
+    if(!['جديد','تحت الفرز','بانتظار الزيارة','تحت المعالجة','بانتظار قطع غيار','محال لمورد خارجي'].includes(ticket.status||'')) return false;
+    return mtIsEquipmentUser() || mtHasAny(['final_close_maintenance','close_maintenance_ticket']) || mtUser().role==='admin';
+  }
+  function mtCanCompleteProcessing(ticket){
+    if(!ticket || FINAL_STATES.includes(ticket.status)) return false;
+    if(!['تحت المعالجة','محال لمورد خارجي'].includes(ticket.status||'')) return false;
+    return mtIsEquipmentUser() ||
+      mtHas('perform_maintenance_visit') ||
+      String(ticket.technicianId||ticket.assignedTo||'')===String(mtUser().id||'');
+  }
+  function mtAssetById(id){ return (db.maintenanceAssets||[]).find(asset=>Number(asset.id)===Number(id)); }
+  function mtTicketById(id){ return (db.maintenanceTickets||[]).find(ticket=>Number(ticket.id)===Number(id)); }
+  function mtVisitsForTicket(ticket){
+    return (db.fieldVisits||[]).filter(visit=>Number(visit.ticketId)===Number(ticket?.id));
+  }
+  function mtSparesForTicket(ticket){
+    return (db.sparePartRequests||[]).filter(req=>Number(req.ticketId)===Number(ticket?.id));
+  }
+  function mtHasTechnicalReport(ticket){
+    return mtVisitsForTicket(ticket).some(visit=>mtText(visit.technicianReport));
+  }
+  function mtLastVisit(ticket){
+    return mtVisitsForTicket(ticket).slice().sort((a,b)=>mtText(b.visitDateTime||b.createdAt).localeCompare(mtText(a.visitDateTime||a.createdAt)))[0]||null;
+  }
+  function mtStatusBadge(status){
+    const text=mtText(status)||'—';
+    if(['مغلق','مكتمل بانتظار إغلاق إدارة التجهيزات'].includes(text)) return `<span class="badge badge-ok">${mtEscape(text)}</span>`;
+    if(['مرفوض','محال لمورد خارجي'].includes(text)) return `<span class="badge badge-danger">${mtEscape(text)}</span>`;
+    if(['بانتظار قطع غيار','مكتمل بانتظار اعتماد الجهة'].includes(text)) return `<span class="badge badge-warning">${mtEscape(text)}</span>`;
+    return `<span class="badge badge-info">${mtEscape(text)}</span>`;
+  }
+  function mtAudit(action,type,id,details,college,department){
+    if(typeof auditLog==='function') auditLog(action,type,id,details,college,department);
+  }
+
+  function nextNoByField(prefix,collection,fieldName){
+    const year=new Date().getFullYear();
+    const nums=(collection||[])
+      .map(row=>row&&row[fieldName])
+      .filter(Boolean)
+      .map(no=>String(no).trim())
+      .filter(no=>no.startsWith(`${prefix}-${year}-`))
+      .map(no=>Number(no.split('-').pop()))
+      .filter(n=>Number.isFinite(n));
+    const next=nums.length?Math.max(...nums)+1:1;
+    return `${prefix}-${year}-${String(next).padStart(4,'0')}`;
+  }
+
+  function generateUniqueNo(prefix,collection,fieldName){
+    let no=nextNoByField(prefix,collection,fieldName);
+    const used=new Set((collection||[]).map(row=>row&&row[fieldName]).filter(Boolean).map(value=>String(value).trim()));
+    while(used.has(no)){
+      const parts=String(no).split('-');
+      const year=parts[1]||new Date().getFullYear();
+      const last=Number(parts[2])||0;
+      no=`${prefix}-${year}-${String(last+1).padStart(4,'0')}`;
+    }
+    return no;
+  }
+
+  function repairNumberCollection({collection,field,prefix,type,legacyFields=[]}){
+    const rows=collection||[];
+    const seen=new Set();
+    let changed=false;
+    rows.forEach(row=>{
+      let currentNo=row[field]?String(row[field]).trim():'';
+      if(!currentNo && legacyFields.length){
+        const legacy=legacyFields.map(key=>row[key]).find(value=>String(value||'').trim().startsWith(`${prefix}-`));
+        currentNo=legacy?String(legacy).trim():'';
+        if(currentNo){
+          row[field]=currentNo;
+          changed=true;
+        }
+      }
+      if(!currentNo || seen.has(currentNo)){
+        const oldNo=currentNo||'بدون رقم';
+        let newNo=generateUniqueNo(prefix,rows,field);
+        while(seen.has(newNo) || rows.some(item=>item!==row && String(item[field]||'').trim()===newNo)){
+          const parts=String(newNo).split('-');
+          const year=parts[1]||new Date().getFullYear();
+          const last=Number(parts[2])||0;
+          newNo=`${prefix}-${year}-${String(last+1).padStart(4,'0')}`;
+        }
+        row[field]=newNo;
+        row.updatedAt=mtNow();
+        row.updatedBy=mtUser().id||'system';
+        mtAudit(`تم إصلاح ترقيم سجل صيانة من ${oldNo} إلى ${newNo}`,type,newNo,'إصلاح ترقيم إلكتروني مكرر أو مفقود',row.college,row.mainDepartment||row.section);
+        changed=true;
+      }
+      seen.add(String(row[field]||'').trim());
+    });
+    return changed;
+  }
+
+  function repairDuplicateMaintenanceTicketNumbers(){
+    db.maintenanceTickets=db.maintenanceTickets||[];
+    const tickets=db.maintenanceTickets;
+    let changed=repairNumberCollection({
+      collection:tickets,
+      field:'ticketNumber',
+      prefix:'MT',
+      type:'maintenanceTicket',
+      legacyFields:['requestNo','documentNumber','docNo','referenceNo','wathiqNumber']
+    });
+    tickets.forEach(ticket=>{
+      ['wathiqNumber','documentNumber','docNo','referenceNo','requestNo'].forEach(field=>{
+        if(Object.prototype.hasOwnProperty.call(ticket,field)){
+          delete ticket[field];
+          changed=true;
+        }
+      });
+      if(!TICKET_STATES.includes(ticket.status||'')){
+        ticket.status=ticket.status==='closed'?'مغلق':ticket.status==='rejected'?'مرفوض':'جديد';
+        changed=true;
+      }
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+
+  function repairDuplicateFieldVisitNumbers(){
+    db.fieldVisits=db.fieldVisits||[];
+    const changed=repairNumberCollection({
+      collection:db.fieldVisits,
+      field:'visitNo',
+      prefix:'FV',
+      type:'fieldVisit',
+      legacyFields:['requestNo','documentNumber','docNo','referenceNo']
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+
+  function repairDuplicateSparePartNumbers(){
+    db.sparePartRequests=db.sparePartRequests||[];
+    let changed=repairNumberCollection({
+      collection:db.sparePartRequests,
+      field:'spareNo',
+      prefix:'SP',
+      type:'sparePartRequest',
+      legacyFields:['requestNo','documentNumber','docNo','referenceNo']
+    });
+    db.sparePartRequests.forEach(req=>{
+      if(req.spareNo && req.requestNo!==req.spareNo){
+        req.requestNo=req.spareNo;
+        changed=true;
+      }
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+
+  function repairDuplicatePreventivePlanNumbers(){
+    db.preventiveMaintenancePlans=db.preventiveMaintenancePlans||[];
+    const changed=repairNumberCollection({
+      collection:db.preventiveMaintenancePlans,
+      field:'planNo',
+      prefix:'PM',
+      type:'preventiveMaintenancePlan',
+      legacyFields:['requestNo','documentNumber','docNo','referenceNo']
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+
+  function repairDuplicatePreventiveRecordNumbers(){
+    db.preventiveMaintenanceRecords=db.preventiveMaintenanceRecords||[];
+    const changed=repairNumberCollection({
+      collection:db.preventiveMaintenanceRecords,
+      field:'recordNo',
+      prefix:'PME',
+      type:'preventiveMaintenanceRecord',
+      legacyFields:['executionNo','requestNo','documentNumber','docNo','referenceNo']
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+
+  function mtPushPermission(key,label){
+    if(typeof PERMISSIONS==='undefined') return;
+    if(!PERMISSIONS.some(permission=>permission.key===key)) PERMISSIONS.push({key,label});
+  }
+  function ensureMaintenanceWorkflowPermissions(){
+    mtPushPermission('view_maintenance','عرض صيانة الأجهزة التعليمية والطبية');
+    mtPushPermission('view_maintenance_assets','عرض أصول الصيانة');
+    mtPushPermission('manage_maintenance_assets','إدارة أصول وخطط الصيانة');
+    mtPushPermission('create_maintenance_ticket','إنشاء بلاغ عطل');
+    mtPushPermission('perform_maintenance_visit','تنفيذ الزيارات الفنية للصيانة');
+    mtPushPermission('request_spare_parts','طلب قطع غيار للصيانة');
+    mtPushPermission('approve_entity_maintenance','اعتماد الجهة لبلاغات الصيانة');
+    mtPushPermission('final_close_maintenance','الإغلاق النهائي لبلاغات الصيانة');
+    mtPushPermission('view_maintenance_reports','عرض تقارير الصيانة');
+    mtPushPermission('manage_maintenance_settings','إعدادات الصيانة');
+    mtPushPermission('approve_maintenance_entity','اعتماد الجهة لبلاغات الصيانة');
+    mtPushPermission('close_maintenance_ticket','الإغلاق النهائي لبلاغات الصيانة');
+    (db.users||[]).forEach(user=>{
+      if(user.role==='admin' || (user.permissions||[]).includes('all')) return;
+      const perms=new Set(user.permissions||[]);
+      if(perms.has('approve_maintenance_entity')) perms.add('approve_entity_maintenance');
+      if(perms.has('close_maintenance_ticket')) perms.add('final_close_maintenance');
+      if(mtIsEquipmentUser(user)){
+        perms.add('view_maintenance');
+        perms.add('view_maintenance_assets');
+        perms.add('view_maintenance_reports');
+        perms.add('manage_maintenance_assets');
+        perms.add('perform_maintenance_visit');
+        perms.add('request_spare_parts');
+        perms.add('final_close_maintenance');
+        perms.add('close_maintenance_ticket');
+      }
+      user.permissions=[...perms];
+    });
+  }
+  function ensureMaintenanceTicketWorkflow(){
+    db.maintenanceTickets=db.maintenanceTickets||[];
+    db.fieldVisits=db.fieldVisits||[];
+    db.sparePartRequests=db.sparePartRequests||[];
+    db.preventiveMaintenancePlans=db.preventiveMaintenancePlans||[];
+    db.preventiveMaintenanceRecords=db.preventiveMaintenanceRecords||[];
+    ensureMaintenanceWorkflowPermissions();
+    repairDuplicateMaintenanceTicketNumbers();
+    repairDuplicateFieldVisitNumbers();
+    repairDuplicateSparePartNumbers();
+    repairDuplicatePreventivePlanNumbers();
+    repairDuplicatePreventiveRecordNumbers();
+  }
+
+  function mtScopedAssets(){
+    const assets=(db.maintenanceAssets||[]).filter(asset=>{
+      if(typeof maintenanceAssetIsDevice==='function') return maintenanceAssetIsDevice(asset);
+      return true;
+    });
+    return assets.filter(mtCanReachRow);
+  }
+  function mtAssetOptions(selected){
+    return mtScopedAssets().map(asset=>`<option value="${asset.id}" ${Number(selected)===Number(asset.id)?'selected':''}>${mtEscape(asset.assetNameAr)} - ${mtEscape(asset.serialNumber||asset.assetNumber||'')}</option>`).join('');
+  }
+  function mtCoordinatorOptions(selected,college){
+    const current=mtUser();
+    const assetCollege=mtText(college);
+    let users=(db.users||[]).filter(user=>user.isActive);
+    if(mtIsEquipmentUser(current) || current.role==='admin'){
+      users=assetCollege?users.filter(user=>[user.college,user.sector,user.department].map(mtText).includes(assetCollege)):users;
+    }else{
+      const currentSector=mtText(current.college||current.sector||current.department);
+      users=users.filter(user=>[user.college,user.sector,user.department].map(mtText).includes(currentSector));
+    }
+    if(!users.some(user=>String(user.id)===String(selected)) && current.id && (!assetCollege || mtText(current.college)===assetCollege)){
+      users=[current,...users.filter(user=>String(user.id)!==String(current.id))];
+    }
+    return users.map(user=>`<option value="${user.id}" ${String(selected)===String(user.id)?'selected':''}>${mtEscape(user.fullName||user.name||user.username)}</option>`).join('');
+  }
+  function mtTechnicianOptions(selected){
+    return (db.users||[])
+      .filter(user=>user.isActive)
+      .filter(user=>mtIsEquipmentUser(user) || mtHasUserPermission(user,'perform_maintenance_visit'))
+      .map(user=>`<option value="${user.id}" ${String(selected)===String(user.id)?'selected':''}>${mtEscape(user.fullName||user.name||user.username)}</option>`)
+      .join('');
+  }
+  function refreshMaintenanceCoordinatorOptions(){
+    const asset=mtAssetById(Number(document.getElementById('mt-asset')?.value||0));
+    const selected=(asset && mtText(asset.college)===mtText(mtUser().college))?mtUser().id:'';
+    const select=document.getElementById('mt-coordinator');
+    if(select) select.innerHTML=mtCoordinatorOptions(selected,asset?.college);
+  }
+  window.refreshMaintenanceCoordinatorOptions=refreshMaintenanceCoordinatorOptions;
+
+  function mtPriorityFromForm(){
+    const stopped=document.getElementById('mt-stopped')?.value==='yes';
+    const safety=document.getElementById('mt-safety')?.value==='yes';
+    const affects=document.getElementById('mt-affects')?.value==='yes';
+    if(safety) return 'حرج يمس السلامة العامة';
+    if(stopped && affects) return 'عالٍ يؤثر على استمرارية التشغيل';
+    if(stopped || affects) return 'متوسط / عطل جزئي';
+    return 'منخفض / ملاحظة تشغيلية';
+  }
+
+  function mtCollegeFilterOptions(){
+    if(mtCanSeeAllSectors()){
+      const selected=state.maintenanceCollege||'all';
+      const colleges=(typeof COLLEGE_OPTIONS!=='undefined'?COLLEGE_OPTIONS:[...new Set((db.maintenanceAssets||[]).map(asset=>asset.college).filter(Boolean))]);
+      return `<select class="select" onchange="setMaintenanceCollege(this.value)"><option value="all" ${selected==='all'?'selected':''}>كل القطاعات</option>${colleges.map(college=>`<option value="${mtEscape(college)}" ${selected===college?'selected':''}>${mtEscape(college)}</option>`).join('')}</select>`;
+    }
+    return `<input class="input" value="${mtEscape(mtUser().college||'')}" readonly>`;
+  }
+  function mtStatusOptions(selected='all'){
+    return `<option value="all" ${selected==='all'?'selected':''}>كل الحالات</option>${TICKET_STATES.map(status=>`<option value="${mtEscape(status)}" ${selected===status?'selected':''}>${mtEscape(status)}</option>`).join('')}`;
+  }
+  function mtFiltersHtml(){
+    return `<div class="toolbar filter-toolbar"><div class="toolbar-right">
+      <label class="filter-control filter-search"><span>بحث</span><input class="input search-input" placeholder="بحث باسم الجهاز، الرقم، البلاغ، الفني..." value="${mtEscape(state.maintenanceSearch||'')}" oninput="setMaintenanceSearch(this.value)"></label>
+      <label class="filter-control"><span>القطاع</span>${mtCollegeFilterOptions()}</label>
+      <label class="filter-control"><span>الحالة</span><select class="select" onchange="setMaintenanceStatus(this.value)">${mtStatusOptions(state.maintenanceStatus||'all')}</select></label>
+      <label class="filter-control"><span>من تاريخ</span><input class="input" type="date" value="${state.maintenanceDateFrom||''}" onchange="setMaintenanceDateFrom(this.value)"></label>
+      <label class="filter-control"><span>إلى تاريخ</span><input class="input" type="date" value="${state.maintenanceDateTo||''}" onchange="setMaintenanceDateTo(this.value)"></label>
+    </div><div class="toolbar-left"></div></div>`;
+  }
+  function mtWithinDate(row,fields=['reportedAt','failureDate','closedAt','finalClosedAt','createdAt','updatedAt']){
+    if(typeof maintenanceWithinDate==='function') return maintenanceWithinDate(row,fields);
+    return true;
+  }
+  function mtTickets(){
+    ensureMaintenanceTicketWorkflow();
+    let rows=(db.maintenanceTickets||[]).filter(mtCanReachRow);
+    if(mtCanSeeAllSectors() && state.maintenanceCollege && state.maintenanceCollege!=='all'){
+      rows=rows.filter(ticket=>mtText(ticket.college)===mtText(state.maintenanceCollege));
+    }
+    if(state.maintenanceStatus && state.maintenanceStatus!=='all') rows=rows.filter(ticket=>ticket.status===state.maintenanceStatus);
+    const query=mtText(state.maintenanceSearch).toLowerCase();
+    if(query){
+      rows=rows.filter(ticket=>[
+        ticket.ticketNumber,
+        ticket.assetNameAr,
+        ticket.serialNumber,
+        ticket.college,
+        ticket.location,
+        ticket.faultDescription,
+        ticket.priority,
+        ticket.status,
+        ticket.coordinatorName,
+        ticket.assignedToName,
+        ticket.technicianName
+      ].join(' ').toLowerCase().includes(query));
+    }
+    rows=rows.filter(mtWithinDate);
+    return rows.sort((a,b)=>mtText(b.reportedAt||b.createdAt).localeCompare(mtText(a.reportedAt||a.createdAt)));
+  }
+  function mtTabsHtml(){
+    const tabs=[
+      ['dashboard','لوحة الصيانة'],
+      ['assets','الأجهزة والأصول'],
+      ['preventive','الصيانة الوقائية'],
+      ['tickets','بلاغات الأعطال'],
+      ['visits','الزيارات الميدانية'],
+      ['spares','قطع الغيار'],
+      ['reports','التقارير'],
+      ['kpi','مؤشرات الأداء']
+    ];
+    return `<div class="report-tabs">${tabs.map(([id,label])=>`<button class="report-tab ${state.maintenanceTab===id?'active':''}" onclick="setMaintenanceTab('${id}')">${label}</button>`).join('')}</div>`;
+  }
+
+  function maintenanceTicketModalHtml(){
+    ensureMaintenanceTicketWorkflow();
+    const selectedAsset=mtAssetById(state.editId)||mtScopedAssets()[0]||null;
+    const defaultCoordinator=(selectedAsset && mtText(selectedAsset.college)===mtText(mtUser().college))?mtUser().id:'';
+    const canAssignTechnician=mtCanVisit({status:'جديد',college:selectedAsset?.college,assignedTo:null,technicianId:null});
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">إنشاء بلاغ عطل</div><div class="panel-subtitle">يتم توليد رقم البلاغ الإلكتروني تلقائيًا ولا يمكن تعديله.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div><label class="label">رقم البلاغ الإلكتروني</label><input class="input" value="سيتم توليده تلقائيًا عند الحفظ" readonly></div>
+      <div class="full"><label class="label">الجهاز</label><select id="mt-asset" class="select" onchange="refreshMaintenanceCoordinatorOptions()">${mtAssetOptions(selectedAsset?.id)}</select></div>
+      <div><label class="label">منسق الجهة</label><select id="mt-coordinator" class="select">${mtCoordinatorOptions(defaultCoordinator,selectedAsset?.college)}</select></div>
+      ${canAssignTechnician?`<div><label class="label">الفني المكلف</label><select id="mt-technician" class="select"><option value="">يحدد لاحقًا</option>${mtTechnicianOptions('')}</select></div>`:''}
+      <div><label class="label">تاريخ حدوث العطل</label><input id="mt-failure-date" type="datetime-local" class="input" value="${mtNow()}"></div>
+      <div><label class="label">توقف كلي؟</label><select id="mt-stopped" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div><label class="label">خطر على السلامة؟</label><select id="mt-safety" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div><label class="label">يؤثر على التشغيل؟</label><select id="mt-affects" class="select"><option value="yes">نعم</option><option value="no">لا</option></select></div>
+      <div><label class="label">عطل متكرر؟</label><select id="mt-recurring" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div class="full"><label class="label">وصف العطل</label><textarea id="mt-description" class="textarea"></textarea></div>
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveMaintenanceTicket()">حفظ البلاغ</button></div></div></div>`;
+  }
+
+  function saveMaintenanceTicket(){
+    if(!mtHas('create_maintenance_ticket')) return alert('لا تملك صلاحية إنشاء بلاغات الصيانة');
+    ensureMaintenanceTicketWorkflow();
+    const asset=mtAssetById(Number(document.getElementById('mt-asset')?.value||0));
+    if(!asset) return alert('اختر جهازًا صحيحًا');
+    if(!mtCanReachRow(asset)) return alert('لا تملك صلاحية إنشاء بلاغ على هذا الجهاز.');
+    let ticketNumber=generateUniqueNo('MT',db.maintenanceTickets,'ticketNumber');
+    while((db.maintenanceTickets||[]).some(ticket=>String(ticket.ticketNumber||'').trim()===ticketNumber)){
+      ticketNumber=generateUniqueNo('MT',db.maintenanceTickets,'ticketNumber');
+    }
+    const coordinatorId=Number(document.getElementById('mt-coordinator')?.value||0);
+    const coordinator=getUserById(coordinatorId);
+    const technicianId=Number(document.getElementById('mt-technician')?.value||0);
+    const technician=getUserById(technicianId);
+    const reportedAt=mtNow();
+    const ticket={
+      id:nextId(db.maintenanceTickets),
+      ticketNumber,
+      assetId:asset.id,
+      assetName:asset.assetNameAr,
+      assetNameAr:asset.assetNameAr,
+      serialNumber:asset.serialNumber,
+      college:asset.college,
+      mainDepartment:asset.mainDepartment||'القسم العام',
+      section:asset.section,
+      location:asset.labRoom||asset.location||'',
+      coordinatorId:coordinatorId||null,
+      coordinatorName:coordinator?.fullName||coordinator?.name||'',
+      technicianId:technicianId||null,
+      technicianName:technician?.fullName||technician?.name||'',
+      assignedTo:technicianId||null,
+      assignedToName:technician?.fullName||technician?.name||'',
+      issueDate:reportedAt,
+      reportedAt,
+      requesterId:mtUser().id||null,
+      requesterName:mtUser().fullName||mtUser().name||'',
+      failureDate:document.getElementById('mt-failure-date')?.value||reportedAt,
+      isFullyStopped:document.getElementById('mt-stopped')?.value==='yes',
+      safetyRisk:document.getElementById('mt-safety')?.value==='yes',
+      isSafetyRisk:document.getElementById('mt-safety')?.value==='yes',
+      affectsOperation:document.getElementById('mt-affects')?.value==='yes',
+      isRecurring:document.getElementById('mt-recurring')?.value==='yes',
+      recurringIssue:document.getElementById('mt-recurring')?.value==='yes',
+      faultDescription:mtText(document.getElementById('mt-description')?.value),
+      issueDescription:mtText(document.getElementById('mt-description')?.value),
+      priority:mtPriorityFromForm(),
+      status:'جديد',
+      entityApprovedAt:'',
+      entityApprovedBy:null,
+      entityApprovalNotes:'',
+      finalClosedAt:'',
+      finalClosedBy:null,
+      fieldVisitCompletedAt:'',
+      fieldVisitCompletedBy:null,
+      lastActionAt:reportedAt,
+      lastActionBy:mtUser().id||null,
+      createdAt:reportedAt,
+      createdBy:mtUser().id||null,
+      updatedAt:reportedAt,
+      updatedBy:mtUser().id||null
+    };
+    if(!ticket.faultDescription) return alert('أدخل وصف العطل');
+    db.maintenanceTickets.unshift(ticket);
+    mtAudit(`تم إنشاء بلاغ عطل رقم ${ticket.ticketNumber}`,'maintenanceTicket',ticket.ticketNumber,ticket.faultDescription,ticket.college,ticket.mainDepartment);
+    saveDb();
+    closeModal();
+    alert(`تم إنشاء بلاغ العطل رقم ${ticket.ticketNumber}.`);
+  }
+
+  function fieldVisitModalHtml(){
+    const ticket=mtTicketById(state.editId);
+    if(!ticket) return '';
+    if(!mtCanVisit(ticket)) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">زيارة ميدانية</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا تملك صلاحية تسجيل زيارة لهذه الحالة.</div></div></div></div>`;
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">زيارة ميدانية</div><div class="panel-subtitle">${mtEscape(ticket.ticketNumber)} - ${mtEscape(ticket.assetNameAr)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <input id="visit-ticket-id" type="hidden" value="${ticket.id}">
+      <div><label class="label">الفني المكلف</label><select id="visit-tech" class="select">${mtTechnicianOptions(ticket.technicianId||ticket.assignedTo||mtUser().id)}</select></div>
+      <div><label class="label">تاريخ ووقت الزيارة</label><input id="visit-datetime" type="datetime-local" class="input" value="${mtNow()}"></div>
+      <div><label class="label">يحتاج قطع غيار؟</label><select id="visit-spares" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div><label class="label">يحتاج مورد خارجي؟</label><select id="visit-vendor" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div><label class="label">ما زال تحت المعالجة؟</label><select id="visit-open" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div><label class="label">غير قابل للإصلاح؟</label><select id="visit-not-repairable" class="select"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+      <div><label class="label">التوصية</label><select id="visit-recommendation" class="select"><option>إصلاح داخلي</option><option>طلب قطع غيار</option><option>إحالة لمورد</option><option>استبدال</option><option>تكهين</option><option>متابعة لاحقة</option></select></div>
+      <div class="full"><label class="label">التشخيص الأولي</label><textarea id="visit-diagnosis" class="textarea"></textarea></div>
+      <div class="full"><label class="label">الإجراء المتخذ</label><textarea id="visit-action" class="textarea"></textarea></div>
+      <div class="full"><label class="label">تقرير الفني</label><textarea id="visit-report" class="textarea"></textarea></div>
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveFieldVisit()">حفظ الزيارة</button></div></div></div>`;
+  }
+
+  function saveFieldVisit(){
+    const ticket=mtTicketById(Number(document.getElementById('visit-ticket-id')?.value||0));
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(!mtCanVisit(ticket)) return alert('لا تملك صلاحية تسجيل زيارة لهذه الحالة.');
+    const techId=Number(document.getElementById('visit-tech')?.value||0);
+    const tech=getUserById(techId);
+    const needsSpares=document.getElementById('visit-spares')?.value==='yes';
+    const needsVendor=document.getElementById('visit-vendor')?.value==='yes';
+    const stillOpen=document.getElementById('visit-open')?.value==='yes';
+    const notRepairable=document.getElementById('visit-not-repairable')?.value==='yes';
+    const report=mtText(document.getElementById('visit-report')?.value);
+    if(!report) return alert('لا يمكن اعتماد أو إغلاق البلاغ دون تقرير فني.');
+    const visitDate=document.getElementById('visit-datetime')?.value||mtNow();
+    let visitNo=generateUniqueNo('FV',db.fieldVisits,'visitNo');
+    while((db.fieldVisits||[]).some(visit=>String(visit.visitNo||'').trim()===visitNo)){
+      visitNo=generateUniqueNo('FV',db.fieldVisits,'visitNo');
+    }
+    const visit={
+      id:nextId(db.fieldVisits),
+      visitNo,
+      ticketId:ticket.id,
+      ticketNumber:ticket.ticketNumber,
+      assetId:ticket.assetId,
+      assetName:ticket.assetName||ticket.assetNameAr,
+      assetNameAr:ticket.assetNameAr,
+      serialNumber:ticket.serialNumber,
+      college:ticket.college,
+      mainDepartment:ticket.mainDepartment,
+      location:ticket.location,
+      technicianId:techId,
+      technicianName:tech?.fullName||tech?.name||'',
+      visitDate,
+      visitDateTime:visitDate,
+      siteCondition:'',
+      assetDataVerified:true,
+      diagnosis:mtText(document.getElementById('visit-diagnosis')?.value),
+      initialDiagnosis:mtText(document.getElementById('visit-diagnosis')?.value),
+      needsSpareParts:needsSpares,
+      needsExternalVendor:needsVendor,
+      externalVendor:needsVendor,
+      notRepairable,
+      actionTaken:mtText(document.getElementById('visit-action')?.value),
+      recommendation:document.getElementById('visit-recommendation')?.value,
+      technicalReport:report,
+      technicianReport:report,
+      approvedBy:mtUser().id||null,
+      approvedAt:mtNow(),
+      createdAt:mtNow(),
+      createdBy:mtUser().id||null,
+      updatedAt:mtNow(),
+      updatedBy:mtUser().id||null
+    };
+    db.fieldVisits.unshift(visit);
+    ticket.technicianId=techId||ticket.technicianId||null;
+    ticket.technicianName=tech?.fullName||tech?.name||ticket.technicianName||'';
+    ticket.assignedTo=techId||ticket.assignedTo||null;
+    ticket.assignedToName=tech?.fullName||tech?.name||ticket.assignedToName||'';
+    ticket.status=needsSpares?'بانتظار قطع غيار':needsVendor?'محال لمورد خارجي':(stillOpen||notRepairable)?'تحت المعالجة':'مكتمل بانتظار اعتماد الجهة';
+    ticket.responseTimeMinutes=ticket.responseTimeMinutes||(typeof maintenanceMinutesBetween==='function'?maintenanceMinutesBetween(ticket.reportedAt,visitDate):0);
+    if(ticket.status==='مكتمل بانتظار اعتماد الجهة'){
+      ticket.fieldVisitCompletedAt=mtNow();
+      ticket.fieldVisitCompletedBy=mtUser().id||null;
+    }
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    mtAudit(`تم تسجيل زيارة ميدانية رقم ${visit.visitNo} لبلاغ العطل رقم ${ticket.ticketNumber}`,'fieldVisit',visit.visitNo,visit.ticketNumber,visit.college,visit.mainDepartment);
+    saveDb();
+    closeModal();
+  }
+
+  function saveSpareRequest(){
+    const ticket=mtTicketById(Number(document.getElementById('sp-ticket-id')?.value||0));
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(!mtCanRequestSpare(ticket)) return alert('لا تملك صلاحية طلب قطعة غيار لهذا البلاغ.');
+    const partName=mtText(document.getElementById('sp-name')?.value);
+    if(!partName) return alert('أدخل اسم القطعة');
+    const quantity=Number(document.getElementById('sp-qty')?.value||1);
+    if(!Number.isFinite(quantity) || quantity<=0) return alert('أدخل كمية صحيحة لقطعة الغيار.');
+    let spareNo=generateUniqueNo('SP',db.sparePartRequests,'spareNo');
+    while((db.sparePartRequests||[]).some(req=>String(req.spareNo||req.requestNo||'').trim()===spareNo)){
+      spareNo=generateUniqueNo('SP',db.sparePartRequests,'spareNo');
+    }
+    const req={
+      id:nextId(db.sparePartRequests),
+      spareNo,
+      requestNo:spareNo,
+      ticketId:ticket.id,
+      ticketNumber:ticket.ticketNumber,
+      assetId:ticket.assetId,
+      assetNameAr:ticket.assetNameAr,
+      college:ticket.college,
+      mainDepartment:ticket.mainDepartment,
+      partName,
+      quantity,
+      requestReason:mtText(document.getElementById('sp-reason')?.value),
+      suggestedSupplier:mtText(document.getElementById('sp-supplier')?.value),
+      estimatedCost:Number(document.getElementById('sp-cost')?.value||0),
+      status:'جديد',
+      requestedAt:mtNow(),
+      notes:mtText(document.getElementById('sp-notes')?.value),
+      createdBy:mtUser().id||null,
+      createdAt:mtNow(),
+      updatedAt:mtNow(),
+      updatedBy:mtUser().id||null
+    };
+    db.sparePartRequests.unshift(req);
+    ticket.status='بانتظار قطع غيار';
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    mtAudit(`تم تسجيل طلب قطعة غيار رقم ${req.spareNo} لبلاغ العطل رقم ${ticket.ticketNumber}`,'sparePartRequest',req.spareNo,partName,req.college,req.mainDepartment);
+    saveDb();
+    closeModal();
+  }
+
+  function openMaintenanceEntityApproval(id){
+    state.modal='maintenanceEntityApproval';
+    state.editId=id;
+    render();
+  }
+  function maintenanceEntityApprovalModalHtml(){
+    const ticket=mtTicketById(state.editId);
+    if(!ticket) return '';
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">اعتماد الجهة</div><div class="panel-subtitle">${mtEscape(ticket.ticketNumber)} - ${mtEscape(ticket.assetNameAr)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body"><div class="alert">اعتماد الجهة يؤكد أن القطاع مالك الجهاز راجع نتيجة الزيارة الفنية. بعد الاعتماد ينتقل البلاغ إلى إدارة التجهيزات للإغلاق النهائي.</div><label class="label">ملاحظات اعتماد الجهة</label><textarea id="entity-approval-notes" class="textarea"></textarea></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="approveMaintenanceEntity(${ticket.id})">اعتماد الجهة</button></div></div></div>`;
+  }
+  function approveMaintenanceEntity(id){
+    const ticket=mtTicketById(id);
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(!mtCanApproveEntity(ticket)) return alert('اعتماد الجهة خاص بالقطاع مالك الجهاز.');
+    if(!mtHasTechnicalReport(ticket)) return alert('لا يمكن اعتماد أو إغلاق البلاغ دون تقرير فني.');
+    ticket.status='مكتمل بانتظار إغلاق إدارة التجهيزات';
+    ticket.entityApprovedAt=mtNow();
+    ticket.entityApprovedBy=mtUser().id||null;
+    ticket.entityApprovalNotes=mtText(document.getElementById('entity-approval-notes')?.value);
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    mtAudit(`تم اعتماد الجهة لبلاغ العطل رقم ${ticket.ticketNumber}`,'maintenanceTicket',ticket.ticketNumber,ticket.entityApprovalNotes,ticket.college,ticket.mainDepartment);
+    saveDb();
+    closeModal();
+    alert('تم اعتماد الجهة، والبلاغ بانتظار الإغلاق النهائي من إدارة التجهيزات.');
+  }
+
+  function acceptMaintenanceTicket(id){
+    const ticket=mtTicketById(id);
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(!mtCanAcceptTicket(ticket)) return alert('لا تملك صلاحية قبول هذا البلاغ أو إحالته للزيارة.');
+    const previous=ticket.status||'جديد';
+    ticket.status='بانتظار الزيارة';
+    ticket.workflowStage='بانتظار الزيارة';
+    ticket.acceptedAt=mtNow();
+    ticket.acceptedBy=mtUser().id||null;
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    mtAudit(`تم قبول بلاغ العطل رقم ${ticket.ticketNumber}`,'maintenanceTicket',ticket.ticketNumber,`تغيير الحالة من ${previous} إلى بانتظار الزيارة`,ticket.college,ticket.mainDepartment);
+    saveDb();
+    render();
+    alert('تم قبول البلاغ وإحالته للزيارة الميدانية.');
+  }
+
+  function rejectMaintenanceTicket(id){
+    const ticket=mtTicketById(id);
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(!mtCanRejectTicket(ticket)) return alert('لا تملك صلاحية رفض هذا البلاغ.');
+    const reason=prompt('سبب رفض البلاغ','');
+    if(reason===null) return;
+    const rejectionReason=mtText(reason);
+    if(!rejectionReason) return alert('أدخل سبب الرفض.');
+    const previous=ticket.status||'جديد';
+    ticket.status='مرفوض';
+    ticket.workflowStage='مرفوض';
+    ticket.rejectedAt=mtNow();
+    ticket.rejectedBy=mtUser().id||null;
+    ticket.rejectionReason=rejectionReason;
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    mtAudit(`تم رفض بلاغ العطل رقم ${ticket.ticketNumber}`,'maintenanceTicket',ticket.ticketNumber,`الحالة السابقة: ${previous}. السبب: ${rejectionReason}`,ticket.college,ticket.mainDepartment);
+    saveDb();
+    render();
+    alert('تم رفض البلاغ.');
+  }
+
+  function completeMaintenanceProcessing(id){
+    const ticket=mtTicketById(id);
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(!mtCanCompleteProcessing(ticket)) return alert('لا تملك صلاحية إنهاء معالجة هذا البلاغ.');
+    if(!mtHasTechnicalReport(ticket)) return alert('لا يمكن إنهاء المعالجة دون تقرير فني.');
+    const note=prompt('ملاحظات إنهاء المعالجة','');
+    if(note===null) return;
+    const previous=ticket.status||'تحت المعالجة';
+    ticket.status='مكتمل بانتظار اعتماد الجهة';
+    ticket.workflowStage='مكتمل بانتظار اعتماد الجهة';
+    ticket.fieldVisitCompletedAt=ticket.fieldVisitCompletedAt||mtNow();
+    ticket.fieldVisitCompletedBy=ticket.fieldVisitCompletedBy||mtUser().id||null;
+    ticket.processingCompletedAt=mtNow();
+    ticket.processingCompletedBy=mtUser().id||null;
+    ticket.processingCompletionNotes=mtText(note);
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    mtAudit(`تم إنهاء معالجة بلاغ العطل رقم ${ticket.ticketNumber}`,'maintenanceTicket',ticket.ticketNumber,`تغيير الحالة من ${previous} إلى مكتمل بانتظار اعتماد الجهة. ${ticket.processingCompletionNotes}`,ticket.college,ticket.mainDepartment);
+    saveDb();
+    render();
+    alert('تم إنهاء المعالجة، والبلاغ بانتظار اعتماد الجهة.');
+  }
+
+  function closeMaintenanceTicket(id){
+    const ticket=mtTicketById(id);
+    if(!ticket) return alert('البلاغ غير موجود');
+    if(ticket.status==='مكتمل بانتظار اعتماد الجهة') return alert('لا يمكن إغلاق البلاغ قبل اعتماد الجهة.');
+    if(ticket.status!=='مكتمل بانتظار إغلاق إدارة التجهيزات') return alert('لا يمكن إغلاق البلاغ قبل اعتماد الجهة.');
+    if(!mtCanFinalClose(ticket)) return alert('الإغلاق النهائي خاص بإدارة التجهيزات.');
+    if(!mtHasTechnicalReport(ticket)) return alert('لا يمكن إغلاق البلاغ دون تقرير فني.');
+    ticket.status='مغلق';
+    ticket.closedAt=mtNow();
+    ticket.closedBy=mtUser().id||null;
+    ticket.finalClosedAt=ticket.closedAt;
+    ticket.finalClosedBy=ticket.closedBy;
+    ticket.updatedAt=mtNow();
+    ticket.updatedBy=mtUser().id||null;
+    ticket.lastActionAt=mtNow();
+    ticket.lastActionBy=mtUser().id||null;
+    if(typeof maintenanceMinutesBetween==='function'){
+      ticket.downtimeMinutes=maintenanceMinutesBetween(ticket.failureDate||ticket.reportedAt,ticket.closedAt);
+      ticket.closeTimeMinutes=maintenanceMinutesBetween(ticket.reportedAt,ticket.closedAt);
+    }
+    const asset=mtAssetById(ticket.assetId);
+    if(asset){
+      asset.status='يعمل';
+      const item=asset.itemId?getItemById(asset.itemId):null;
+      if(item) item.deviceStatus='يعمل';
+    }
+    mtAudit(`تم الإغلاق النهائي لبلاغ العطل رقم ${ticket.ticketNumber}`,'maintenanceTicket',ticket.ticketNumber,ticket.assetNameAr,ticket.college,ticket.mainDepartment);
+    saveDb();
+    render();
+    alert('تم إغلاق البلاغ نهائيًا.');
+  }
+
+  function maintenanceTicketActions(ticket){
+    const buttons=[`<button class="btn btn-secondary btn-sm" onclick="openModal('maintenanceTicketProfile',${ticket.id})">عرض</button>`];
+    if(mtCanAcceptTicket(ticket)) buttons.push(`<button class="btn btn-primary btn-sm" onclick="acceptMaintenanceTicket(${ticket.id})">قبول</button>`);
+    if(mtCanVisit(ticket)) buttons.push(`<button class="btn btn-primary btn-sm" onclick="openModal('fieldVisit',${ticket.id})">زيارة</button>`);
+    if(mtCanRequestSpare(ticket)) buttons.push(`<button class="btn btn-warning btn-sm" onclick="openModal('spareRequest',${ticket.id})">قطعة غيار</button>`);
+    if(mtCanCompleteProcessing(ticket)) buttons.push(`<button class="btn btn-success btn-sm" onclick="completeMaintenanceProcessing(${ticket.id})">إنهاء المعالجة</button>`);
+    if(mtCanApproveEntity(ticket)) buttons.push(`<button class="btn btn-success btn-sm" onclick="openMaintenanceEntityApproval(${ticket.id})">اعتماد الجهة</button>`);
+    if(mtCanFinalClose(ticket)) buttons.push(`<button class="btn btn-success btn-sm" onclick="closeMaintenanceTicket(${ticket.id})">إغلاق</button>`);
+    if(mtCanRejectTicket(ticket)) buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectMaintenanceTicket(${ticket.id})">رفض</button>`);
+    return `<div class="flex-actions">${buttons.join('')}</div>`;
+  }
+  function renderMaintenanceTicketsUnified(){
+    const rows=mtTickets().map(ticket=>[
+      ticket.ticketNumber,
+      ticket.assetNameAr||ticket.assetName||'—',
+      ticket.serialNumber||'—',
+      ticket.college||'—',
+      ticket.location||'—',
+      mtStatusBadge(ticket.priority),
+      mtStatusBadge(ticket.status),
+      formatDateTime(ticket.reportedAt||ticket.createdAt),
+      ticket.coordinatorName||'—',
+      ticket.assignedToName||ticket.technicianName||'—',
+      maintenanceTicketActions(ticket)
+    ]);
+    return `<div class="hero edu-need-page-hero"><div><div class="hero-title">صيانة الأجهزة التعليمية والطبية</div><div class="hero-text">مسار بلاغات الأعطال: قبول أو رفض، زيارة فنية، إنهاء المعالجة، اعتماد الجهة، ثم إغلاق نهائي من إدارة التجهيزات.</div></div><button class="btn btn-primary" onclick="openModal('maintenanceTicket')">+ إنشاء بلاغ</button></div>
+    ${mtTabsHtml()}
+    ${mtFiltersHtml()}
+    <div class="toolbar action-toolbar"><div></div><div class="toolbar-left">${mtHas('create_maintenance_ticket')?`<button class="btn btn-primary" onclick="openModal('maintenanceTicket')">+ إنشاء بلاغ</button>`:''}</div></div>
+    <div class="table-panel"><div class="table-head"><div class="panel-title">بلاغات الأعطال</div><div class="panel-subtitle">لا يمكن الإغلاق النهائي قبل اعتماد الجهة ووجود تقرير فني.</div></div>${table(['رقم البلاغ','الجهاز','التسلسلي','القطاع','الموقع','الأولوية','الحالة','تاريخ البلاغ','منسق الجهة','الفني','إجراء'],rows)}</div>`;
+  }
+
+  function mtVisits(){
+    ensureMaintenanceTicketWorkflow();
+    let rows=(db.fieldVisits||[]).filter(mtCanReachRow);
+    const query=mtText(state.maintenanceSearch).toLowerCase();
+    if(query){
+      rows=rows.filter(visit=>{
+        const ticket=mtTicketById(visit.ticketId)||{};
+        return [
+          visit.visitNo,
+          visit.ticketNumber||ticket.ticketNumber,
+          visit.assetName||visit.assetNameAr||ticket.assetNameAr,
+          visit.serialNumber||ticket.serialNumber,
+          visit.college,
+          visit.technicianName,
+          visit.initialDiagnosis||visit.diagnosis,
+          visit.recommendation,
+          visit.technicianReport||visit.technicalReport
+        ].join(' ').toLowerCase().includes(query);
+      });
+    }
+    rows=rows.filter(visit=>mtWithinDate(visit,['visitDateTime','visitDate','createdAt','updatedAt','approvedAt']));
+    return rows.sort((a,b)=>mtText(b.visitDateTime||b.visitDate||b.createdAt).localeCompare(mtText(a.visitDateTime||a.visitDate||a.createdAt)));
+  }
+  function renderMaintenanceVisitsUnified(){
+    const rows=mtVisits().map(visit=>{
+      const ticket=mtTicketById(visit.ticketId)||{};
+      const technician=visit.technicianName||mtUserName(visit.technicianId||visit.createdBy);
+      return [
+        visit.visitNo,
+        visit.ticketNumber||ticket.ticketNumber||'—',
+        visit.assetName||visit.assetNameAr||ticket.assetNameAr||ticket.assetName||'—',
+        technician,
+        formatDateTime(visit.visitDateTime||visit.visitDate||visit.createdAt),
+        visit.initialDiagnosis||visit.diagnosis||'—',
+        visit.recommendation||'—',
+        visit.technicianReport||visit.technicalReport||'—'
+      ];
+    });
+    return `<div class="hero edu-need-page-hero"><div><div class="hero-title">صيانة الأجهزة التعليمية والطبية</div><div class="hero-text">كل زيارة ميدانية تحمل رقم زيارة مستقل وترتبط ببلاغ العطل عبر رقم البلاغ الإلكتروني.</div></div></div>
+    ${mtTabsHtml()}
+    ${mtFiltersHtml()}
+    <div class="table-panel"><div class="table-head"><div class="panel-title">الزيارات الميدانية</div></div>${table(['رقم الزيارة','رقم البلاغ','الجهاز','الفني','تاريخ الزيارة','التشخيص','التوصية','تقرير الفني'],rows)}</div>`;
+  }
+
+  function mtSpares(){
+    ensureMaintenanceTicketWorkflow();
+    let rows=(db.sparePartRequests||[]).filter(mtCanReachRow);
+    if(state.maintenanceStatus && state.maintenanceStatus!=='all') rows=rows.filter(req=>req.status===state.maintenanceStatus);
+    const query=mtText(state.maintenanceSearch).toLowerCase();
+    if(query){
+      rows=rows.filter(req=>[
+        req.spareNo||req.requestNo,
+        req.ticketNumber,
+        req.assetNameAr,
+        req.partName,
+        req.suggestedSupplier,
+        req.status,
+        req.requestReason
+      ].join(' ').toLowerCase().includes(query));
+    }
+    rows=rows.filter(req=>mtWithinDate(req,['requestedAt','suppliedAt','installedAt','createdAt','updatedAt']));
+    return rows.sort((a,b)=>mtText(b.requestedAt||b.createdAt).localeCompare(mtText(a.requestedAt||a.createdAt)));
+  }
+  function mtCanAdvanceSpare(req){
+    return mtCanReachRow(req) && (mtIsEquipmentUser() || mtHasAny(['request_spare_parts','final_close_maintenance','close_maintenance_ticket']));
+  }
+  function advanceSpareRequest(id){
+    const req=(db.sparePartRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب قطعة الغيار غير موجود');
+    if(!mtCanAdvanceSpare(req)) return alert('لا تملك صلاحية تنفيذ هذا الإجراء على هذا القطاع.');
+    const order=['جديد','قيد المراجعة','معتمد','تم التوريد','تم التركيب'];
+    const previous=req.status||'جديد';
+    const idx=order.indexOf(previous);
+    req.status=order[Math.min(idx+1,order.length-1)]||'قيد المراجعة';
+    req.updatedAt=mtNow();
+    req.updatedBy=mtUser().id||null;
+    if(req.status==='تم التوريد') req.suppliedAt=mtNow();
+    if(req.status==='تم التركيب'){
+      req.installedAt=mtNow();
+      const ticket=mtTicketById(req.ticketId);
+      if(ticket && ticket.status!=='مغلق'){
+        ticket.status='تحت المعالجة';
+        ticket.lastActionAt=mtNow();
+        ticket.lastActionBy=mtUser().id||null;
+        ticket.updatedAt=mtNow();
+        ticket.updatedBy=mtUser().id||null;
+      }
+    }
+    mtAudit(`تم تحديث حالة طلب قطعة الغيار رقم ${req.spareNo||req.requestNo} من ${previous} إلى ${req.status}`,'sparePartRequest',req.spareNo||req.requestNo,req.partName,req.college,req.mainDepartment);
+    saveDb();
+    render();
+  }
+  function renderMaintenanceSparesUnified(){
+    const rows=mtSpares().map(req=>[
+      req.spareNo||req.requestNo,
+      req.ticketNumber||'—',
+      req.assetNameAr||'—',
+      req.partName||'—',
+      req.quantity||0,
+      req.suggestedSupplier||'—',
+      req.estimatedCost||0,
+      mtStatusBadge(req.status),
+      mtCanAdvanceSpare(req)?`<button class="btn btn-success btn-sm" onclick="advanceSpareRequest(${req.id})">تحديث الحالة</button>`:'—'
+    ]);
+    return `<div class="hero edu-need-page-hero"><div><div class="hero-title">صيانة الأجهزة التعليمية والطبية</div><div class="hero-text">طلبات قطع الغيار مرتبطة ببلاغات الأعطال ولا تغلق البلاغ تلقائيًا بعد التركيب.</div></div></div>
+    ${mtTabsHtml()}
+    ${mtFiltersHtml()}
+    <div class="table-panel"><div class="table-head"><div class="panel-title">قطع الغيار</div></div>${table(['رقم الطلب','رقم البلاغ','الجهاز','القطعة','الكمية','المورد','التكلفة','الحالة','إجراء'],rows)}</div>`;
+  }
+
+  function maintenanceTicketProfileHtml(){
+    const ticket=mtTicketById(state.editId);
+    if(!ticket) return '';
+    const visits=mtVisitsForTicket(ticket);
+    const spares=mtSparesForTicket(ticket);
+    const lastVisit=mtLastVisit(ticket);
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">تفاصيل بلاغ العطل</div><div class="panel-subtitle">رقم البلاغ الإلكتروني: ${mtEscape(ticket.ticketNumber)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body">${table(['الحقل','البيان'],[
+      ['رقم البلاغ الإلكتروني',ticket.ticketNumber],
+      ['الجهاز',ticket.assetNameAr||ticket.assetName||'—'],
+      ['الرقم التسلسلي',ticket.serialNumber||'—'],
+      ['القطاع',ticket.college||'—'],
+      ['الموقع',ticket.location||'—'],
+      ['الأولوية',mtStatusBadge(ticket.priority)],
+      ['الحالة',mtStatusBadge(ticket.status)],
+      ['سبب الرفض',ticket.rejectionReason||'—'],
+      ['منسق الجهة',ticket.coordinatorName||mtUserName(ticket.coordinatorId)],
+      ['الفني',ticket.assignedToName||ticket.technicianName||mtUserName(ticket.technicianId||ticket.assignedTo)],
+      ['تاريخ البلاغ',formatDateTime(ticket.reportedAt||ticket.createdAt)],
+      ['وصف العطل',ticket.faultDescription||ticket.issueDescription||'—'],
+      ['هل يمثل خطرًا على السلامة؟',ticket.isSafetyRisk||ticket.safetyRisk?'نعم':'لا'],
+      ['هل العطل متكرر؟',ticket.isRecurring||ticket.recurringIssue?'نعم':'لا'],
+      ['تاريخ الزيارة الفنية',lastVisit?formatDateTime(lastVisit.visitDateTime||lastVisit.createdAt):'—'],
+      ['ملخص التقرير الفني',lastVisit?.technicianReport||'—'],
+      ['اعتماد الجهة بواسطة',ticket.entityApprovedBy?mtUserName(ticket.entityApprovedBy):'—'],
+      ['تاريخ اعتماد الجهة',ticket.entityApprovedAt?formatDateTime(ticket.entityApprovedAt):'—'],
+      ['ملاحظات اعتماد الجهة',ticket.entityApprovalNotes||'—'],
+      ['الإغلاق النهائي بواسطة',ticket.finalClosedBy?mtUserName(ticket.finalClosedBy):'—'],
+      ['تاريخ الإغلاق النهائي',ticket.finalClosedAt?formatDateTime(ticket.finalClosedAt):'—']
+    ])}
+    <div class="table-panel"><div class="table-head"><div class="panel-title">الزيارات</div></div>${table(['الزيارة','الفني','التاريخ','التوصية','التقرير'],visits.map(visit=>[visit.visitNo,visit.technicianName,formatDateTime(visit.visitDateTime),visit.recommendation,visit.technicianReport]))}</div>
+    <div class="table-panel"><div class="table-head"><div class="panel-title">قطع الغيار</div></div>${table(['الطلب','القطعة','الكمية','الحالة'],spares.map(spare=>[spare.spareNo||spare.requestNo,spare.partName,spare.quantity,mtStatusBadge(spare.status)]))}</div></div></div></div>`;
+  }
+
+  function maintenanceReportDataUnified(){
+    const ticketRows=mtTickets();
+    return {
+      title:'تقرير بلاغات الأعطال',
+      headers:['رقم البلاغ الإلكتروني','الجهاز','الرقم التسلسلي','القطاع','الموقع','الأولوية','الحالة','سبب الرفض','منسق الجهة','الفني','تاريخ البلاغ','وصف العطل','خطر سلامة','عطل متكرر','تاريخ الزيارة الفنية','ملخص التقرير الفني','اعتماد الجهة بواسطة','تاريخ اعتماد الجهة','ملاحظات اعتماد الجهة','الإغلاق النهائي بواسطة','تاريخ الإغلاق النهائي'],
+      rows:ticketRows.map(ticket=>{
+        const lastVisit=mtLastVisit(ticket);
+        return [
+          ticket.ticketNumber,
+          ticket.assetNameAr||ticket.assetName||'—',
+          ticket.serialNumber||'—',
+          ticket.college||'—',
+          ticket.location||'—',
+          ticket.priority||'—',
+          ticket.status||'—',
+          ticket.rejectionReason||'—',
+          ticket.coordinatorName||mtUserName(ticket.coordinatorId),
+          ticket.assignedToName||ticket.technicianName||mtUserName(ticket.technicianId||ticket.assignedTo),
+          formatDateTime(ticket.reportedAt||ticket.createdAt),
+          ticket.faultDescription||ticket.issueDescription||'—',
+          ticket.isSafetyRisk||ticket.safetyRisk?'نعم':'لا',
+          ticket.isRecurring||ticket.recurringIssue?'نعم':'لا',
+          lastVisit?formatDateTime(lastVisit.visitDateTime||lastVisit.createdAt):'—',
+          lastVisit?.technicianReport||'—',
+          ticket.entityApprovedBy?mtUserName(ticket.entityApprovedBy):'—',
+          ticket.entityApprovedAt?formatDateTime(ticket.entityApprovedAt):'—',
+          ticket.entityApprovalNotes||'—',
+          ticket.finalClosedBy?mtUserName(ticket.finalClosedBy):'—',
+          ticket.finalClosedAt?formatDateTime(ticket.finalClosedAt):'—'
+        ];
+      })
+    };
+  }
+  function renderMaintenanceReportsUnified(){
+    const data=maintenanceReportDataUnified();
+    return `<div class="hero edu-need-page-hero"><div><div class="hero-title">صيانة الأجهزة التعليمية والطبية</div><div class="hero-text">تقارير الصيانة تعرض رقم البلاغ الإلكتروني واعتماد الجهة والإغلاق النهائي.</div></div></div>
+    ${mtTabsHtml()}
+    ${mtFiltersHtml()}
+    <div class="report-actions"><button class="btn btn-primary" onclick="printMaintenanceReport()">استخراج PDF</button><button class="btn btn-secondary" onclick="exportMaintenanceReport()">استخراج Excel</button></div>
+    <div class="table-panel"><div class="table-head"><div class="panel-title">${mtEscape(data.title)}</div></div>${table(data.headers,data.rows)}</div>`;
+  }
+  function printMaintenanceReport(){
+    if(state.currentPage==='maintenance' && state.maintenanceTab==='reports'){
+      openPrint(maintenanceReportDataUnified());
+      return;
+    }
+    return previousTicketWorkflowPrintMaintenanceReport?previousTicketWorkflowPrintMaintenanceReport():undefined;
+  }
+  function exportMaintenanceReport(){
+    if(state.currentPage==='maintenance' && state.maintenanceTab==='reports'){
+      exportExcel(maintenanceReportDataUnified(),'maintenance-tickets-report.xlsx');
+      return;
+    }
+    return previousTicketWorkflowExportMaintenanceReport?previousTicketWorkflowExportMaintenanceReport():undefined;
+  }
+
+  modalHtml=function(){
+    if(state.modal==='maintenanceTicket') return maintenanceTicketModalHtml();
+    if(state.modal==='fieldVisit') return fieldVisitModalHtml();
+    if(state.modal==='maintenanceEntityApproval') return maintenanceEntityApprovalModalHtml();
+    if(state.modal==='maintenanceTicketProfile') return maintenanceTicketProfileHtml();
+    return previousTicketWorkflowModalHtml?previousTicketWorkflowModalHtml():'';
+  };
+  renderPageContent=function(){
+    if(state.currentPage==='maintenance' && state.maintenanceTab==='tickets') return renderMaintenanceTicketsUnified();
+    if(state.currentPage==='maintenance' && state.maintenanceTab==='visits') return renderMaintenanceVisitsUnified();
+    if(state.currentPage==='maintenance' && state.maintenanceTab==='spares') return renderMaintenanceSparesUnified();
+    if(state.currentPage==='maintenance' && state.maintenanceTab==='reports') return renderMaintenanceReportsUnified();
+    return previousTicketWorkflowRenderPageContent?previousTicketWorkflowRenderPageContent():'';
+  };
+  Object.assign(window,{
+    nextNoByField,
+    generateUniqueNo,
+    repairDuplicateMaintenanceTicketNumbers,
+    refreshMaintenanceCoordinatorOptions,
+    saveMaintenanceTicket,
+    saveFieldVisit,
+    saveSpareRequest,
+    advanceSpareRequest,
+    openMaintenanceEntityApproval,
+    acceptMaintenanceTicket,
+    rejectMaintenanceTicket,
+    completeMaintenanceProcessing,
+    approveMaintenanceEntity,
+    closeMaintenanceTicket,
+    repairDuplicateFieldVisitNumbers,
+    repairDuplicateSparePartNumbers,
+    repairDuplicatePreventivePlanNumbers,
+    repairDuplicatePreventiveRecordNumbers,
+    ensureMaintenanceTicketWorkflow,
+    maintenanceCoordinatorOptions:mtCoordinatorOptions,
+    maintenanceTechnicianOptions:mtTechnicianOptions,
+    printMaintenanceReport,
+    exportMaintenanceReport
+  });
+  ensureMaintenanceTicketWorkflow();
+})();
+/* ===== end Maintenance Ticket Workflow Unification v7.3 ===== */
+
+/* ===== Privacy-first Sector Support Workflow v7.4 ===== */
+;(function(){
+  const EQUIPMENT_SECTOR='إدارة التجهيزات';
+  const EQUIPMENT_SECTORS=['إدارة التجهيزات','إدارة التجهيزات والمخزون'];
+  const SUPPORT_STATUS={
+    review:'قيد مراجعة إدارة التجهيزات',
+    preliminary:'مقبول مبدئيًا بانتظار تحديد مصدر الدعم',
+    sourceAssigned:'تم تحديد مصدر الدعم',
+    pendingTransfer:'بانتظار تنفيذ التحويل',
+    completed:'مكتمل',
+    rejected:'مرفوض',
+    cancelled:'ملغى',
+    returned:'معاد للقطاع بملاحظات'
+  };
+  const SUPPORT_FINAL_STATUSES=[SUPPORT_STATUS.completed,SUPPORT_STATUS.rejected,SUPPORT_STATUS.cancelled];
+  const SUPPORT_ADMIN_PERMISSIONS=[
+    'view_support_requests',
+    'review_support_requests',
+    'view_support_source_availability',
+    'view_support_locations',
+    'assign_support_source',
+    'approve_support_transfer',
+    'execute_support_transfer',
+    'reject_support_request',
+    'return_support_request',
+    'cancel_support_request',
+    'view_support_reports',
+    'view_support_transfer_details',
+    'view_support_source_sector',
+    'view_support_target_sector',
+    'view_support_admin_report'
+  ];
+  const SUPPORT_PERMISSION_LABELS=[
+    ['view_support_requests','طلب الدعم بين القطاعات - عرض طلبات الدعم'],
+    ['view_own_support_requests','طلب الدعم بين القطاعات - عرض طلبات الدعم الخاصة بالقطاع'],
+    ['create_support_request','طلب الدعم بين القطاعات - إنشاء طلب دعم'],
+    ['review_support_requests','طلب الدعم بين القطاعات - مراجعة طلبات الدعم من إدارة التجهيزات'],
+    ['view_support_source_availability','طلب الدعم بين القطاعات - عرض توفر الصنف في القطاعات لإدارة التجهيزات'],
+    ['view_support_locations','طلب الدعم بين القطاعات - عرض المواقع التفصيلية لمصادر الدعم'],
+    ['assign_support_source','طلب الدعم بين القطاعات - تحديد القطاع المانح والكمية'],
+    ['approve_support_transfer','طلب الدعم بين القطاعات - اعتماد تحويل الدعم'],
+    ['execute_support_transfer','طلب الدعم بين القطاعات - تنفيذ تحويل الدعم وخصم/إضافة الرصيد'],
+    ['reject_support_request','طلب الدعم بين القطاعات - رفض طلب الدعم'],
+    ['return_support_request','طلب الدعم بين القطاعات - إعادة الطلب للقطاع بملاحظات'],
+    ['cancel_support_request','طلب الدعم بين القطاعات - إلغاء طلب الدعم'],
+    ['view_support_reports','طلب الدعم بين القطاعات - عرض تقارير الدعم'],
+    ['view_support_transfer_details','طلب الدعم بين القطاعات - عرض تفاصيل تحويل الدعم بين القطاعات'],
+    ['view_support_source_sector','طلب الدعم بين القطاعات - عرض القطاع المانح'],
+    ['view_support_target_sector','طلب الدعم بين القطاعات - عرض القطاع المستفيد'],
+    ['view_support_admin_report','طلب الدعم بين القطاعات - عرض تقرير الدعم الإداري الكامل']
+  ];
+  const previousSupportPrivacyModalHtml=typeof modalHtml==='function'?modalHtml:null;
+  const previousSupportPrivacyReportData=typeof reportData==='function'?reportData:null;
+  const previousSupportPrivacyStatusText=typeof statusText==='function'?statusText:null;
+  const previousSupportPrivacyStatusBadge=typeof statusBadge==='function'?statusBadge:null;
+  const previousSupportPrivacyApprovalPath=typeof approvalPath==='function'?approvalPath:null;
+  const previousSupportPrivacyVisibleTransactions=typeof visibleTransactions==='function'?visibleTransactions:null;
+  const previousSupportPrivacyVisibleAuditLogs=typeof visibleAuditLogs==='function'?visibleAuditLogs:null;
+  const previousSupportPrivacyRenderTransactions=typeof renderTransactions==='function'?renderTransactions:null;
+  const previousSupportPrivacyAvailableReportTabs=typeof availableReportTabs==='function'?availableReportTabs:null;
+  const previousSupportPrivacyUserModalHtml=typeof userModalHtml==='function'?userModalHtml:null;
+  const previousSupportPrivacyApplyRemoteDb=typeof applyRemoteDb==='function'?applyRemoteDb:null;
+
+  function spText(value){ return String(value??'').trim(); }
+  function spEscape(value){
+    return spText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function spNormalize(value){
+    if(typeof normalizeText==='function') return normalizeText(value);
+    return spText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,'')
+      .trim();
+  }
+  function spUnit(value){
+    if(typeof eduNeedCanonicalUnit==='function') return eduNeedCanonicalUnit(value);
+    if(globalThis.NeedEngine && typeof globalThis.NeedEngine.canonicalUnit==='function') return globalThis.NeedEngine.canonicalUnit(value);
+    return spNormalize(value);
+  }
+  function spUser(){ return state.currentUser||{}; }
+  function spNow(){ return typeof nowLocalString==='function'?nowLocalString():new Date().toISOString().slice(0,16); }
+  function spItemName(item){ return typeof itemName==='function'?itemName(item):(item?.nameAr||item?.name||'—'); }
+  function spActor(id){ return typeof actorName==='function'?actorName(id):((db.users||[]).find(user=>String(user.id)===String(id))?.fullName||'—'); }
+  function spAliasList(values){
+    return [...new Set((values||[]).map(spNormalize).filter(Boolean))];
+  }
+  function spItemAliases(item){
+    if(!item) return [];
+    return spAliasList([spItemName(item),item.nameAr,item.name,item.nameEn,item.code,item.itemCode]);
+  }
+  function spRequestAliases(req,source=null){
+    return spAliasList([
+      req?.itemName,
+      req?.requestedItemName,
+      req?.itemNameAr,
+      req?.requestedItemNameAr,
+      req?.itemNameEn,
+      req?.requestedItemNameEn,
+      req?.itemCode,
+      req?.requestedItemCode,
+      source?spItemName(source):'',
+      source?.nameAr,
+      source?.name,
+      source?.nameEn,
+      source?.code
+    ]);
+  }
+  function spAliasesMatch(left,right){
+    const a=Array.isArray(left)?left:spAliasList([left]);
+    const b=Array.isArray(right)?right:spAliasList([right]);
+    return a.some(x=>b.some(y=>{
+      if(!x || !y) return false;
+      if(x===y) return true;
+      return x.length>=6 && y.length>=6 && (x.includes(y) || y.includes(x));
+    }));
+  }
+  function spFindCatalogItem(name,unit='',section=''){
+    const aliases=spAliasList([name]);
+    const canonicalUnit=spUnit(unit);
+    const wantedSection=spText(section);
+    if(!aliases.length) return null;
+    return (db.items||[]).find(item=>{
+      if(canonicalUnit && spUnit(item.unit)!==canonicalUnit) return false;
+      if(wantedSection && spText(item.section)!==wantedSection) return false;
+      return spAliasesMatch(aliases,spItemAliases(item));
+    }) || null;
+  }
+  function spIsEquipmentUser(user=spUser()){
+    return user?.role==='admin' || EQUIPMENT_SECTORS.includes(spText(user?.college||user?.sector||user?.department));
+  }
+  function spHasUserPermission(user,key){
+    if(!user) return false;
+    if(user.role==='admin') return true;
+    const perms=user.permissions||[];
+    if(perms.includes('all') || perms.includes(key)) return true;
+    if(key==='view_own_support_requests' && perms.includes('view_exchange')) return true;
+    if(key==='create_support_request' && perms.includes('request_support')) return true;
+    if(key==='cancel_support_request' && perms.includes('request_support')) return true;
+    if(key==='view_support_reports' && perms.includes('report_support')) return true;
+    if(spIsEquipmentUser(user) && perms.includes('approve_support') && SUPPORT_ADMIN_PERMISSIONS.includes(key)) return true;
+    if(spIsEquipmentUser(user) && perms.includes('view_exchange') && key==='view_support_requests') return true;
+    return false;
+  }
+  function spHas(key){ return spHasUserPermission(spUser(),key); }
+  function spHasAny(keys){ return keys.some(key=>spHas(key)); }
+  function spCanReviewAll(){ return spIsEquipmentUser() || spHasAny(['view_support_requests','review_support_requests']); }
+  function spCanSeeTransferDetails(){ return spIsEquipmentUser() || spHas('view_support_transfer_details'); }
+  function spCanSeeSourceSector(){ return spCanSeeTransferDetails() || spHas('view_support_source_sector'); }
+  function spCanSeeTargetSector(){ return spCanSeeTransferDetails() || spHas('view_support_target_sector'); }
+  function spCanSeeSourceAvailability(){ return spIsEquipmentUser() || spHas('view_support_source_availability'); }
+  function spCanSeeLocations(){ return spIsEquipmentUser() || spHas('view_support_locations'); }
+  function spReqRequester(req){ return spText(req?.requesterSector||req?.fromCollege||req?.college); }
+  function spReqDepartment(req){ return spText(req?.requesterDepartment||req?.mainDepartment||req?.department||'القسم العام'); }
+  function spReqSource(req){ return spText(req?.sourceSector||req?.sourceCollege); }
+  function spSameSector(sector,user=spUser()){ return spText(sector) && spText(sector)===spText(user.college||user.sector||user.department); }
+  function spIsRequester(req){ return spSameSector(spReqRequester(req)); }
+  function spIsSource(req){ return spSameSector(spReqSource(req)); }
+  function spCanViewRequest(req){
+    if(spCanReviewAll()) return true;
+    return spIsRequester(req) && spHas('view_own_support_requests');
+  }
+  function spCanCancelOwn(req){
+    return spIsRequester(req) &&
+      spHas('cancel_support_request') &&
+      spStatus(req.status)===SUPPORT_STATUS.review &&
+      !req.reviewedAt &&
+      !req.sourceAssignedAt;
+  }
+  function spIsFinal(req){ return SUPPORT_FINAL_STATUSES.includes(spStatus(req?.status)); }
+  function spStatus(status){
+    const raw=spText(status);
+    const map={
+      pending:SUPPORT_STATUS.review,
+      pending_owner:SUPPORT_STATUS.review,
+      pending_equipment:SUPPORT_STATUS.review,
+      owner_approved:SUPPORT_STATUS.preliminary,
+      approved_pending_source:SUPPORT_STATUS.preliminary,
+      source_assigned:SUPPORT_STATUS.sourceAssigned,
+      pending_transfer:SUPPORT_STATUS.pendingTransfer,
+      approved:SUPPORT_STATUS.completed,
+      completed:SUPPORT_STATUS.completed,
+      rejected:SUPPORT_STATUS.rejected,
+      cancelled:SUPPORT_STATUS.cancelled,
+      returned:SUPPORT_STATUS.returned
+    };
+    return map[raw] || Object.values(SUPPORT_STATUS).find(value=>value===raw) || SUPPORT_STATUS.review;
+  }
+  function spStatusKey(status){
+    const value=spStatus(status);
+    return Object.entries(SUPPORT_STATUS).find(([,label])=>label===value)?.[0] || 'review';
+  }
+  function spIsSupportDisplayStatus(status){
+    const raw=spText(status);
+    return Object.values(SUPPORT_STATUS).includes(raw) ||
+      ['approved_pending_source','source_assigned','pending_transfer'].includes(raw);
+  }
+  function spStatusBadge(status){
+    const value=spStatus(status);
+    if(value===SUPPORT_STATUS.completed) return `<span class="badge badge-ok">${spEscape(value)}</span>`;
+    if([SUPPORT_STATUS.rejected,SUPPORT_STATUS.cancelled].includes(value)) return `<span class="badge badge-danger">${spEscape(value)}</span>`;
+    if([SUPPORT_STATUS.review,SUPPORT_STATUS.preliminary,SUPPORT_STATUS.returned].includes(value)) return `<span class="badge badge-warning">${spEscape(value)}</span>`;
+    return `<span class="badge badge-info">${spEscape(value)}</span>`;
+  }
+  function spApprovalPath(status){
+    const value=spStatus(status);
+    const steps=[
+      SUPPORT_STATUS.review,
+      SUPPORT_STATUS.preliminary,
+      SUPPORT_STATUS.sourceAssigned,
+      SUPPORT_STATUS.pendingTransfer,
+      SUPPORT_STATUS.completed
+    ];
+    const idx=value===SUPPORT_STATUS.rejected || value===SUPPORT_STATUS.cancelled ? 1 : Math.max(0,steps.indexOf(value));
+    return `<div class="workflow workflow-approval">${steps.map((label,index)=>{
+      let cls='';
+      if(value===SUPPORT_STATUS.rejected || value===SUPPORT_STATUS.cancelled) cls=index===idx?'blocked':(index<idx?'done':'');
+      else cls=index<idx?'done':(index===idx?'active':'');
+      return `<span class="${cls}">${spEscape(label)}</span>`;
+    }).join('')}</div>`;
+  }
+  function spPushPermission(key,label){
+    if(typeof PERMISSIONS==='undefined') return;
+    if(!PERMISSIONS.some(permission=>permission.key===key)) PERMISSIONS.push({key,label});
+  }
+  function spGenerateNo(prefix,collection,fieldName='requestNo'){
+    if(typeof generateUniqueNo==='function') return generateUniqueNo(prefix,collection,fieldName);
+    const year=new Date().getFullYear();
+    const nums=(collection||[])
+      .map(row=>row&&row[fieldName])
+      .filter(Boolean)
+      .map(no=>String(no).trim())
+      .filter(no=>no.startsWith(`${prefix}-${year}-`))
+      .map(no=>Number(no.split('-').pop()))
+      .filter(n=>Number.isFinite(n));
+    return `${prefix}-${year}-${String((nums.length?Math.max(...nums):0)+1).padStart(4,'0')}`;
+  }
+  function spAudit(action,targetId,details,college=EQUIPMENT_SECTOR,department='الكل'){
+    if(typeof auditLog==='function') auditLog(action,'support',targetId,details,college,department);
+  }
+  function ensureSupportPermissions(){
+    SUPPORT_PERMISSION_LABELS.forEach(([key,label])=>spPushPermission(key,label));
+    (db.users||[]).forEach(user=>{
+      if(user.role==='admin' || (user.permissions||[]).includes('all')) return;
+      const perms=new Set(user.permissions||[]);
+      if(perms.has('view_exchange')) perms.add('view_own_support_requests');
+      if(perms.has('request_support')){
+        perms.add('create_support_request');
+        perms.add('cancel_support_request');
+      }
+      if(perms.has('report_support')) perms.add('view_support_reports');
+      if(spIsEquipmentUser(user)){
+        SUPPORT_ADMIN_PERMISSIONS.forEach(permission=>perms.add(permission));
+        perms.add('view_exchange');
+        perms.add('report_support');
+      }else{
+        [
+          'view_support_source_availability',
+          'view_support_locations',
+          'assign_support_source',
+          'approve_support_transfer',
+          'execute_support_transfer',
+          'view_support_transfer_details',
+          'view_support_source_sector',
+          'view_support_target_sector',
+          'view_support_admin_report'
+        ].forEach(permission=>perms.delete(permission));
+      }
+      user.permissions=[...perms];
+    });
+  }
+  function normalizeSupportRecord(req){
+    if(!req) return false;
+    let changed=false;
+    if(!req.requestNo){
+      req.requestNo=spGenerateNo('SR',db.supportRequests,'requestNo');
+      changed=true;
+    }
+    const requester=spReqRequester(req);
+    if(requester && req.requesterSector!==requester){ req.requesterSector=requester; changed=true; }
+    if(requester && req.fromCollege!==requester){ req.fromCollege=requester; changed=true; }
+    const department=spReqDepartment(req);
+    if(req.requesterDepartment!==department){ req.requesterDepartment=department; changed=true; }
+    if(!req.mainDepartment){ req.mainDepartment=department; changed=true; }
+    const qty=Number(req.requestedQty??req.qty??0);
+    if(Number(req.requestedQty||0)!==qty){ req.requestedQty=qty; changed=true; }
+    if(Number(req.qty||0)!==qty){ req.qty=qty; changed=true; }
+    const type=spText(req.requestType||req.supportType)||'دعم تشغيلي';
+    if(req.requestType!==type){ req.requestType=type; changed=true; }
+    if(req.supportType!==type){ req.supportType=type; changed=true; }
+    if(req.sourceCollege && !req.sourceSector){ req.sourceSector=req.sourceCollege; changed=true; }
+    if(!req.sourceSector && req.sourceItemId){
+      const source=getItemById(Number(req.sourceItemId));
+      if(source?.college){ req.sourceSector=source.college; changed=true; }
+    }
+    if(req.sourceSector && !req.sourceCollege){ req.sourceCollege=req.sourceSector; changed=true; }
+    if(req.status!==spStatus(req.status)){ req.status=spStatus(req.status); changed=true; }
+    if(!req.workflowStage || req.workflowStage!==req.status){ req.workflowStage=req.status; changed=true; }
+    if(!req.routingMode){ req.routingMode='equipment_privacy_managed'; changed=true; }
+    if(req.toCollege!==EQUIPMENT_SECTOR && req.status!==SUPPORT_STATUS.completed){
+      req.toCollege=EQUIPMENT_SECTOR;
+      changed=true;
+    }
+    if(req.status===SUPPORT_STATUS.completed){
+      if(!req.approvedQty){ req.approvedQty=Number(req.qty||0); changed=true; }
+      if(!req.completedAt && (req.approvedAt||req.reviewedAt)){ req.completedAt=req.approvedAt||req.reviewedAt; changed=true; }
+    }
+    ['reviewNotes','sourceNotes','rejectionReason','returnNotes','cancellationReason','notes'].forEach(key=>{
+      if(req[key]===undefined){ req[key]=''; changed=true; }
+    });
+    return changed;
+  }
+  function ensureSupportWorkflow(){
+    db.supportRequests=db.supportRequests||[];
+    db.transactions=db.transactions||[];
+    ensureSupportPermissions();
+    let changed=false;
+    const seen=new Set();
+    db.supportRequests.forEach(req=>{
+      changed=normalizeSupportRecord(req)||changed;
+      const current=spText(req.requestNo);
+      if(!current || seen.has(current)){
+        const oldNo=current||'بدون رقم';
+        let next=spGenerateNo('SR',db.supportRequests,'requestNo');
+        while(seen.has(next) || db.supportRequests.some(row=>row!==req && spText(row.requestNo)===next)){
+          const parts=next.split('-');
+          const last=Number(parts[2])||0;
+          next=`SR-${parts[1]||new Date().getFullYear()}-${String(last+1).padStart(4,'0')}`;
+        }
+        req.requestNo=next;
+        spAudit('إصلاح رقم طلب دعم مكرر',next,`تم إصلاح ترقيم طلب الدعم من ${oldNo} إلى ${next}`,EQUIPMENT_SECTOR,'الكل');
+        changed=true;
+      }
+      seen.add(spText(req.requestNo));
+    });
+    if(changed && typeof saveDb==='function') saveDb();
+  }
+  function spSupportRows(){
+    ensureSupportWorkflow();
+    let rows=(db.supportRequests||[]).filter(spCanViewRequest);
+    if(spCanReviewAll() && state.collegeFilter && state.collegeFilter!=='all'){
+      rows=rows.filter(req=>[spReqRequester(req),spReqSource(req)].includes(state.collegeFilter));
+    }
+    if(!spCanReviewAll() && state.collegeFilter && state.collegeFilter!=='all' && !spSameSector(state.collegeFilter)){
+      rows=[];
+    }
+    if(state.sectionFilter && state.sectionFilter!=='all'){
+      rows=rows.filter(req=>[req.section,req.mainDepartment,req.requesterDepartment].map(spText).includes(spText(state.sectionFilter)));
+    }
+    const query=spText(state.search).toLowerCase();
+    if(query){
+      rows=rows.filter(req=>{
+        const fields=spCanSeeTransferDetails()
+          ? [req.requestNo,req.requestType,req.itemName,spReqRequester(req),spReqSource(req),req.unit,req.status,req.notes,req.reviewNotes,req.sourceNotes]
+          : [req.requestNo,req.requestType,req.itemName,req.unit,req.status,req.notes,req.reviewNotes,req.returnNotes];
+        return fields.join(' ').toLowerCase().includes(query);
+      });
+    }
+    if(typeof rowObjectWithinDateRange==='function'){
+      rows=rows.filter(req=>rowObjectWithinDateRange(req,['createdAt','reviewedAt','sourceAssignedAt','transferApprovedAt','transferredAt','completedAt','updatedAt']));
+    }
+    return rows.sort((a,b)=>spText(b.createdAt).localeCompare(spText(a.createdAt)));
+  }
+  function spCatalogItems(){
+    const map=new Map();
+    (db.items||[]).forEach(item=>{
+      const key=[spNormalize(spItemName(item)),spNormalize(item.nameEn),spUnit(item.unit),spNormalize(item.section)].join('|');
+      if(!map.has(key)){
+        map.set(key,{
+          id:item.id,
+          nameAr:spItemName(item),
+          nameEn:item.nameEn||'',
+          unit:item.unit||'',
+          section:item.section||'',
+          mainDepartment:item.mainDepartment||'القسم العام'
+        });
+      }
+    });
+    return [...map.values()].sort((a,b)=>spText(a.nameAr).localeCompare(spText(b.nameAr)));
+  }
+  function spCatalogOptions(){
+    return spCatalogItems().map(item=>`<option value="${spEscape(item.nameAr)}">${spEscape([item.nameEn,item.unit,item.section].filter(Boolean).join(' - '))}</option>`).join('');
+  }
+  function spAvailableSources(req){
+    if(!spCanSeeSourceAvailability()) return [];
+    const wantedAliases=spRequestAliases(req);
+    const unit=spUnit(req.unit);
+    return (db.items||[])
+      .filter(item=>Number(item.qty||0)>0)
+      .filter(item=>!EQUIPMENT_SECTORS.includes(spText(item.college)))
+      .filter(item=>spText(item.college)!==spReqRequester(req))
+      .filter(item=>!unit || spUnit(item.unit)===unit)
+      .filter(item=>spAliasesMatch(wantedAliases,spItemAliases(item)) || (req.itemId && Number(item.id)===Number(req.itemId)))
+      .sort((a,b)=>{
+        const qty=Number(req.requestedQty||req.qty||0);
+        const aEnough=Number(a.qty||0)>=qty?0:1;
+        const bEnough=Number(b.qty||0)>=qty?0:1;
+        return aEnough-bEnough || spText(a.college).localeCompare(spText(b.college)) || Number(b.qty||0)-Number(a.qty||0);
+      });
+  }
+  function spSelectedSourceItem(){
+    const value=document.querySelector('input[name="support-source-item"]:checked')?.value ||
+      document.getElementById('support-source-item')?.value;
+    return getItemById(Number(value||0));
+  }
+  function spPublicNote(req){
+    return spText(req.reviewNotes||req.returnNotes||req.rejectionReason||req.cancellationReason||'');
+  }
+  function spAdminSourceLabel(req){
+    if(!spCanSeeSourceSector()) return 'محجوب';
+    return spReqSource(req)||'لم يحدد بعد';
+  }
+  function supportRequestModalHtml(){
+    ensureSupportWorkflow();
+    if(!spHas('create_support_request')) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">إنشاء طلب دعم</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا تملك صلاحية إنشاء طلب دعم.</div></div></div></div>`;
+    const item=getItemById(Number(state.editId||0));
+    const selectedName=item?spItemName(item):'';
+    const selectedUnit=item?.unit||'';
+    const selectedSection=item?.section||'';
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">إنشاء طلب دعم</div><div class="panel-subtitle">سيصل الطلب إلى إدارة التجهيزات مباشرة، ولن تظهر تفاصيل أرصدة أو مصادر القطاعات الأخرى.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="full"><label class="label">الصنف المطلوب</label><input id="sup-item-name" class="input" list="support-catalog-list" value="${spEscape(selectedName)}" placeholder="اكتب اسم الصنف المطلوب"><datalist id="support-catalog-list">${spCatalogOptions()}</datalist></div>
+      <div><label class="label">الوحدة</label><input id="sup-unit" class="input" value="${spEscape(selectedUnit)}" placeholder="مثال: لتر، صندوق، جهاز"></div>
+      <div><label class="label">القسم الفرعي</label><select id="sup-section" class="select">${(typeof sectionOptions==='function'?sectionOptions(selectedSection||((typeof SECTION_OPTIONS!=='undefined'&&SECTION_OPTIONS[0])||''),false):`<option>${spEscape(selectedSection)}</option>`)}</select></div>
+      <div><label class="label">نوع الطلب</label><select id="sup-type" class="select"><option>دعم تشغيلي</option><option>سلفة تشغيلية</option><option>نقل عهدة</option></select></div>
+      <div><label class="label">الكمية المطلوبة</label><input id="sup-qty" class="input" type="number" min="1" step="1" placeholder="أدخل الكمية"></div>
+      <div><label class="label">الجهة الطالبة</label><input class="input" value="${spEscape(spUser().college||'')}" readonly></div>
+      <div class="full"><label class="label">المبرر أو سبب الطلب</label><textarea id="sup-justification" class="textarea" placeholder="اكتب سبب طلب الدعم"></textarea></div>
+      <div class="full"><label class="label">ملاحظات</label><textarea id="sup-notes" class="textarea" placeholder="اختياري"></textarea></div>
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveSupport()">إرسال الطلب</button></div></div></div>`;
+  }
+  function supportDetailsModalHtml(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req || !spCanViewRequest(req)) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">طلب دعم</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا تملك صلاحية الاطلاع على تفاصيل تحويلات الدعم.</div></div></div></div>`;
+    const admin=spCanSeeTransferDetails();
+    const rows=[
+      ['رقم الطلب',req.requestNo],
+      ['نوع الطلب',req.requestType||req.supportType],
+      ['الصنف',req.itemName],
+      ['الكمية المطلوبة',`${Number(req.requestedQty||req.qty||0)} ${req.unit||''}`],
+      ['الكمية المعتمدة',req.approvedQty?`${Number(req.approvedQty||0)} ${req.unit||''}`:'—'],
+      ['الحالة',spStatusBadge(req.status)],
+      ['تاريخ الطلب',formatDateTime(req.createdAt)],
+      ['ملاحظات إدارة التجهيزات',spPublicNote(req)||'—']
+    ];
+    if(admin){
+      rows.splice(2,0,['القطاع الطالب',spReqRequester(req)]);
+      rows.push(['القطاع المانح',spAdminSourceLabel(req)]);
+      rows.push(['الموقع المصدر',spCanSeeLocations()?(req.sourceLocation||'—'):'محجوب']);
+      rows.push(['ملاحظات التوجيه',req.sourceNotes||'—']);
+      rows.push(['نفذ التحويل',req.transferredBy?spActor(req.transferredBy):'—']);
+    }
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">تفاصيل طلب الدعم</div><div class="panel-subtitle">${spEscape(req.requestNo)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body">${table(['الحقل','البيان'],rows)}</div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إغلاق</button></div></div></div>`;
+  }
+  function supportResubmitModalHtml(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req || !spIsRequester(req)) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">إعادة إرسال طلب الدعم</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا تملك صلاحية تنفيذ هذا الإجراء على هذا القطاع.</div></div></div></div>`;
+    if(spStatus(req.status)!==SUPPORT_STATUS.returned) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">إعادة إرسال طلب الدعم</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">إعادة الإرسال متاحة فقط للطلبات المعادة بملاحظات.</div></div></div></div>`;
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">رد وإعادة إرسال طلب الدعم</div><div class="panel-subtitle">${spEscape(req.requestNo)} - ${spEscape(req.itemName)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body">
+      <div class="alert">ملاحظة إدارة التجهيزات: ${spEscape(req.returnNotes||req.reviewNotes||'—')}</div>
+      <div class="form-grid">
+        <div><label class="label">الكمية المطلوبة</label><input class="input" value="${Number(req.requestedQty||req.qty||0)} ${spEscape(req.unit||'')}" readonly></div>
+        <div><label class="label">الحالة الحالية</label><div class="alert">${spStatusBadge(req.status)}</div></div>
+        <div class="full"><label class="label">رد القطاع / الملاحظات بعد التعديل</label><textarea id="support-resubmit-notes" class="textarea" placeholder="اكتب رد القطاع أو التعديل المطلوب">${spEscape(req.notes||'')}</textarea></div>
+      </div>
+    </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="resubmitSupportRequest(${req.id})">إعادة إرسال لإدارة التجهيزات</button></div></div></div>`;
+  }
+  function supportAdminModalHtml(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req || !spCanReviewAll()) return supportDetailsModalHtml();
+    const sources=spAvailableSources(req);
+    const sourceRows=sources.map(item=>[
+      `<input type="radio" name="support-source-item" value="${item.id}" ${Number(req.sourceItemId||0)===Number(item.id)?'checked':''}>`,
+      spCanSeeSourceSector()?spEscape(item.college):'محجوب',
+      spEscape(item.mainDepartment||'القسم العام'),
+      spEscape(item.section||'—'),
+      spEscape(spItemName(item)),
+      spEscape(item.nameEn||'—'),
+      Number(item.qty||0),
+      spEscape(item.unit||req.unit||'—'),
+      spCanSeeLocations()?spEscape(item.location||'—'):'محجوب',
+      Number(item.qty||0)>=Number(req.requestedQty||req.qty||0)?'<span class="badge badge-ok">كاف</span>':'<span class="badge badge-warning">جزئي</span>'
+    ]);
+    const canAssign=spCanAssignSourceFor(req);
+    const selectedSource=getItemById(Number(req.sourceItemId||0));
+    const defaultQty=req.approvedQty || Math.min(Number(req.requestedQty||req.qty||1), Number(selectedSource?.qty||req.requestedQty||req.qty||1));
+    const footer=[];
+    if(spHas('review_support_requests') && spStatus(req.status)===SUPPORT_STATUS.review) footer.push(`<button class="btn btn-secondary" onclick="reviewSupportRequest(${req.id})">قبول مبدئي</button>`);
+    if(canAssign) footer.push(`<button class="btn btn-primary" onclick="assignSupportSource(${req.id})">تحديد مصدر الدعم</button>`);
+    if(spHas('approve_support_transfer') && spStatus(req.status)===SUPPORT_STATUS.sourceAssigned) footer.push(`<button class="btn btn-warning" onclick="approveSupportTransfer(${req.id})">اعتماد تحويل الدعم</button>`);
+    if(spHas('execute_support_transfer') && spStatus(req.status)===SUPPORT_STATUS.pendingTransfer) footer.push(`<button class="btn btn-success" onclick="executeSupportTransfer(${req.id})">تنفيذ التحويل</button>`);
+    if(spHas('return_support_request') && !spIsFinal(req) && spStatus(req.status)!==SUPPORT_STATUS.returned) footer.push(`<button class="btn btn-secondary" onclick="returnSupportRequest(${req.id})">إعادة للقطاع</button>`);
+    if(spHas('reject_support_request') && !spIsFinal(req)) footer.push(`<button class="btn btn-danger" onclick="rejectSupportRequest(${req.id})">رفض</button>`);
+    if(spHas('cancel_support_request') && !spIsFinal(req)) footer.push(`<button class="btn btn-secondary" onclick="cancelSupportRequest(${req.id})">إلغاء</button>`);
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">مراجعة طلب الدعم</div><div class="panel-subtitle">${spEscape(req.requestNo)} - ${spEscape(req.itemName)} - ${Number(req.requestedQty||req.qty||0)} ${spEscape(req.unit||'')}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    <div class="modal-body">
+      <div class="alert">القطاع الطالب: <strong>${spEscape(spReqRequester(req))}</strong>، الحالة الحالية: ${spStatusBadge(req.status)}</div>
+      ${spCanSeeSourceAvailability()?`<div class="table-panel"><div class="table-head"><div class="panel-title">مصادر الدعم المتاحة</div><div class="panel-subtitle">${sources.length?`عدد المصادر المناسبة: ${sources.length}`:'لا توجد مصادر مطابقة بالاسم والوحدة حاليًا.'}</div></div>${table(['اختيار','القطاع المانح','القسم الرئيسي','القسم الفرعي','الصنف','English','المتاح','الوحدة','الموقع','الملاءمة'],sourceRows)}</div>`:`<div class="alert">لا تملك صلاحية الاطلاع على أرصدة القطاعات الأخرى.</div>`}
+      <div class="form-grid">
+        <div><label class="label">الكمية المعتمدة</label><input id="support-approved-qty" class="input" type="number" min="1" step="1" value="${Number(defaultQty||1)}" ${canAssign?'':'readonly'}></div>
+        <div><label class="label">الدعم</label><select id="support-fulfillment" class="select" ${canAssign?'':'disabled'}><option value="full" ${Number(defaultQty||0)>=Number(req.requestedQty||req.qty||0)?'selected':''}>كلي</option><option value="partial" ${Number(defaultQty||0)<Number(req.requestedQty||req.qty||0)?'selected':''}>جزئي</option></select></div>
+        <div class="full"><label class="label">ملاحظات التوجيه</label><textarea id="support-source-notes" class="textarea" ${canAssign?'':'readonly'}>${spEscape(req.sourceNotes||'')}</textarea></div>
+        <div class="full"><label class="label">ملاحظات عامة للقطاع الطالب</label><textarea id="support-review-notes" class="textarea">${spEscape(req.reviewNotes||'')}</textarea></div>
+      </div>
+    </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إغلاق</button>${footer.join('')}</div></div></div>`;
+  }
+  function renderSupportRequesterPage(){
+    const rows=spSupportRows().map(req=>[
+      req.requestNo,
+      req.requestType||req.supportType||'دعم تشغيلي',
+      req.itemName,
+      Number(req.requestedQty||req.qty||0),
+      req.unit||'—',
+      spStatusBadge(req.status),
+      formatDateTime(req.createdAt),
+      spPublicNote(req)||'—',
+      supportActions(req)
+    ]);
+    return `<div class="hero"><div class="hero-title">طلب الدعم بين القطاعات</div></div>
+    <div class="toolbar action-toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث في طلباتي..." value="${spEscape(state.search||'')}" oninput="setSearch(this.value,this)"></div><div class="toolbar-left">${spHas('create_support_request')?`<button class="btn btn-primary" onclick="openModal('support')">+ إنشاء طلب دعم</button>`:''}</div></div>
+    <div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم الخاصة بقطاعك</div></div>${table(['رقم الطلب','نوع الطلب','الصنف','الكمية المطلوبة','الوحدة','الحالة','تاريخ الطلب','ملاحظات الإدارة','إجراء'],rows)}</div>`;
+  }
+  function renderSupportAdminPage(){
+    const rows=spSupportRows().map(req=>[
+      req.requestNo,
+      req.requestType||req.supportType||'دعم تشغيلي',
+      req.itemName,
+      spCanSeeTargetSector()?spReqRequester(req):'محجوب',
+      Number(req.requestedQty||req.qty||0),
+      req.approvedQty||'—',
+      req.unit||'—',
+      spCanSeeSourceSector()?spAdminSourceLabel(req):'محجوب',
+      spStatusBadge(req.status),
+      spApprovalPath(req.status),
+      formatDateTime(req.createdAt),
+      supportActions(req)
+    ]);
+    return `<div class="hero"><div class="hero-title">طلب الدعم بين القطاعات</div></div>
+    <div class="need-workflow-summary">
+      <div class="workflow-card"><strong>قيد المراجعة</strong><b>${spSupportRows().filter(req=>spStatus(req.status)===SUPPORT_STATUS.review).length}</b><span>طلبات واردة من القطاعات</span></div>
+      <div class="workflow-card"><strong>بانتظار مصدر</strong><b>${spSupportRows().filter(req=>[SUPPORT_STATUS.preliminary,SUPPORT_STATUS.sourceAssigned].includes(spStatus(req.status))).length}</b><span>تحتاج تحديد أو اعتماد مصدر</span></div>
+      <div class="workflow-card"><strong>بانتظار التنفيذ</strong><b>${spSupportRows().filter(req=>spStatus(req.status)===SUPPORT_STATUS.pendingTransfer).length}</b><span>جاهزة للتحويل</span></div>
+      <div class="workflow-card"><strong>مكتملة</strong><b>${spSupportRows().filter(req=>spStatus(req.status)===SUPPORT_STATUS.completed).length}</b><span>تم خصم وإضافة الرصيد</span></div>
+    </div>
+    ${filtersHtml({forceCollege:true,searchPlaceholder:'بحث برقم الطلب أو الصنف أو القطاع...'})}
+    <div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم الواردة</div></div>${table(['رقم الطلب','نوع الطلب','الصنف','الجهة الطالبة','الكمية المطلوبة','المعتمدة','الوحدة','المصدر المختار','الحالة','مسار الاعتماد','تاريخ الطلب','إجراء'],rows)}</div>`;
+  }
+  function renderExchange(){
+    ensureSupportWorkflow();
+    return spCanReviewAll()?renderSupportAdminPage():renderSupportRequesterPage();
+  }
+  function supportActions(req){
+    const buttons=[];
+    if(spCanViewRequest(req)) buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openSupportDetails(${req.id})">عرض</button>`);
+    if(spCanReviewAll()) buttons.push(`<button class="btn btn-primary btn-sm" onclick="openSupportAdminModal(${req.id})">مراجعة</button>`);
+    if(spCanAssignSourceFor(req)) buttons.push(`<button class="btn btn-success btn-sm" onclick="openSupportAdminModal(${req.id})">اختيار مصدر</button>`);
+    if(spHas('execute_support_transfer') && spStatus(req.status)===SUPPORT_STATUS.pendingTransfer) buttons.push(`<button class="btn btn-warning btn-sm" onclick="executeSupportTransfer(${req.id})">تنفيذ التحويل</button>`);
+    if(spStatus(req.status)===SUPPORT_STATUS.returned && spIsRequester(req) && spHas('create_support_request')) buttons.push(`<button class="btn btn-primary btn-sm" onclick="openModal('supportEdit',${req.id})">رد وإعادة إرسال</button>`);
+    if(spCanCancelOwn(req)) buttons.push(`<button class="btn btn-danger btn-sm" onclick="cancelSupportRequest(${req.id})">إلغاء</button>`);
+    return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—';
+  }
+  function saveSupport(){
+    ensureSupportWorkflow();
+    if(!spHas('create_support_request')) return alert('لا تملك صلاحية إنشاء طلب دعم.');
+    const item=getItemById(Number(state.editId||0));
+    const rawItemName=spText(document.getElementById('sup-item-name')?.value || spItemName(item));
+    const qty=Number(document.getElementById('sup-qty')?.value||0);
+    const rawUnit=spText(document.getElementById('sup-unit')?.value || item?.unit);
+    const rawSection=spText(document.getElementById('sup-section')?.value || item?.section || '');
+    const catalogItem=item || spFindCatalogItem(rawItemName,rawUnit,rawSection);
+    const itemNameValue=spText(catalogItem?spItemName(catalogItem):rawItemName);
+    const unit=rawUnit || catalogItem?.unit || '';
+    const section=rawSection || catalogItem?.section || '';
+    if(!rawItemName) return alert('أدخل اسم الصنف المطلوب.');
+    if(!(qty>0)) return alert('أدخل كمية صحيحة.');
+    if(!unit) return alert('أدخل وحدة الطلب.');
+    const requestNo=spGenerateNo('SR',db.supportRequests,'requestNo');
+    const now=spNow();
+    const req={
+      id:typeof nextId==='function'?nextId(db.supportRequests):Date.now(),
+      requestNo,
+      requestType:document.getElementById('sup-type')?.value||'دعم تشغيلي',
+      supportType:document.getElementById('sup-type')?.value||'دعم تشغيلي',
+      itemId:item?.id||null,
+      requestedItemId:item?.id||null,
+      itemName:itemNameValue,
+      requestedItemName:itemNameValue,
+      itemNameEn:catalogItem?.nameEn||item?.nameEn||'',
+      requestedItemNameEn:catalogItem?.nameEn||item?.nameEn||'',
+      itemCode:catalogItem?.code||item?.code||'',
+      requestedItemCode:catalogItem?.code||item?.code||'',
+      requestedQty:qty,
+      qty,
+      unit,
+      requesterSector:spUser().college,
+      requesterDepartment:spUser().department||'القسم العام',
+      fromCollege:spUser().college,
+      toCollege:EQUIPMENT_SECTOR,
+      mainDepartment:spUser().department&&spUser().department!=='الكل'?spUser().department:(item?.mainDepartment||'القسم العام'),
+      section:section || item?.section || 'القسم العام',
+      justification:spText(document.getElementById('sup-justification')?.value),
+      notes:spText(document.getElementById('sup-notes')?.value),
+      status:SUPPORT_STATUS.review,
+      workflowStage:SUPPORT_STATUS.review,
+      createdAt:now,
+      createdBy:spUser().id||null,
+      reviewedAt:null,
+      reviewedBy:null,
+      reviewNotes:'',
+      sourceSector:null,
+      sourceItemId:null,
+      sourceLocation:null,
+      approvedQty:null,
+      sourceAssignedAt:null,
+      sourceAssignedBy:null,
+      sourceNotes:'',
+      transferApprovedAt:null,
+      transferApprovedBy:null,
+      transferredAt:null,
+      transferredBy:null,
+      completedAt:null,
+      completedBy:null,
+      rejectedAt:null,
+      rejectedBy:null,
+      rejectionReason:'',
+      returnedAt:null,
+      returnedBy:null,
+      returnNotes:'',
+      cancelledAt:null,
+      cancelledBy:null,
+      cancellationReason:'',
+      updatedAt:now,
+      updatedBy:spUser().id||null
+    };
+    db.supportRequests.unshift(req);
+    spAudit(`تم إنشاء طلب دعم رقم ${req.requestNo}`,req.requestNo,`تم إنشاء طلب دعم من قطاع ${req.requesterSector} للصنف ${req.itemName}`,req.requesterSector,req.mainDepartment||req.section);
+    saveDb();
+    closeModal();
+    alert(`تم إنشاء طلب الدعم رقم ${req.requestNo}.`);
+  }
+  function openSupportFromItem(id){ state.modal='support'; state.editId=id; render(); }
+  function openSupportDetails(id){ state.modal='supportDetails'; state.editId=id; render(); }
+  function openSupportAdminModal(id){
+    if(!spCanReviewAll()) return alert('لا تملك صلاحية الاطلاع على تفاصيل تحويلات الدعم.');
+    state.modal='supportAdmin';
+    state.editId=id;
+    render();
+  }
+  function reviewSupportRequest(id){
+    if(!spHas('review_support_requests')) return alert('لا تملك صلاحية مراجعة طلبات الدعم.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spIsFinal(req)) return alert('لا يمكن مراجعة طلب مغلق.');
+    req.status=SUPPORT_STATUS.preliminary;
+    req.workflowStage=SUPPORT_STATUS.preliminary;
+    req.reviewedAt=spNow();
+    req.reviewedBy=spUser().id||null;
+    req.reviewNotes=spText(document.getElementById('support-review-notes')?.value||req.reviewNotes||'');
+    req.updatedAt=spNow();
+    req.updatedBy=spUser().id||null;
+    spAudit(`تمت مراجعة طلب الدعم رقم ${req.requestNo}`,req.requestNo,req.reviewNotes||'قبول مبدئي بانتظار تحديد مصدر الدعم',EQUIPMENT_SECTOR,'الكل');
+    saveDb();
+    render();
+  }
+  function assignSupportSource(id){
+    if(!spHas('assign_support_source')) return alert('لا تملك صلاحية تحديد مصدر الدعم.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spIsFinal(req)) return alert('لا يمكن تعديل مصدر طلب مكتمل أو مغلق.');
+    const source=spSelectedSourceItem();
+    if(!source) return alert('لا يمكن تنفيذ التحويل قبل تحديد مصدر الدعم.');
+    if(spText(source.college)===spReqRequester(req)) return alert('لا يمكن اختيار القطاع الطالب كمصدر دعم.');
+    const approvedQty=Number(document.getElementById('support-approved-qty')?.value||0);
+    if(!(approvedQty>0)) return alert('أدخل كمية معتمدة صحيحة.');
+    if(approvedQty>Number(source.qty||0)) return alert('الكمية المعتمدة أكبر من الرصيد المتاح لدى القطاع المانح.');
+    const now=spNow();
+    req.sourceSector=source.college;
+    req.sourceCollege=source.college;
+    req.sourceItemId=source.id;
+    req.sourceLocation=source.location||'';
+    req.sourceMainDepartment=source.mainDepartment||'القسم العام';
+    req.sourceSection=source.section||req.section;
+    req.approvedQty=approvedQty;
+    req.sourceNotes=spText(document.getElementById('support-source-notes')?.value);
+    req.reviewNotes=spText(document.getElementById('support-review-notes')?.value||req.reviewNotes||'');
+    req.fulfillment=document.getElementById('support-fulfillment')?.value||'full';
+    req.status=SUPPORT_STATUS.sourceAssigned;
+    req.workflowStage=SUPPORT_STATUS.sourceAssigned;
+    req.reviewedAt=req.reviewedAt||now;
+    req.reviewedBy=req.reviewedBy||spUser().id||null;
+    req.sourceAssignedAt=now;
+    req.sourceAssignedBy=spUser().id||null;
+    req.updatedAt=now;
+    req.updatedBy=spUser().id||null;
+    spAudit(`تم تحديد مصدر دعم لطلب رقم ${req.requestNo}`,req.requestNo,`تم تحديد مصدر دعم من قطاع ${req.sourceSector} بكمية ${approvedQty}`,EQUIPMENT_SECTOR,'الكل');
+    saveDb();
+    render();
+  }
+  function approveSupportTransfer(id){
+    if(!spHas('approve_support_transfer')) return alert('لا تملك صلاحية اعتماد تحويل الدعم.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spStatus(req.status)!==SUPPORT_STATUS.sourceAssigned) return alert('لا يمكن اعتماد التحويل قبل تحديد مصدر الدعم.');
+    req.status=SUPPORT_STATUS.pendingTransfer;
+    req.workflowStage=SUPPORT_STATUS.pendingTransfer;
+    req.transferApprovedAt=spNow();
+    req.transferApprovedBy=spUser().id||null;
+    req.updatedAt=spNow();
+    req.updatedBy=spUser().id||null;
+    spAudit(`تم اعتماد تحويل الدعم رقم ${req.requestNo}`,req.requestNo,'اعتماد تنفيذ التحويل بانتظار الخصم والإضافة',EQUIPMENT_SECTOR,'الكل');
+    saveDb();
+    render();
+  }
+  function spCanAssignSourceFor(req){
+    return spHas('assign_support_source') &&
+      !spIsFinal(req) &&
+      spStatus(req.status)!==SUPPORT_STATUS.returned;
+  }
+  function spFindTargetItem(req,source){
+    const wantedAliases=spRequestAliases(req,source);
+    const unit=spUnit(req.unit||source.unit);
+    const section=spText(req.section||source.section);
+    return (db.items||[]).find(item=>
+      spText(item.college)===spReqRequester(req) &&
+      spUnit(item.unit)===unit &&
+      (!section || spText(item.section)===section) &&
+      spAliasesMatch(wantedAliases,spItemAliases(item))
+    );
+  }
+  function spCreateTargetItem(req,source){
+    const nameAr=source.nameAr||source.name||req.itemName||spItemName(source);
+    const nameEn=source.nameEn||req.itemNameEn||req.requestedItemNameEn||'';
+    const item={
+      id:typeof nextId==='function'?nextId(db.items):Date.now(),
+      college:spReqRequester(req),
+      mainDepartment:spReqDepartment(req)||source.mainDepartment||'القسم العام',
+      section:req.section||source.section||'القسم العام',
+      nameAr,
+      name:nameAr,
+      nameEn,
+      code:typeof generateItemCode==='function'?generateItemCode(spReqRequester(req),req.section||source.section,null):`${source.code||'SUP'}-${req.requestNo}`,
+      unit:req.unit||source.unit,
+      qty:0,
+      minQty:source.minQty||0,
+      location:'',
+      notes:`دعم معتمد من إدارة التجهيزات - ${req.requestNo}`,
+      serialNumber:'',
+      deviceStatus:source.deviceStatus||'',
+      createdAt:spNow(),
+      createdBy:spUser().id||null
+    };
+    db.items.push(item);
+    return item;
+  }
+  function executeSupportTransfer(id){
+    if(!spHas('execute_support_transfer')) return alert('لا تملك صلاحية تنفيذ تحويل الدعم.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spStatus(req.status)===SUPPORT_STATUS.completed) return alert('لا يمكن تنفيذ طلب دعم مكتمل مسبقًا.');
+    if(spStatus(req.status)!==SUPPORT_STATUS.pendingTransfer) return alert('لا يمكن تنفيذ التحويل قبل اعتماده.');
+    const source=getItemById(Number(req.sourceItemId||0));
+    if(!source || !req.sourceSector) return alert('لا يمكن تنفيذ التحويل قبل تحديد مصدر الدعم.');
+    const qty=Number(req.approvedQty||0);
+    if(!(qty>0)) return alert('أدخل كمية معتمدة صحيحة.');
+    if(qty>Number(source.qty||0)) return alert('الكمية المعتمدة أكبر من الرصيد المتاح لدى القطاع المانح.');
+    source.qty=Number(source.qty||0)-qty;
+    let target=spFindTargetItem(req,source);
+    if(!target) target=spCreateTargetItem(req,source);
+    target.qty=Number(target.qty||0)+qty;
+    const now=spNow();
+    const fullDetails=`تحويل دعم من ${source.college} إلى ${spReqRequester(req)} بكمية ${qty} ${req.unit||source.unit||''}`;
+    db.transactions.unshift({
+      id:typeof nextId==='function'?nextId(db.transactions):Date.now()+1,
+      type:'support_transfer_out',
+      status:'completed',
+      itemId:source.id,
+      itemName:spItemName(source),
+      college:source.college,
+      mainDepartment:source.mainDepartment||'القسم العام',
+      section:source.section,
+      qty,
+      unit:source.unit||req.unit,
+      transactionAt:now,
+      notes:'خصم رصيد بموجب توجيه إدارة التجهيزات',
+      publicNotes:'خصم رصيد بموجب توجيه إدارة التجهيزات',
+      adminDetails:fullDetails,
+      sourceSector:source.college,
+      requesterSector:spReqRequester(req),
+      relatedRequestId:req.id,
+      relatedRequestNo:req.requestNo,
+      createdAt:now,
+      createdBy:spUser().id||null,
+      reviewedAt:now,
+      reviewedBy:spUser().id||null,
+      approvedBy:spUser().id||null
+    });
+    db.transactions.unshift({
+      id:typeof nextId==='function'?nextId(db.transactions):Date.now()+2,
+      type:'support_transfer_in',
+      status:'completed',
+      itemId:target.id,
+      itemName:spItemName(target),
+      college:target.college,
+      mainDepartment:target.mainDepartment||'القسم العام',
+      section:target.section,
+      qty,
+      unit:target.unit||req.unit,
+      transactionAt:now,
+      notes:'إضافة رصيد بموجب دعم معتمد من إدارة التجهيزات',
+      publicNotes:'إضافة رصيد بموجب دعم معتمد من إدارة التجهيزات',
+      adminDetails:fullDetails,
+      sourceSector:source.college,
+      requesterSector:spReqRequester(req),
+      relatedRequestId:req.id,
+      relatedRequestNo:req.requestNo,
+      createdAt:now,
+      createdBy:spUser().id||null,
+      reviewedAt:now,
+      reviewedBy:spUser().id||null,
+      approvedBy:spUser().id||null
+    });
+    req.status=SUPPORT_STATUS.completed;
+    req.workflowStage=SUPPORT_STATUS.completed;
+    req.transferredAt=now;
+    req.transferredBy=spUser().id||null;
+    req.completedAt=now;
+    req.completedBy=spUser().id||null;
+    req.updatedAt=now;
+    req.updatedBy=spUser().id||null;
+    spAudit(`تم تنفيذ تحويل دعم رقم ${req.requestNo}`,req.requestNo,`تم تنفيذ تحويل دعم رقم ${req.requestNo}: خصم ${qty} من ${source.college} وإضافتها إلى ${spReqRequester(req)}`,EQUIPMENT_SECTOR,'الكل');
+    saveDb();
+    closeModal();
+    alert('تم تنفيذ تحويل الدعم وتحديث الأرصدة.');
+  }
+  function rejectSupportRequest(id){
+    if(!spHas('reject_support_request')) return alert('لا تملك صلاحية رفض طلب الدعم.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spStatus(req.status)===SUPPORT_STATUS.completed) return alert('لا يمكن رفض طلب مكتمل.');
+    const reason=prompt('سبب الرفض','');
+    if(reason===null) return;
+    req.status=SUPPORT_STATUS.rejected;
+    req.workflowStage=SUPPORT_STATUS.rejected;
+    req.rejectedAt=spNow();
+    req.rejectedBy=spUser().id||null;
+    req.rejectionReason=spText(reason);
+    req.reviewNotes=req.rejectionReason;
+    req.updatedAt=spNow();
+    req.updatedBy=spUser().id||null;
+    spAudit(`تم رفض طلب دعم رقم ${req.requestNo}`,req.requestNo,req.rejectionReason||'رفض طلب الدعم',EQUIPMENT_SECTOR,'الكل');
+    saveDb();
+    render();
+  }
+  function returnSupportRequest(id){
+    if(!spHas('return_support_request')) return alert('لا تملك صلاحية إعادة طلب الدعم للقطاع.');
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spIsFinal(req)) return alert('لا يمكن إعادة طلب مغلق.');
+    const note=prompt('ملاحظة الإعادة للقطاع','');
+    if(note===null) return;
+    req.status=SUPPORT_STATUS.returned;
+    req.workflowStage=SUPPORT_STATUS.returned;
+    req.returnedAt=spNow();
+    req.returnedBy=spUser().id||null;
+    req.returnNotes=spText(note);
+    req.reviewNotes=req.returnNotes;
+    req.updatedAt=spNow();
+    req.updatedBy=spUser().id||null;
+    spAudit(`تمت إعادة طلب الدعم رقم ${req.requestNo} للقطاع`,req.requestNo,req.returnNotes||'إعادة بملاحظات',EQUIPMENT_SECTOR,'الكل');
+    saveDb();
+    render();
+  }
+  function resubmitSupportRequest(id){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(!spIsRequester(req)) return alert('لا تملك صلاحية تنفيذ هذا الإجراء على هذا القطاع.');
+    if(spStatus(req.status)!==SUPPORT_STATUS.returned) return alert('إعادة الإرسال متاحة فقط للطلبات المعادة بملاحظات.');
+    const noteElement=document.getElementById('support-resubmit-notes');
+    let reply='';
+    if(noteElement) reply=spText(noteElement.value);
+    else{
+      const prompted=prompt('رد القطاع / الملاحظات بعد التعديل',req.notes||'');
+      if(prompted===null) return;
+      reply=spText(prompted);
+    }
+    const now=spNow();
+    req.notes=reply;
+    req.requesterReplyNotes=reply;
+    req.status=SUPPORT_STATUS.review;
+    req.workflowStage=SUPPORT_STATUS.review;
+    req.reviewedAt=null;
+    req.reviewedBy=null;
+    req.reviewNotes='';
+    req.sourceSector=null;
+    req.sourceCollege=null;
+    req.sourceItemId=null;
+    req.sourceLocation=null;
+    req.approvedQty=null;
+    req.sourceAssignedAt=null;
+    req.sourceAssignedBy=null;
+    req.sourceNotes='';
+    req.transferApprovedAt=null;
+    req.transferApprovedBy=null;
+    req.resubmittedAt=now;
+    req.resubmittedBy=spUser().id||null;
+    req.updatedAt=now;
+    req.updatedBy=spUser().id||null;
+    spAudit(`تمت إعادة إرسال طلب الدعم رقم ${req.requestNo}`,req.requestNo,reply||'إعادة إرسال الطلب بعد معالجة ملاحظات الإدارة',spReqRequester(req),req.mainDepartment||req.section);
+    saveDb();
+    closeModal();
+    alert('تمت إعادة إرسال طلب الدعم إلى إدارة التجهيزات.');
+  }
+  function saveSupportEdit(){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    if(spStatus(req.status)===SUPPORT_STATUS.returned) return resubmitSupportRequest(req.id);
+    return alert('تعديل طلب الدعم متاح فقط عندما تعيده إدارة التجهيزات بملاحظات. للطلبات الجديدة أنشئ طلب دعم جديد.');
+  }
+  function cancelSupportRequest(id){
+    const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+    if(!req) return alert('طلب الدعم غير موجود.');
+    const adminCancel=spHas('cancel_support_request') && spCanReviewAll();
+    if(!adminCancel && !spCanCancelOwn(req)) return alert('لا تملك صلاحية إلغاء طلب الدعم في هذه المرحلة.');
+    if(spStatus(req.status)===SUPPORT_STATUS.completed) return alert('لا يمكن إلغاء طلب دعم مكتمل.');
+    const reason=prompt('سبب الإلغاء','');
+    if(reason===null) return;
+    req.status=SUPPORT_STATUS.cancelled;
+    req.workflowStage=SUPPORT_STATUS.cancelled;
+    req.cancelledAt=spNow();
+    req.cancelledBy=spUser().id||null;
+    req.cancellationReason=spText(reason);
+    req.reviewNotes=req.cancellationReason;
+    req.updatedAt=spNow();
+    req.updatedBy=spUser().id||null;
+    spAudit(`تم إلغاء طلب دعم رقم ${req.requestNo}`,req.requestNo,req.cancellationReason||'إلغاء طلب الدعم',adminCancel?EQUIPMENT_SECTOR:spReqRequester(req),req.mainDepartment||req.section);
+    saveDb();
+    render();
+  }
+  function ownerApproveSupport(id){ return reviewSupportRequest(id); }
+  function approveSupport(id){ openSupportAdminModal(id); }
+  function approveSupportFromSource(id){ return assignSupportSource(id); }
+  function rejectSupport(id){ return spCanReviewAll()?rejectSupportRequest(id):cancelSupportRequest(id); }
+  function spTxTypeLabel(tx){
+    if(tx.type==='support_transfer_out') return '<span class="badge badge-warning">خصم دعم</span>';
+    if(tx.type==='support_transfer_in') return '<span class="badge badge-ok">إضافة دعم</span>';
+    if(tx.type==='receive') return '<span class="badge badge-ok">إدخال</span>';
+    return '<span class="badge badge-low">طلب صرف</span>';
+  }
+  function spTransactionNote(tx){
+    if(spCanSeeTransferDetails()) return tx.adminDetails||tx.notes||tx.publicNotes||'—';
+    if(tx.type==='support_transfer_out') return 'خصم رصيد بموجب توجيه إدارة التجهيزات';
+    if(tx.type==='support_transfer_in') return 'إضافة رصيد بموجب دعم معتمد من إدارة التجهيزات';
+    return tx.notes||'—';
+  }
+  function spTransactionStatus(tx){
+    return tx.type==='issue'?statusBadge(tx.status):'<span class="badge badge-ok">مكتمل</span>';
+  }
+  function renderTransactions(){
+    const rows=visibleTransactions().map(tx=>{
+      const item=getItemById(tx.itemId);
+      return [
+        spTxTypeLabel(tx),
+        tx.college,
+        tx.mainDepartment||'القسم العام',
+        tx.section,
+        tx.itemName||spItemName(item),
+        tx.qty,
+        tx.unit,
+        spTransactionStatus(tx),
+        spEscape(spTransactionNote(tx)),
+        formatDateTime(tx.transactionAt||tx.createdAt),
+        spActor(tx.createdBy),
+        transactionActions(tx)
+      ];
+    });
+    return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${spEscape(state.search||'')}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div></div>${table(['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','ملاحظة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`;
+  }
+  function spSupportReportData(){
+    const admin=spCanSeeTransferDetails() && spHas('view_support_admin_report');
+    if(admin){
+      return {
+        title:'تقرير الدعم الإداري الكامل',
+        headers:['رقم الطلب','نوع الطلب','القطاع الطالب','القطاع المانح','الصنف','الكمية المطلوبة','الكمية المعتمدة','الوحدة','تاريخ الطلب','من راجع','من اختار المصدر','من نفذ التحويل','تاريخ التنفيذ','الحالة','ملاحظات التوجيه'],
+        rows:spSupportRows().map(req=>[
+          req.requestNo,
+          req.requestType||req.supportType,
+          spReqRequester(req),
+          spReqSource(req)||'—',
+          req.itemName,
+          Number(req.requestedQty||req.qty||0),
+          req.approvedQty||'—',
+          req.unit||'—',
+          formatDateTime(req.createdAt),
+          spActor(req.reviewedBy),
+          spActor(req.sourceAssignedBy),
+          spActor(req.transferredBy),
+          req.transferredAt?formatDateTime(req.transferredAt):'—',
+          spStatus(req.status),
+          req.sourceNotes||req.reviewNotes||'—'
+        ])
+      };
+    }
+    return {
+      title:'تقرير طلبات الدعم الخاصة بالقطاع',
+      headers:['رقم الطلب','الصنف','الكمية المطلوبة','الكمية المعتمدة','الوحدة','الحالة','تاريخ الطلب','تاريخ الاكتمال','ملاحظات إدارة التجهيزات'],
+      rows:spSupportRows().map(req=>[
+        req.requestNo,
+        req.itemName,
+        Number(req.requestedQty||req.qty||0),
+        req.approvedQty||'—',
+        req.unit||'—',
+        spStatus(req.status),
+        formatDateTime(req.createdAt),
+        req.completedAt?formatDateTime(req.completedAt):'—',
+        spPublicNote(req)||'—'
+      ])
+    };
+  }
+  function spTransactionsReportData(){
+    return {
+      title:'تقرير الصرف والحركات',
+      headers:['النوع','القطاع','القسم الرئيسي','القسم الفرعي','الصنف','الكمية','الوحدة','الحالة','ملاحظة','تاريخ الحركة','صاحب الإجراء','اعتمد بواسطة'],
+      rows:visibleTransactions().map(tx=>[
+        cleanExcelCell(spTxTypeLabel(tx))||spText(tx.type),
+        tx.college,
+        tx.mainDepartment||'القسم العام',
+        tx.section,
+        tx.itemName||spItemName(getItemById(tx.itemId)),
+        tx.qty,
+        tx.unit,
+        spText(tx.status||'completed'),
+        spTransactionNote(tx),
+        formatDateTime(tx.transactionAt||tx.createdAt),
+        spActor(tx.createdBy),
+        spActor(tx.reviewedBy||tx.approvedBy)
+      ])
+    };
+  }
+  function spSanitizeAuditLog(row){
+    const copy={...row};
+    const isSupport=spText(copy.targetType)==='support' || /دعم/.test(`${copy.action||''} ${copy.details||''}`);
+    if(!isSupport || spCanSeeTransferDetails()) return copy;
+    const own=spSameSector(copy.college) || String(copy.createdBy||'')===String(spUser().id||'');
+    if(!own) return null;
+    if(/مصدر|تحويل|خصم|إضافة|مانح|مستفيد/.test(`${copy.action||''} ${copy.details||''}`)){
+      copy.action='عملية دعم بين القطاعات';
+      copy.details=spIsSource({sourceSector:copy.college})?'خصم رصيد بموجب توجيه إدارة التجهيزات':'تمت معالجة طلب دعم عبر إدارة التجهيزات';
+    }
+    return copy;
+  }
+  function spPermissionGroupHtml(title,permissions,user,warning=''){
+    if(!permissions.length) return '';
+    return `<div class="full"><label class="label">${spEscape(title)}</label>${warning?`<div class="alert">${spEscape(warning)}</div>`:''}<div class="permissions-grid">${permissions.map(permission=>`<label class="checkbox"><input class="perm-box" type="checkbox" value="${permission.key}" ${(user.permissions||[]).includes(permission.key)||user.role==='admin'?'checked':''}>${spEscape(permission.label)}</label>`).join('')}</div></div>`;
+  }
+  function userModalHtml(){
+    if(!previousSupportPrivacyUserModalHtml || typeof PERMISSIONS==='undefined') return previousSupportPrivacyUserModalHtml?previousSupportPrivacyUserModalHtml():'';
+    const user=state.editId?getUserById(state.editId):{fullName:'',username:'',password:'123',role:'user',jobTitle:'',college:'كلية الصيدلة',department:'القسم العام',phone:'',email:'',nationalId:'',isActive:true,permissions:[]};
+    const supportKeys=new Set(SUPPORT_PERMISSION_LABELS.map(([key])=>key));
+    const supportPerms=PERMISSIONS.filter(permission=>supportKeys.has(permission.key));
+    const reportPerms=PERMISSIONS.filter(permission=>permission.key.startsWith('report_'));
+    const operationalPerms=PERMISSIONS.filter(permission=>!supportKeys.has(permission.key) && !permission.key.startsWith('report_'));
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div class="panel-title">${state.editId?'تعديل مستخدم':'إضافة مستخدم'}</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid-3">
+      <div><label class="label">الاسم</label><input id="user-fullName" class="input" value="${spEscape(user.fullName||'')}"></div>
+      <div><label class="label">اسم المستخدم</label><input id="user-username" class="input" value="${spEscape(user.username||'')}"></div>
+      <div><label class="label">كلمة المرور</label><input id="user-password" class="input" value="${spEscape(user.password||'')}"></div>
+      <div><label class="label">النوع</label><select id="user-role" class="select"><option value="admin" ${user.role==='admin'?'selected':''}>Admin</option><option value="user" ${user.role==='user'?'selected':''}>User</option></select></div>
+      <div><label class="label">المسمى</label><input id="user-jobTitle" class="input" value="${spEscape(user.jobTitle||'')}"></div>
+      <div><label class="label">القطاع/الإدارة</label><select id="user-college" class="select"><option value="إدارة التجهيزات" ${user.college==='إدارة التجهيزات'?'selected':''}>إدارة التجهيزات</option>${collegeOptions(user.college,false)}</select></div>
+      <div><label class="label">القسم الرئيسي</label><select id="user-department" class="select">${userDepartmentOptions(user.department||'القسم العام')}</select></div>
+      <div><label class="label">الهاتف</label><input id="user-phone" class="input" value="${spEscape(user.phone||'')}"></div>
+      <div><label class="label">البريد</label><input id="user-email" class="input" value="${spEscape(user.email||'')}"></div>
+      <div><label class="label">الهوية</label><input id="user-nationalId" class="input" value="${spEscape(user.nationalId||'')}"></div>
+      <div><label class="checkbox"><input id="user-active" type="checkbox" ${user.isActive?'checked':''}> نشط</label></div>
+      ${spPermissionGroupHtml('الصلاحيات التشغيلية',operationalPerms,user)}
+      ${spPermissionGroupHtml('طلب الدعم بين القطاعات',supportPerms,user,'الصلاحيات الحساسة تكشف تفاصيل القطاعات المانحة والمستفيدة، ولا تمنح للقطاعات العادية.')}
+      ${spPermissionGroupHtml('أنواع التقارير المسموح بها',reportPerms,user)}
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveUser()">حفظ</button></div></div></div>`;
+  }
+
+  filteredSupport=spSupportRows;
+  statusText=function(status){
+    if(spIsSupportDisplayStatus(status)) return spStatus(status);
+    return previousSupportPrivacyStatusText?previousSupportPrivacyStatusText(status):(status||'تحت الإجراء');
+  };
+  statusBadge=function(status){
+    if(spIsSupportDisplayStatus(status)) return spStatusBadge(status);
+    return previousSupportPrivacyStatusBadge?previousSupportPrivacyStatusBadge(status):`<span class="badge badge-info">${spEscape(status||'تحت الإجراء')}</span>`;
+  };
+  approvalPath=function(type,status){
+    if(type==='support') return spApprovalPath(status);
+    return previousSupportPrivacyApprovalPath?previousSupportPrivacyApprovalPath(type,status):statusBadge(status);
+  };
+  visibleTransactions=function(){
+    let rows=db.transactions||[];
+    if(!spIsEquipmentUser() && typeof isCentral==='function' && !isCentral()){
+      rows=rows.filter(tx=>spSameSector(tx.college));
+      if(typeof hasDepartmentScope==='function' && hasDepartmentScope()){
+        rows=rows.filter(tx=>[tx.section,tx.mainDepartment].map(spText).includes(spText(spUser().department)));
+      }
+    }
+    if((typeof isCentral==='function' && isCentral()) || spIsEquipmentUser()){
+      if(state.collegeFilter && state.collegeFilter!=='all') rows=rows.filter(tx=>spText(tx.college)===spText(state.collegeFilter));
+    }
+    if(state.sectionFilter && state.sectionFilter!=='all'){
+      rows=rows.filter(tx=>[tx.section,tx.mainDepartment].map(spText).includes(spText(state.sectionFilter)));
+    }
+    if(typeof rowObjectWithinDateRange==='function'){
+      rows=rows.filter(tx=>rowObjectWithinDateRange(tx,['transactionAt','createdAt','approvedAt','reviewedAt']));
+    }
+    const query=spText(state.search).toLowerCase();
+    if(query){
+      rows=rows.filter(tx=>[
+        tx.itemName||spItemName(getItemById(tx.itemId)),
+        tx.college,
+        tx.mainDepartment,
+        tx.section,
+        tx.type,
+        spTransactionNote(tx),
+        tx.status,
+        spActor(tx.createdBy),
+        spActor(tx.reviewedBy||tx.approvedBy)
+      ].join(' ').toLowerCase().includes(query));
+    }
+    return rows
+      .map(row=>({...row,notes:spTransactionNote(row)}))
+      .sort((a,b)=>spText(b.transactionAt||b.createdAt).localeCompare(spText(a.transactionAt||a.createdAt)));
+  };
+  visibleAuditLogs=function(){
+    const rows=previousSupportPrivacyVisibleAuditLogs?previousSupportPrivacyVisibleAuditLogs():(db.auditLogs||[]);
+    return rows.map(spSanitizeAuditLog).filter(Boolean);
+  };
+  availableReportTabs=function(){
+    let tabs=previousSupportPrivacyAvailableReportTabs?previousSupportPrivacyAvailableReportTabs():[];
+    if(spHas('view_support_reports') && !tabs.some(tab=>tab[0]==='support')){
+      tabs=[...tabs,['support','الدعم بين القطاعات','view_support_reports']];
+    }
+    return tabs;
+  };
+  reportData=function(){
+    if(state.reportTab==='support') return spSupportReportData();
+    if(state.reportTab==='transactions') return spTransactionsReportData();
+    return previousSupportPrivacyReportData?previousSupportPrivacyReportData():{title:'تقرير',headers:[],rows:[]};
+  };
+  modalHtml=function(){
+    if(state.modal==='support') return supportRequestModalHtml();
+    if(state.modal==='supportDetails') return supportDetailsModalHtml();
+    if(state.modal==='supportAdmin' || state.modal==='supportRoute') return supportAdminModalHtml();
+    if(state.modal==='supportEdit') return supportResubmitModalHtml();
+    return previousSupportPrivacyModalHtml?previousSupportPrivacyModalHtml():'';
+  };
+  if(previousSupportPrivacyApplyRemoteDb){
+    applyRemoteDb=async function(...args){
+      const result=await previousSupportPrivacyApplyRemoteDb(...args);
+      ensureSupportWorkflow();
+      return result;
+    };
+  }
+  Object.assign(window,{
+    ensureSupportWorkflow,
+    renderExchange,
+    supportActions,
+    saveSupport,
+    openSupportFromItem,
+    openSupportDetails,
+    openSupportAdminModal,
+    reviewSupportRequest,
+    assignSupportSource,
+    approveSupportTransfer,
+    executeSupportTransfer,
+    resubmitSupportRequest,
+    rejectSupportRequest,
+    returnSupportRequest,
+    cancelSupportRequest,
+    saveSupportEdit,
+    ownerApproveSupport,
+    approveSupport,
+    approveSupportFromSource,
+    rejectSupport,
+    renderTransactions,
+    userModalHtml
+  });
+  ensureSupportWorkflow();
+})();
+/* ===== end Privacy-first Sector Support Workflow v7.4 ===== */
+
+/* ===== Reuse-aware Educational Need Engine v7.5 ===== */
+;(function(){
+  const previousReuseAwareModalHtml=typeof modalHtml==='function'?modalHtml:null;
+  const previousReuseAwareLearningSources=typeof learningCalculatedSources==='function'?learningCalculatedSources:null;
+
+  function rNeedEngine(){
+    return (typeof eduNeedEngine==='function' ? eduNeedEngine() : window.NeedEngine);
+  }
+  function rNeedText(value){ return String(value??'').trim(); }
+  function rNeedNum(value){ const n=Number(value||0); return Number.isFinite(n)?Math.max(n,0):0; }
+  function rNeedEscape(value){ return typeof eduNeedEscape==='function' ? eduNeedEscape(value) : rNeedText(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function rNeedRound(value){ return typeof eduNeedRoundQty==='function' ? eduNeedRoundQty(value) : Math.ceil(Number(value)||0); }
+  function rNeedPreview(value){ return typeof eduNeedRoundPreview==='function' ? eduNeedRoundPreview(value) : Math.ceil((Number(value)||0)*100)/100; }
+  function rNeedCategory(key){ return typeof eduReferenceCategory==='function' ? eduReferenceCategory(key||'chemical') : {key:key||'chemical',label:key||'chemical',section:'القسم العام',usageUnit:'عدد',requestUnit:'عدد',basis:'per_student'}; }
+  function rNeedUnitOptions(selected){ return typeof eduNeedUnitOptions==='function' ? eduNeedUnitOptions(selected) : `<option selected>${rNeedEscape(selected||'عدد')}</option>`; }
+  function rNeedBasisOptions(selected){ return typeof eduNeedBasisOptions==='function' ? eduNeedBasisOptions(selected) : `<option value="${rNeedEscape(selected||'per_student')}">${rNeedEscape(selected||'per_student')}</option>`; }
+  function rNeedDefaultUnit(unit){ return typeof eduNeedDefaultRequestUnit==='function' ? eduNeedDefaultRequestUnit(unit) : (unit||'عدد'); }
+  function rNeedCanonicalUnit(unit){ return typeof eduNeedCanonicalUnit==='function' ? eduNeedCanonicalUnit(unit) : rNeedText(unit); }
+  function rNeedReadNumber(root,selector){ return typeof eduNeedReadNumber==='function' ? eduNeedReadNumber(root,selector) : rNeedNum(root?.querySelector(selector)?.value); }
+  function rNeedLearningNo(row){ return typeof learningReferenceNumber==='function' ? learningReferenceNumber(row) : (row?.referenceNo||row?.requestNo||'—'); }
+  function rNeedList(values){ return typeof learningTextList==='function' ? learningTextList(values) : [...new Set((values||[]).filter(Boolean))].join('، '); }
+  function rNeedReady(row){ return typeof isLearningReferenceReady==='function' ? isLearningReferenceReady(row) : (row?.referenceStatus||'ready')==='ready'; }
+  function rNeedSource(){ return 'educational_reference_v7_5'; }
+  function rNeedCalcSources(){
+    return ['educational_reference_v7_5','educational_reference_v6_2','educational_evidence_v5_9','educational_evidence_v5_9_1','educational_evidence_v5_9_2'];
+  }
+
+  learningCalculatedSources=function(){
+    return [...new Set([...(previousReuseAwareLearningSources?previousReuseAwareLearningSources():[]),...rNeedCalcSources()])];
+  };
+
+  if(typeof EDU_REFERENCE_CATEGORIES==='object'){
+    EDU_REFERENCE_CATEGORIES.chemical.description='مواد كيميائية مباشرة أو محضرة كمحاليل من مادة مركزة؛ يحسب النظام كمية المادة الأصلية لا حجم المحلول النهائي عند اختيار التحضير.';
+    EDU_REFERENCE_CATEGORIES.consumable.description='مستهلكات أو أدوات معملية؛ إذا كانت قابلة لإعادة الاستخدام يحسب النظام أعلى تعارض زمني بدل جمع كل مرات الاستخدام.';
+    EDU_REFERENCE_CATEGORIES.device.description='أجهزة مشتركة بين المقررات؛ تحسب حسب ذروة الاستخدام والتعارض الزمني لا حسب مجموع المقررات.';
+  }
+
+  function rNeedReusePolicyOptions(category,selected){
+    const defaults={chemical:'single_use',consumable:'single_use',device:'reusable_peak'};
+    const value=selected||defaults[category]||'single_use';
+    const options=[
+      ['single_use','استهلاك كامل / مرة واحدة'],
+      ['reusable_peak','قابل لإعادة الاستخدام - يحسب حسب التعارض'],
+      ['shared','مشترك تشغيليًا - يحسب حسب الذروة']
+    ];
+    return options.map(([id,label])=>`<option value="${id}" ${value===id?'selected':''}>${label}</option>`).join('');
+  }
+
+  function rNeedChemicalModeOptions(selected){
+    const value=selected||'concentrated_direct';
+    return [
+      ['concentrated_direct','مادة مركزة/جاهزة - أدخل نصيب الطالب أو المجموعة'],
+      ['solution_preparation','تحضير بنسبة تشغيلية من العبوة'],
+      ['prepared_solution','محلول جاهز - أدخل النصيب مباشرة']
+    ].map(([id,label])=>`<option value="${id}" ${value===id?'selected':''}>${label}</option>`).join('');
+  }
+
+  function rNeedPreparationModeOptions(selected){
+    const value=selected||'gender';
+    const options=[
+      ['one','تحضيرة واحدة للجميع'],
+      ['gender','تحضيرة للطلاب وتحضيرة للطالبات'],
+      ['section','تحضيرة لكل شعبة'],
+      ['manual','عدد يدوي']
+    ];
+    return options.map(([id,label])=>`<option value="${id}" ${value===id?'selected':''}>${label}</option>`).join('');
+  }
+
+  function rNeedPreparationCount(common,mode,manualCount){
+    const maleSections=Number(common.maleSections||0);
+    const femaleSections=Number(common.femaleSections||0);
+    const sections=maleSections+femaleSections;
+    if(mode==='manual') return Math.max(1,Number(manualCount||0)||1);
+    if(mode==='section') return Math.max(1,sections||1);
+    if(mode==='gender'){
+      const genders=(maleSections>0?1:0)+(femaleSections>0?1:0);
+      return Math.max(1,genders||1);
+    }
+    return 1;
+  }
+
+  function rNeedPreparationModeLabel(mode){
+    return ({
+      one:'تحضيرة واحدة للجميع',
+      gender:'تحضيرة للطلاب وتحضيرة للطالبات',
+      section:'تحضيرة لكل شعبة',
+      manual:'عدد يدوي'
+    })[mode]||'تحضيرة للطلاب وتحضيرة للطالبات';
+  }
+
+  function rNeedDefaultPreparationVolume(unit){
+    const u=rNeedCanonicalUnit(unit);
+    if(u==='لتر' || u==='كيلو') return 1;
+    if(u==='مليتر' || u==='ملليلتر' || u==='جرام') return 1000;
+    return 1;
+  }
+
+  function rNeedQtyLabel(meta,mode){
+    if(meta.key==='chemical' && mode==='solution_preparation') return 'حجم التحضيرة الواحدة';
+    if(meta.key==='chemical') return 'نصيب الطالب/المجموعة من المادة';
+    return meta.qtyLabel;
+  }
+
+  function rNeedDayOptions(selected){
+    const value=selected||'';
+    const days=['غير محدد','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
+    return days.map(day=>{
+      const optionValue=day==='غير محدد'?'':day;
+      return `<option value="${rNeedEscape(optionValue)}" ${value===optionValue?'selected':''}>${day}</option>`;
+    }).join('');
+  }
+
+  function rNeedSlotOptions(selected){
+    const value=selected||'';
+    const slots=['غير محدد','صباحي','ظهري','مسائي','فترة 1','فترة 2','فترة 3'];
+    return slots.map(slot=>{
+      const optionValue=slot==='غير محدد'?'':slot;
+      return `<option value="${rNeedEscape(optionValue)}" ${value===optionValue?'selected':''}>${slot}</option>`;
+    }).join('');
+  }
+
+  eduNeedMaterialRowHtml=function(groupIdx,materialIdx,material={},category=null){
+    const meta=rNeedCategory(category||material.referenceCategoryKey||material.category||'chemical');
+    const usageUnit=material.usageUnit||material.unit||meta.usageUnit;
+    const requestUnit=material.requestUnit||meta.requestUnit||rNeedDefaultUnit(usageUnit);
+    const basis=material.basis||material.consumptionBasis||meta.basis;
+    const wasteValue=meta.key==='device'?0:Number(material.wastePercent||0);
+    const reusePolicy=material.reusePolicy||material.lifecyclePolicy||(meta.key==='device'?'reusable_peak':'single_use');
+    const chemicalMode=material.chemicalUsageMode||material.preparationMode||'concentrated_direct';
+    const sourceConcentration=material.sourceConcentration||material.stockConcentration||material.specA||material.concentration||'';
+    const targetConcentration=material.preparationPercent||material.solutionPercent||material.targetConcentration||material.finalConcentration||'';
+    const preparationCountMode=material.preparationCountMode||'gender';
+    const preparationCount=Number(material.preparationCount||1);
+    const qtyValue=Number(material.qtyPerUse||material.preparationVolume||material.finalSolutionVolume||0);
+    const displayQtyValue=chemicalMode==='solution_preparation' && !qtyValue ? rNeedDefaultPreparationVolume(usageUnit) : qtyValue;
+    const prepDisplay=chemicalMode==='solution_preparation'?'':'style="display:none"';
+    const directHintDisplay=chemicalMode==='solution_preparation'?'style="display:none"':'';
+    const chemistryFields=meta.key==='chemical'
+      ? `<div><label class="label">طريقة الاستخدام الكيميائي</label><select class="select edu-chemical-mode" onchange="refreshChemicalCalculationMode(this)">${rNeedChemicalModeOptions(chemicalMode)}</select></div>
+         <div class="edu-chemical-prep-field" ${prepDisplay}><label class="label">مواصفة/تركيز العبوة</label><input class="input edu-source-concentration" value="${rNeedEscape(sourceConcentration)}" placeholder="مثال: إيثانول 96% - للعرض فقط"></div>
+         <div class="edu-chemical-prep-field" ${prepDisplay}><label class="label">نسبة المادة من العبوة %</label><input class="input edu-target-concentration" type="number" min="0" max="100" step="0.01" value="${rNeedEscape(targetConcentration)}" placeholder="مثال: 10" oninput="renderEduNeedPreview()"></div>
+         <div class="edu-chemical-prep-field" ${prepDisplay}><label class="label">عدد التحضيرات</label><select class="select edu-prep-count-mode" onchange="refreshPreparationCountMode(this)">${rNeedPreparationModeOptions(preparationCountMode)}</select></div>
+         <div class="edu-chemical-prep-field edu-prep-manual-field" ${chemicalMode==='solution_preparation' && preparationCountMode==='manual'?'':'style="display:none"'}><label class="label">عدد التحضيرات اليدوي</label><input class="input edu-prep-count-manual" type="number" min="1" step="1" value="${preparationCount}" oninput="renderEduNeedPreview()"></div>
+         <div class="small edu-chemical-direct-hint" ${directHintDisplay}>في هذا الوضع أدخل الكمية كنصيب مباشر حسب أساس الحساب، مثل 5 مل لكل طالب.</div>`
+      : '';
+    return `<div class="edu-material-row edu-material-${meta.key}" data-edu-material-row="${materialIdx}" data-edu-category="${meta.key}">
+      <div class="edu-material-grid">
+        <div><label class="label">${meta.itemLabel} بالعربي</label><input class="input edu-item-ar" value="${rNeedEscape(material.itemNameAr||'')}" placeholder="${rNeedEscape(meta.itemPlaceholder||'')}"></div>
+        <div><label class="label">English</label><input class="input edu-item-en" value="${rNeedEscape(material.itemNameEn||'')}" placeholder="${rNeedEscape(meta.englishPlaceholder||'')}"></div>
+        <div><label class="label">التصنيف</label><select class="select edu-category-select" onchange="changeEduNeedMaterialCategory(this,'${groupIdx}','${materialIdx}')">${eduReferenceCategoryOptions(meta.key)}</select></div>
+        <div><label class="label">نمط الاحتساب</label><select class="select edu-reuse-policy">${rNeedReusePolicyOptions(meta.key,reusePolicy)}</select></div>
+        <div><label class="label">وحدة الاستخدام</label><select class="select edu-usage-unit" onchange="syncEduNeedRequestUnit(this);renderEduNeedPreview()">${rNeedUnitOptions(usageUnit)}</select></div>
+        <div><label class="label">وحدة الطلب النهائية</label><select class="select edu-request-unit" onchange="renderEduNeedPreview()">${rNeedUnitOptions(requestUnit)}</select></div>
+        <div><label class="label">أساس الحساب</label><select class="select edu-basis" onchange="renderEduNeedPreview()">${rNeedBasisOptions(basis)}</select></div>
+        <div><label class="label edu-qty-label">${rNeedQtyLabel(meta,chemicalMode)}</label><input class="input edu-qty-per-use" type="number" min="0" step="0.01" value="${displayQtyValue}" oninput="renderEduNeedPreview()"></div>
+        <div><label class="label">هدر/احتياط %</label><input class="input edu-waste" type="number" min="0" step="1" value="${wasteValue}" ${meta.key==='device'?'readonly':''} oninput="renderEduNeedPreview()"></div>
+        <div><label class="label">${meta.stockLabel}</label><input class="input edu-stock" type="number" min="0" step="0.01" value="${Number(material.stockAvailable||0)}" oninput="renderEduNeedPreview()"></div>
+        <div><label class="label">${meta.specALabel}</label><input class="input edu-spec-a" value="${rNeedEscape(material.specA||material.size||material.model||'')}" placeholder="${rNeedEscape(meta.specAPlaceholder||'')}"></div>
+        <div><label class="label">${meta.specBLabel}</label><input class="input edu-spec-b" value="${rNeedEscape(material.specB||material.packageType||material.deviceCondition||'')}" placeholder="${rNeedEscape(meta.specBPlaceholder||'')}"></div>
+        ${chemistryFields}
+        <div class="edu-material-actions"><button type="button" class="btn btn-secondary btn-sm" onclick="removeEduNeedMaterial('${groupIdx}','${meta.key}','${materialIdx}')">حذف</button></div>
+      </div>
+    </div>`;
+  };
+
+  changeEduNeedMaterialCategory=function(select,groupIdx,materialIdx){
+    const row=select.closest('[data-edu-material-row]');
+    if(!row) return;
+    const prefill={
+      itemNameAr:(row.querySelector('.edu-item-ar')?.value||'').trim(),
+      itemNameEn:(row.querySelector('.edu-item-en')?.value||'').trim(),
+      qtyPerUse:rNeedReadNumber(row,'.edu-qty-per-use'),
+      stockAvailable:rNeedReadNumber(row,'.edu-stock'),
+      wastePercent:rNeedReadNumber(row,'.edu-waste'),
+      reusePolicy:row.querySelector('.edu-reuse-policy')?.value||'',
+      specA:(row.querySelector('.edu-spec-a')?.value||'').trim(),
+      specB:(row.querySelector('.edu-spec-b')?.value||'').trim(),
+      sourceConcentration:(row.querySelector('.edu-source-concentration')?.value||'').trim(),
+      targetConcentration:(row.querySelector('.edu-target-concentration')?.value||'').trim(),
+      preparationPercent:(row.querySelector('.edu-target-concentration')?.value||'').trim(),
+      preparationCountMode:row.querySelector('.edu-prep-count-mode')?.value||'gender',
+      preparationCount:rNeedReadNumber(row,'.edu-prep-count-manual')||1,
+      chemicalUsageMode:row.querySelector('.edu-chemical-mode')?.value||'direct'
+    };
+    row.outerHTML=eduNeedMaterialRowHtml(groupIdx,materialIdx,prefill,select.value);
+    renderEduNeedPreview();
+  };
+
+  refreshChemicalCalculationMode=function(select){
+    const row=select.closest('[data-edu-material-row]');
+    if(!row) return;
+    const mode=select.value;
+    row.querySelectorAll('.edu-chemical-prep-field').forEach(field=>{
+      field.style.display=mode==='solution_preparation'?'':'none';
+    });
+    row.querySelectorAll('.edu-chemical-direct-hint').forEach(field=>{
+      field.style.display=mode==='solution_preparation'?'none':'';
+    });
+    const label=row.querySelector('.edu-qty-label');
+    if(label){
+      label.textContent=mode==='solution_preparation'
+        ? 'حجم التحضيرة الواحدة'
+        : 'نصيب الطالب/المجموعة من المادة';
+    }
+    const qtyInput=row.querySelector('.edu-qty-per-use');
+    if(mode==='solution_preparation' && qtyInput && !(Number(qtyInput.value||0)>0)){
+      qtyInput.value=rNeedDefaultPreparationVolume(row.querySelector('.edu-usage-unit')?.value||'مليتر');
+    }
+    row.querySelectorAll('.edu-prep-manual-field').forEach(field=>{
+      const countMode=row.querySelector('.edu-prep-count-mode')?.value||'gender';
+      field.style.display=mode==='solution_preparation' && countMode==='manual' ? '' : 'none';
+    });
+    renderEduNeedPreview();
+  };
+
+  refreshPreparationCountMode=function(select){
+    const row=select.closest('[data-edu-material-row]');
+    if(!row) return;
+    row.querySelectorAll('.edu-prep-manual-field').forEach(field=>{
+      field.style.display=select.value==='manual' ? '' : 'none';
+    });
+    renderEduNeedPreview();
+  };
+
+  function rNeedBasisDenominator(common,basis){
+    const maleSections=Number(common.maleSections||0);
+    const femaleSections=Number(common.femaleSections||0);
+    const malePerSection=Number(common.malePerSection||0);
+    const femalePerSection=Number(common.femalePerSection||0);
+    const sections=maleSections+femaleSections;
+    const students=(maleSections*malePerSection)+(femaleSections*femalePerSection);
+    const groupSize=Math.max(1,Number(common.groupSize||1));
+    const groups=(maleSections?maleSections*Math.ceil(malePerSection/groupSize):0)+(femaleSections?femaleSections*Math.ceil(femalePerSection/groupSize):0);
+    if(basis==='per_student') return Math.max(students,1);
+    if(basis==='per_group') return Math.max(groups,1);
+    if(basis==='per_section') return Math.max(sections,1);
+    return 1;
+  }
+
+  eduNeedRowHtml=function(idx,row={}){
+    const semester=row.semester||'الأول';
+    const week=Math.max(1,Math.min(15,Number(row.academicWeek||row.weekNo||row.experimentWeek||1)||1));
+    return `<div class="edu-need-row edu-experiment-card" data-edu-need-row="${idx}">
+      <div class="edu-need-row-head">
+        <div>
+          <div class="edu-need-row-title">تجربة تعليمية</div>
+          <div class="small">توقيت التجربة يستخدم لكشف التعارض؛ المستهلكات القابلة لإعادة الاستخدام والأجهزة تحسب حسب أعلى ذروة لا مجموع كل المقررات.</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="removeEduNeedRow('${idx}')">حذف التجربة</button>
+      </div>
+      <div class="edu-need-grid edu-experiment-grid">
+        <div><label class="label">اسم التجربة</label><input class="input edu-experiment" value="${rNeedEscape(row.experimentName||'')}" placeholder="مثال: معايرة حمض وقاعدة"></div>
+        <div><label class="label">الفصل</label><select class="select edu-semester">${eduNeedSemesterOptions(semester)}</select></div>
+        <div><label class="label">أسبوع التجربة</label><input class="input edu-week" type="number" min="1" max="15" step="1" value="${week}"></div>
+        <div><label class="label">اليوم</label><select class="select edu-day">${rNeedDayOptions(row.scheduleDay||row.day||'')}</select></div>
+        <div><label class="label">الفترة</label><select class="select edu-slot">${rNeedSlotOptions(row.scheduleSlot||row.timeSlot||'')}</select></div>
+        <div><label class="label">تكرار التجربة</label><input class="input edu-repeats" type="number" min="1" step="1" value="${Number(row.repeats||1)}"></div>
+        <div><label class="label">شعب الطلاب</label><input class="input edu-male-sections" type="number" min="0" step="1" value="${Number(row.maleSections||0)}"></div>
+        <div><label class="label">طلاب/شعبة</label><input class="input edu-male-per-section" type="number" min="0" step="1" value="${Number(row.malePerSection||0)}"></div>
+        <div><label class="label">شعب الطالبات</label><input class="input edu-female-sections" type="number" min="0" step="1" value="${Number(row.femaleSections||0)}"></div>
+        <div><label class="label">طالبات/شعبة</label><input class="input edu-female-per-section" type="number" min="0" step="1" value="${Number(row.femalePerSection||0)}"></div>
+        <div><label class="label">حجم المجموعة</label><input class="input edu-group-size" type="number" min="1" step="1" value="${Number(row.groupSize||1)}"></div>
+      </div>
+      <div class="edu-category-grid">
+        ${eduReferenceCategoryBlockHtml(idx,'chemical',row.chemicals)}
+        ${eduReferenceCategoryBlockHtml(idx,'consumable',row.consumables)}
+        ${eduReferenceCategoryBlockHtml(idx,'device',row.devices)}
+      </div>
+    </div>`;
+  };
+
+  eduNeedReadRows=function(){
+    const rows=[];
+    [...document.querySelectorAll('[data-edu-need-row]')].forEach(group=>{
+      const common={
+        experimentName:(group.querySelector('.edu-experiment')?.value||'').trim()||'تجربة غير مسماة',
+        semester:group.querySelector('.edu-semester')?.value||'الأول',
+        academicWeek:Math.max(1,Math.min(15,Number(group.querySelector('.edu-week')?.value||1)||1)),
+        scheduleDay:(group.querySelector('.edu-day')?.value||'').trim(),
+        scheduleSlot:(group.querySelector('.edu-slot')?.value||'').trim(),
+        repeats:Math.max(1,rNeedReadNumber(group,'.edu-repeats')),
+        maleSections:rNeedReadNumber(group,'.edu-male-sections'),
+        malePerSection:rNeedReadNumber(group,'.edu-male-per-section'),
+        femaleSections:rNeedReadNumber(group,'.edu-female-sections'),
+        femalePerSection:rNeedReadNumber(group,'.edu-female-per-section'),
+        groupSize:Math.max(1,rNeedReadNumber(group,'.edu-group-size')||1)
+      };
+      [...group.querySelectorAll('[data-edu-material-row]')].forEach(material=>{
+        const categoryKey=material.dataset.eduCategory || material.querySelector('.edu-category-select')?.value || 'chemical';
+        const meta=rNeedCategory(categoryKey);
+        const originalUsageUnit=material.querySelector('.edu-usage-unit')?.value||meta.usageUnit;
+        const requestUnit=material.querySelector('.edu-request-unit')?.value||meta.requestUnit||rNeedDefaultUnit(originalUsageUnit);
+        const specA=(material.querySelector('.edu-spec-a')?.value||'').trim();
+        const specB=(material.querySelector('.edu-spec-b')?.value||'').trim();
+        const packSize=meta.key==='consumable'?Number(specB||0):0;
+        const rawQtyPerUse=rNeedReadNumber(material,'.edu-qty-per-use');
+        const chemicalUsageMode=material.querySelector('.edu-chemical-mode')?.value||'concentrated_direct';
+        let basis=material.querySelector('.edu-basis')?.value||meta.basis;
+        const shouldConvertPack=meta.key==='consumable' && packSize>0 && rNeedCanonicalUnit(originalUsageUnit)!==rNeedCanonicalUnit(requestUnit);
+        let usageUnit=shouldConvertPack?requestUnit:originalUsageUnit;
+        let qtyPerUse=shouldConvertPack?rawQtyPerUse/packSize:rawQtyPerUse;
+        let preparationVolume=0;
+        let preparationPercent=0;
+        let preparationCount=0;
+        let solutionVolumeTotal=0;
+        let preparationCountMode='gender';
+        if(meta.key==='chemical' && chemicalUsageMode==='solution_preparation'){
+          preparationVolume=rawQtyPerUse;
+          preparationPercent=rNeedReadNumber(material,'.edu-target-concentration');
+          preparationCountMode=material.querySelector('.edu-prep-count-mode')?.value||'gender';
+          preparationCount=rNeedPreparationCount(common,preparationCountMode,rNeedReadNumber(material,'.edu-prep-count-manual'));
+          solutionVolumeTotal=preparationVolume*preparationCount;
+          basis='per_experiment';
+          usageUnit=originalUsageUnit;
+          qtyPerUse=solutionVolumeTotal;
+        }
+        const sourceConcentration=(material.querySelector('.edu-source-concentration')?.value||specA||'').trim();
+        const targetConcentration=(material.querySelector('.edu-target-concentration')?.value||'').trim();
+        rows.push({
+          ...common,
+          referenceCategoryKey:meta.key,
+          referenceCategory:meta.section,
+          categoryLabel:meta.label,
+          itemNameAr:(material.querySelector('.edu-item-ar')?.value||'').trim(),
+          itemNameEn:(material.querySelector('.edu-item-en')?.value||'').trim(),
+          displayUsageUnit:originalUsageUnit,
+          calculationUsageUnit:usageUnit,
+          usageUnit,
+          requestUnit,
+          unit:requestUnit,
+          basis,
+          qtyPerUse,
+          displayQtyPerUse:rawQtyPerUse,
+          preparationVolume,
+          preparationPercent,
+          preparationCount,
+          preparationCountMode,
+          solutionVolumeTotal,
+          finalSolutionTotal:solutionVolumeTotal,
+          calculatedQtyPerUse:qtyPerUse,
+          packSize,
+          wastePercent:meta.key==='device'?0:rNeedReadNumber(material,'.edu-waste'),
+          stockAvailable:rNeedReadNumber(material,'.edu-stock'),
+          specA,
+          specB,
+          reusePolicy:material.querySelector('.edu-reuse-policy')?.value||(meta.key==='device'?'reusable_peak':'single_use'),
+          chemicalUsageMode,
+          sourceConcentration,
+          targetConcentration,
+          solutionPercent:preparationPercent
+        });
+      });
+    });
+    return rows;
+  };
+
+  learningReferenceToEngineRow=function(ref){
+    const students=Number(ref.studentsCount||0);
+    const sections=Number(ref.sectionsCount||0);
+    const maleSections=Number(ref.maleSections||sections||0);
+    const malePerSection=Number(ref.malePerSection||ref.maleStudents||(sections?Math.ceil(students/Math.max(sections,1)):students)||0);
+    const chemicalUsageMode=ref.chemicalUsageMode||ref.preparationMode||'concentrated_direct';
+    const solutionVolumeTotal=Number(ref.solutionVolumeTotal||ref.finalSolutionTotal||0);
+    const preparedSolution=chemicalUsageMode==='solution_preparation' && solutionVolumeTotal>0;
+    return {
+      _refId:ref.id,
+      referenceNo:rNeedLearningNo(ref),
+      referenceCategoryKey:ref.referenceCategoryKey||'chemical',
+      categoryLabel:ref.categoryLabel||rNeedCategory(ref.referenceCategoryKey).label,
+      courseName:ref.courseName||'',
+      courseCode:ref.courseCode||'',
+      academicYear:ref.academicYear||'',
+      academicWeek:Math.max(1,Math.min(15,Number(ref.academicWeek||ref.weekNo||ref.experimentWeek||1)||1)),
+      scheduleDay:ref.scheduleDay||ref.day||'',
+      scheduleSlot:ref.scheduleSlot||ref.timeSlot||ref.period||'',
+      experimentName:ref.experimentName||'تجربة غير مسماة',
+      semester:ref.semester||'الأول',
+      repeats:Number(ref.repeats||ref.usesCount||1),
+      maleSections,
+      malePerSection,
+      femaleSections:Number(ref.femaleSections||0),
+      femalePerSection:Number(ref.femalePerSection||0),
+      groupSize:Number(ref.groupSize||1),
+      itemNameAr:ref.itemNameAr||'',
+      itemNameEn:ref.itemNameEn||'',
+      usageUnit:ref.calculationUsageUnit||ref.usageUnit||ref.unit||'عدد',
+      requestUnit:ref.requestUnit||ref.unit||'عدد',
+      unit:ref.requestUnit||ref.unit||'عدد',
+      basis:preparedSolution?'per_experiment':(ref.consumptionBasis||ref.basis||'per_student'),
+      qtyPerUse:preparedSolution?solutionVolumeTotal:Number(ref.qtyPerUse||ref.qtyPerStudent||0),
+      wastePercent:Number(ref.wastePercent||0),
+      stockAvailable:Number(ref.stockAvailable||0),
+      specA:ref.specA||'',
+      specB:ref.specB||'',
+      reusePolicy:ref.reusePolicy||ref.lifecyclePolicy||'',
+      chemicalUsageMode,
+      sourceConcentration:ref.sourceConcentration||ref.stockConcentration||ref.specA||'',
+      targetConcentration:ref.targetConcentration||ref.finalConcentration||'',
+      preparationPercent:Number(ref.preparationPercent||ref.solutionPercent||ref.targetConcentration||0),
+      preparationVolume:Number(ref.preparationVolume||ref.finalSolutionVolume||ref.displayQtyPerUse||0),
+      preparationCount:Number(ref.preparationCount||1),
+      preparationCountMode:ref.preparationCountMode||'',
+      solutionVolumeTotal
+    };
+  };
+
+  function rNeedAggsFromRefs(refs,scope){
+    const engine=rNeedEngine();
+    const rows=(refs||[]).map(learningReferenceToEngineRow);
+    return engine.aggregateRows(rows,{mainDepartment:scope.mainDepartment,section:scope.section}).map(agg=>{
+      const sourceIds=new Set((agg.evidenceRows||[]).map(row=>row._refId).filter(Boolean));
+      const courses=new Set((agg.evidenceRows||[]).map(row=>row.courseName).filter(Boolean));
+      const courseCodes=new Set((agg.evidenceRows||[]).map(row=>row.courseCode).filter(Boolean));
+      const years=new Set((agg.evidenceRows||[]).map(row=>row.academicYear).filter(Boolean));
+      return {
+        ...agg,
+        ctx:scope,
+        sourceRefIds:sourceIds,
+        courses,
+        courseCodes,
+        academicYears:years,
+        categoryLabel:rNeedCategory((agg.evidenceRows||[])[0]?.referenceCategoryKey).label,
+        calculationKey:agg.key
+      };
+    });
+  }
+
+  learningAggregateRows=function(refs,scope){
+    return rNeedAggsFromRefs(refs,scope);
+  };
+
+  learningReferenceAggregates=function(refs){
+    const groups=new Map();
+    (refs||[]).forEach(ref=>{
+      const key=[ref.college,ref.mainDepartment||'القسم العام',ref.section||rNeedCategory(ref.referenceCategoryKey).section||'القسم العام'].join('|');
+      if(!groups.has(key)){
+        groups.set(key,{college:ref.college,mainDepartment:ref.mainDepartment||'القسم العام',section:ref.section||rNeedCategory(ref.referenceCategoryKey).section||'القسم العام',refs:[]});
+      }
+      groups.get(key).refs.push(ref);
+    });
+    return [...groups.values()].flatMap(group=>learningAggregateRows(group.refs,group));
+  };
+
+  function rNeedModeLabel(agg){
+    if(agg.calculationMode==='peak') return 'ذروة تعارض';
+    if(agg.calculationMode==='mixed') return 'مختلط: استهلاك + ذروة';
+    return 'جمع استهلاك';
+  }
+
+  learningReferenceSummary=function(agg){
+    const experiments=[...agg.experiments].filter(Boolean).join('، ')||'تجارب غير مسماة';
+    const usageUnits=[...agg.usageUnits].filter(Boolean).join('، ')||agg.unit;
+    const totalStudents=(agg.evidenceRows||[]).reduce((sum,row)=>sum+Number(row.students||0),0);
+    const totalSections=(agg.evidenceRows||[]).reduce((sum,row)=>sum+Number(row.sections||0),0);
+    const peakText=agg.peakBased
+      ? ` طريقة الحساب ${rNeedModeLabel(agg)}؛ أعلى تعارض للفصل الأول ${rNeedPreview(agg.term1Peak)} ${agg.unit}، وللفصل الثاني ${rNeedPreview(agg.term2Peak)} ${agg.unit}.`
+      : ' طريقة الحساب جمع الاستهلاك الفعلي.';
+    return `احتياج مولد من المراجع التعليمية: ${experiments}. إجمالي الطلاب ${totalStudents}، وعدد الشعب ${totalSections}. تم تحويل وحدات الاستخدام (${usageUnits}) إلى وحدة الطلب النهائية (${agg.unit}).${peakText} تم خصم الرصيد ${rNeedPreview(agg.stockAvailable)} ${agg.unit} ثم تقريب الصافي للأعلى إلى ${agg.netTotal} ${agg.unit}.`;
+  };
+
+  learningReferencesPreviewHtml=function(refs){
+    const aggregates=learningReferenceAggregates(refs);
+    const rows=aggregates.map(agg=>[
+      agg.ctx.college,
+      agg.ctx.mainDepartment,
+      agg.ctx.section,
+      agg.categoryLabel||'—',
+      agg.itemNameAr||agg.itemNameEn||'—',
+      rNeedList([...agg.courses])||'—',
+      rNeedModeLabel(agg),
+      rNeedPreview(agg.term1Gross),
+      rNeedPreview(agg.term2Gross),
+      agg.peakBased?`${rNeedPreview(agg.term1Peak)} / ${rNeedPreview(agg.term2Peak)}`:'—',
+      rNeedPreview(agg.stockAvailable),
+      agg.netTotal>0?`<span class="badge badge-ok">${agg.netTotal} ${agg.unit}</span>`:'<span class="badge badge-info">مغطى بالمخزون</span>',
+      agg.sourceRefIds.size
+    ]);
+    return `<div class="table-panel"><div class="table-head"><div class="panel-title">مراجعة التعارض والاحتياج الفعلي</div><div class="panel-subtitle">المواد الكيميائية المحضرة تحسب من المادة الأصلية، والمستهلكات القابلة لإعادة الاستخدام والأجهزة تحسب حسب أعلى تعارض زمني قبل رفع الاحتياج.</div></div>${table(['القطاع','القسم الرئيسي','القسم الفرعي','التصنيف','الصنف','المقررات','طريقة الحساب','الفصل الأول','الفصل الثاني','ذروة التعارض 1 / 2','الرصيد','الصافي','عدد المراجع'],rows)}</div>`;
+  };
+
+  eduNeedAggregatesByCategory=function(rows,ctx={}){
+    const department=ctx.mainDepartment || document.getElementById('need-mainDepartment')?.value || currentDepartmentName();
+    const college=ctx.college || document.getElementById('need-college')?.value || eduNeedCurrentCollege();
+    const groups=new Map();
+    (rows||[]).forEach(row=>{
+      const meta=rNeedCategory(row.referenceCategoryKey||'chemical');
+      const section=row.referenceCategory||meta.section;
+      if(!groups.has(section)) groups.set(section,[]);
+      groups.get(section).push(row);
+    });
+    return [...groups.entries()].flatMap(([section,groupRows])=>rNeedEngine().aggregateRows(groupRows,{college,mainDepartment:department,section}).map(agg=>({
+      ...agg,
+      ctx:{college,mainDepartment:department,section},
+      section,
+      categoryLabel:rNeedCategory(groupRows[0]?.referenceCategoryKey).label
+    })));
+  };
+
+  eduNeedAggregateRows=function(rows){
+    return eduNeedAggregatesByCategory(rows);
+  };
+
+  function rNeedIncompletePreviewRows(rows){
+    return (rows||[]).filter(row=>{
+      const hasItem=Boolean(row.itemNameAr||row.itemNameEn);
+      if(!hasItem) return false;
+      if(row.referenceCategoryKey==='chemical' && row.chemicalUsageMode==='solution_preparation'){
+        return !(Number(row.preparationVolume||0)>0) || !(Number(row.preparationPercent||0)>0);
+      }
+      return !(Number(row.qtyPerUse||0)>0);
+    }).map(row=>{
+      const missing=[];
+      if(row.referenceCategoryKey==='chemical' && row.chemicalUsageMode==='solution_preparation'){
+        if(!(Number(row.preparationVolume||0)>0)) missing.push('حجم التحضيرة الواحدة');
+        if(!(Number(row.preparationPercent||0)>0)) missing.push('نسبة المادة من العبوة');
+      }else if(!(Number(row.qtyPerUse||0)>0)){
+        missing.push('كمية الاستخدام');
+      }
+      return [row.categoryLabel||'—',row.itemNameAr||row.itemNameEn||'—',missing.join('، '),row.experimentName||'—'];
+    });
+  }
+
+  renderEduNeedPreview=function(){
+    const target=document.getElementById('edu-need-preview');
+    if(!target) return;
+    const rawRows=eduNeedReadRows();
+    const aggregates=eduNeedAggregatesByCategory(rawRows);
+    const incompleteRows=rNeedIncompletePreviewRows(rawRows);
+    if(!aggregates.length && incompleteRows.length){
+      target.innerHTML=`<div class="table-panel edu-preview-panel"><div class="table-head"><div class="panel-title">المخرجات المحسوبة قبل التوليد</div><div class="panel-subtitle">لا يمكن إظهار الحساب المبدئي قبل اكتمال مدخلات الحساب الأساسية. في التحضير الكيميائي أدخل حجم التحضيرة الواحدة ونسبة المادة من العبوة.</div></div>${table(['التصنيف','البند','الحقل المطلوب','التجربة'],incompleteRows)}</div>`;
+      return;
+    }
+    const rows=aggregates.map(a=>[
+      rNeedEscape(a.section||'—'),
+      rNeedEscape(a.itemNameAr||a.itemNameEn||'—'),
+      rNeedEscape([...a.usageUnits].join('، ')||a.unit),
+      rNeedEscape(a.unit),
+      rNeedEscape([...a.experiments].slice(0,4).join('، ')||'—'),
+      rNeedModeLabel(a),
+      rNeedPreview(a.term1Gross),
+      rNeedPreview(a.term2Gross),
+      a.peakBased?`${rNeedPreview(a.term1Peak)} / ${rNeedPreview(a.term2Peak)}`:'—',
+      rNeedPreview(a.stockAvailable),
+      a.netTotal>0?`<span class="badge badge-ok">${a.netTotal}</span>`:`<span class="badge badge-info">مغطى بالمخزون</span>`
+    ]);
+    target.innerHTML=`<div class="table-panel edu-preview-panel"><div class="table-head"><div class="panel-title">المخرجات المحسوبة قبل التوليد</div><div class="panel-subtitle">راجع هنا هل البند يحسب كاستهلاك كامل أو كذروة تعارض. هذا يمنع تضخيم أعداد المستهلكات القابلة لإعادة الاستخدام والأجهزة.</div></div>${table(['التصنيف','البند','وحدة الاستخدام','وحدة الطلب','التجارب','طريقة الحساب','الفصل الأول','الفصل الثاني','ذروة التعارض','الرصيد','الصافي'],rows)}</div>`;
+  };
+
+  saveLearningReferences=function(){
+    if(!hasPermission('create_need_evidence')) return alert('لا تملك صلاحية إضافة المراجع التعليمية');
+    db.needEvidence=db.needEvidence||[];
+    const rawRows=eduNeedReadRows();
+    const ctx={
+      academicYear:(document.getElementById('need-academicYear')?.value||'').trim(),
+      college:document.getElementById('need-college')?.value||eduNeedCurrentCollege(),
+      mainDepartment:document.getElementById('need-mainDepartment')?.value||currentDepartmentName(),
+      level:(document.getElementById('need-level')?.value||'').trim(),
+      courseName:(document.getElementById('need-courseName')?.value||'').trim()||'مقرر غير محدد',
+      courseCode:(document.getElementById('need-courseCode')?.value||'').trim()||'غير محدد',
+      notes:(document.getElementById('need-notes')?.value||'').trim(),
+      createdAt:nowLocalString(),
+      createdBy:state.currentUser.id,
+      batchId:`REFB-${Date.now()}`
+    };
+    const rows=rawRows.map(row=>({raw:row,calc:rNeedEngine().calcMaterial(row)})).filter(x=>learningValidCalc(x.calc));
+    if(!rows.length) return alert('أدخل تجربة وبندًا واحدًا على الأقل ضمن المواد الكيميائية أو المستهلكات أو الأجهزة');
+    rows.forEach(({raw,calc})=>{
+      const meta=rNeedCategory(raw.referenceCategoryKey);
+      const referenceNo=nextNo('ER',db.needEvidence);
+      const modeLabel=calc.peakBased?'ذروة تعارض':'جمع استهلاك';
+      const prepText=raw.referenceCategoryKey==='chemical' && raw.chemicalUsageMode==='solution_preparation'
+        ? `تحضير بنسبة تشغيلية: حجم التحضيرة ${raw.preparationVolume||raw.displayQtyPerUse||0} ${raw.displayUsageUnit||calc.usageUnit}، نسبة المادة من العبوة ${raw.preparationPercent||raw.targetConcentration||0}%، عدد التحضيرات ${raw.preparationCount||1} (${rNeedPreparationModeLabel(raw.preparationCountMode)})، إجمالي المحلول ${raw.solutionVolumeTotal||raw.finalSolutionTotal||0} ${raw.displayUsageUnit||calc.usageUnit}، والكمية المحتسبة من المادة ${rNeedPreview(calc.grossNeed)} ${calc.requestUnit}`
+        : '';
+      const ev={
+        id:nextId(db.needEvidence),
+        referenceNo,
+        requestNo:referenceNo,
+        referenceType:'educational_reference',
+        referenceStatus:'ready',
+        needId:null,
+        generatedNeedId:null,
+        college:ctx.college,
+        mainDepartment:ctx.mainDepartment,
+        section:raw.referenceCategory||meta.section,
+        referenceCategoryKey:meta.key,
+        referenceCategory:meta.section,
+        categoryLabel:meta.label,
+        itemNameAr:calc.itemNameAr,
+        itemNameEn:calc.itemNameEn,
+        unit:calc.requestUnit,
+        usageUnit:raw.displayUsageUnit||calc.usageUnit,
+        calculationUsageUnit:raw.calculationUsageUnit||calc.usageUnit,
+        requestUnit:calc.requestUnit,
+        academicYear:ctx.academicYear,
+        academicWeek:calc.academicWeek,
+        scheduleDay:calc.scheduleDay,
+        scheduleSlot:calc.scheduleSlot,
+        level:ctx.level,
+        courseName:ctx.courseName,
+        courseCode:ctx.courseCode,
+        experimentName:calc.experimentName,
+        semester:calc.semester,
+        sectionsCount:calc.sections,
+        studentsCount:calc.students,
+        maleSections:calc.maleSections,
+        malePerSection:calc.malePerSection,
+        femaleSections:calc.femaleSections,
+        femalePerSection:calc.femalePerSection,
+        groupSize:calc.groupSize,
+        groupsCount:calc.groups,
+        usesCount:calc.effectiveRepeats,
+        repeats:calc.repeats,
+        consumptionBasis:calc.basis,
+        calculationMethod:`${eduNeedBasisLabel(calc.basis)} - ${modeLabel}`,
+        qtyPerUse:calc.qtyPerUse,
+        displayQtyPerUse:raw.displayQtyPerUse||calc.qtyPerUse,
+        finalSolutionTotal:raw.finalSolutionTotal||0,
+        preparationVolume:raw.preparationVolume||0,
+        preparationPercent:raw.preparationPercent||0,
+        preparationCount:raw.preparationCount||0,
+        preparationCountMode:raw.preparationCountMode||'',
+        solutionVolumeTotal:raw.solutionVolumeTotal||0,
+        calculatedQtyPerUse:raw.calculatedQtyPerUse||calc.qtyPerUse,
+        packSize:raw.packSize||0,
+        wastePercent:calc.wastePercent,
+        stockAvailable:calc.stockAvailable,
+        specA:raw.specA,
+        specB:raw.specB,
+        reusePolicy:raw.reusePolicy,
+        chemicalUsageMode:raw.chemicalUsageMode,
+        sourceConcentration:raw.sourceConcentration,
+        targetConcentration:raw.targetConcentration,
+        solutionPercent:raw.preparationPercent||0,
+        chemicalFactor:calc.chemicalFactor,
+        calculationMode:calc.peakBased?'peak':'sum',
+        specifications:[raw.specA,raw.specB,prepText].filter(Boolean).join(' | '),
+        estimatedNeed:rNeedPreview(calc.grossNeed),
+        grossNeed:rNeedPreview(calc.grossNeed),
+        grossNeedUsage:rNeedPreview(calc.grossNeedUsage),
+        deficit:rNeedRound(Math.max(calc.grossNeed-calc.stockAvailable,0)),
+        batchId:ctx.batchId,
+        justification:`مرجع تعليمي (${meta.label}) للمقرر ${ctx.courseName}: ${eduNeedBasisLabel(calc.basis)} × ${calc.qtyPerUse} ${calc.usageUnit} في تجربة ${calc.experimentName}. ${prepText}`.trim(),
+        recommendation:'جاهز لمراجعة مسؤول القطاع وتوليد الاحتياج الفعلي بعد تحليل التعارض والرصيد.',
+        notes:ctx.notes,
+        createdAt:ctx.createdAt,
+        createdBy:ctx.createdBy
+      };
+      db.needEvidence.unshift(ev);
+      auditLog('إضافة مرجع تعليمي','educationReference',referenceNo,`${meta.label} - ${ctx.courseName} - ${calc.experimentName} - ${calc.itemNameAr||calc.itemNameEn}`,ctx.college,ctx.mainDepartment);
+    });
+    saveDb();
+    state.currentPage='needEvidence';
+    closeModal();
+    alert(`تم حفظ ${rows.length} مرجع تعليمي. سيحسب التوليد النهائي الذروة والتعارض للأدوات والأجهزة وتحضير المحاليل للمواد الكيميائية.`);
+  };
+
+  saveNeedEvidence=function(){
+    return saveLearningReferences();
+  };
+
+  findLearningMergeTarget=function(agg,ctx){
+    const engine=rNeedEngine();
+    return (db.needsRequests||[]).find(req=>{
+      if(['approved','rejected','closed'].includes(req.status)) return false;
+      if(!rNeedCalcSources().includes(req.calculationSource)) return false;
+      const sameScope=req.college===ctx.college &&
+        (req.mainDepartment||'القسم العام')===(ctx.mainDepartment||'القسم العام') &&
+        req.section===ctx.section;
+      if(!sameScope) return false;
+      if(req.calculationKey || agg.calculationKey) return req.calculationKey===agg.calculationKey;
+      const sameUnit=engine.canonicalUnit(req.unit)===engine.canonicalUnit(agg.unit);
+      const sameItem=engine.normalizeKey(req.itemNameAr||req.itemNameEn)===engine.normalizeKey(agg.itemNameAr||agg.itemNameEn);
+      return sameUnit && sameItem;
+    });
+  };
+
+  function rNeedApplyAggregateToRequest(req,agg,ctx,refCount){
+    req.year1Qty=agg.term1Net;
+    req.year2Qty=agg.term2Net;
+    req.year3Qty=0;
+    req.qty=agg.netTotal;
+    req.grossQty=agg.grossTotal;
+    req.stockAvailable=rNeedPreview(agg.stockAvailable);
+    req.evidenceCount=refCount ?? agg.sourceRefIds.size;
+    req.calculationSource=rNeedSource();
+    req.referenceBased=true;
+    req.calculationKey=agg.calculationKey||agg.key;
+    req.calculationMode=agg.calculationMode;
+    req.peakNeedTerm1=agg.term1Peak||0;
+    req.peakNeedTerm2=agg.term2Peak||0;
+    req.conflictCount=agg.conflictCount||0;
+    req.academicYear=ctx.academicYear;
+    req.courseName=ctx.courseName;
+    req.courseCode=ctx.courseCode;
+    req.specifications=`طريقة الحساب: ${rNeedModeLabel(agg)}. ${agg.peakBased?`ذروة التعارض للفصلين ${rNeedPreview(agg.term1Peak)} / ${rNeedPreview(agg.term2Peak)} ${agg.unit}. `:''}احتياج مولد من ${refCount ?? agg.sourceRefIds.size} مرجع تعليمي.`;
+    req.justification=learningReferenceSummary(agg);
+  }
+
+  function rNeedRefsForAggregate(req,agg,newRefs){
+    const linked=(db.needEvidence||[]).filter(ref=>Number(ref.generatedNeedId||ref.needId)===Number(req.id));
+    const byId=new Map();
+    [...linked,...newRefs].forEach(ref=>{ if(ref?.id) byId.set(Number(ref.id),ref); });
+    return [...byId.values()];
+  }
+
+  generateNeedsFromLearningReferences=function(){
+    if(!hasPermission('create_need')) return alert('لا تملك صلاحية توليد الاحتياج');
+    db.needsRequests=db.needsRequests||[];
+    db.needEvidence=db.needEvidence||[];
+    const refs=(typeof learningReferencesForGeneration==='function'?learningReferencesForGeneration():(db.needEvidence||[]).filter(rNeedReady));
+    if(!refs.length) return alert('لا توجد مراجع تعليمية جاهزة للتوليد');
+    const aggregates=learningReferenceAggregates(refs);
+    const ctxBase={createdAt:nowLocalString(),createdBy:state.currentUser.id};
+    let createdCount=0, mergedCount=0, coveredCount=0;
+    aggregates.forEach(agg=>{
+      const ctx={
+        ...agg.ctx,
+        academicYear:rNeedList([...agg.academicYears]),
+        courseName:rNeedList([...agg.courses])||'مراجع تعليمية متعددة',
+        courseCode:rNeedList([...agg.courseCodes])||'متعدد',
+        createdAt:ctxBase.createdAt,
+        createdBy:ctxBase.createdBy
+      };
+      const refIds=new Set([...agg.sourceRefIds]);
+      const newRefs=refs.filter(ref=>refIds.has(ref.id));
+      if(agg.netTotal<=0){
+        markLearningReferences(refIds,'covered_by_stock',null,ctx);
+        coveredCount+=refIds.size;
+        return;
+      }
+      let req=findLearningMergeTarget(agg,ctx);
+      if(req){
+        const combinedRefs=rNeedRefsForAggregate(req,agg,newRefs);
+        const combinedAgg=(learningAggregateRows(combinedRefs,agg.ctx)||[]).find(row=>row.calculationKey===agg.calculationKey) || agg;
+        const allRefIds=new Set(combinedRefs.map(ref=>ref.id));
+        const combinedCtx={
+          ...ctx,
+          academicYear:rNeedList([...combinedAgg.academicYears])||ctx.academicYear,
+          courseName:rNeedList([...combinedAgg.courses])||ctx.courseName,
+          courseCode:rNeedList([...combinedAgg.courseCodes])||ctx.courseCode
+        };
+        rNeedApplyAggregateToRequest(req,combinedAgg,combinedCtx,allRefIds.size);
+        req.workflowStage='تمت مراجعة التعارض ودمج مراجع تعليمية جديدة وينتظر اعتماد مسؤول القطاع';
+        req.status='pending_sector_approval';
+        req.lastMergedAt=ctx.createdAt;
+        req.lastMergedBy=ctx.createdBy;
+        mergedCount++;
+        auditLog('دمج مراجع تعليمية في طلب احتياج','need',req.requestNo,`${req.itemNameAr||req.itemNameEn} - الصافي بعد تحليل التعارض ${req.qty} ${req.unit}`,req.college,req.mainDepartment);
+      }else{
+        req={
+          id:nextId(db.needsRequests),
+          requestNo:nextNo('NR',db.needsRequests),
+          erpCode:'',
+          college:ctx.college,
+          mainDepartment:ctx.mainDepartment,
+          section:ctx.section,
+          category:ctx.section,
+          itemNameAr:agg.itemNameAr,
+          itemNameEn:agg.itemNameEn,
+          unit:agg.unit,
+          mandatoryProduct:'لا',
+          constructionCode:'',
+          similarItem:'',
+          brandMention:'لا',
+          brandReason:'',
+          yearsCount:2,
+          requestOrderNo:'',
+          sendGrouping:'subsection',
+          targetEntity:'إدارة التجهيزات',
+          description:`${agg.itemNameAr||agg.itemNameEn} مبني على ${ctx.courseName}`,
+          notes:'',
+          status:'pending_sector_approval',
+          workflowStage:'بانتظار اعتماد مسؤول القطاع',
+          createdAt:ctx.createdAt,
+          createdBy:ctx.createdBy
+        };
+        rNeedApplyAggregateToRequest(req,agg,ctx,refIds.size);
+        db.needsRequests.unshift(req);
+        createdCount++;
+        auditLog('توليد طلب احتياج من المراجع التعليمية','need',req.requestNo,`${req.itemNameAr||req.itemNameEn} - صافي ${req.qty} ${req.unit} بعد تحليل التعارض`,req.college,req.mainDepartment);
+      }
+      markLearningReferences(refIds,'generated',req,ctx);
+    });
+    saveDb();
+    state.currentPage='needs';
+    closeModal();
+    alert(`تم إنشاء ${createdCount} طلب ودمج ${mergedCount} بند بعد تحليل التعارض. المراجع المغطاة بالمخزون: ${coveredCount}`);
+  };
+
+  modalHtml=function(){
+    if(state.modal==='needFromReferences') return needFromReferencesModalHtml();
+    return previousReuseAwareModalHtml?previousReuseAwareModalHtml():'';
+  };
+
+  Object.assign(window,{
+    saveLearningReferences,
+    saveNeedEvidence,
+    generateNeedsFromLearningReferences,
+    renderEduNeedPreview,
+    refreshChemicalCalculationMode,
+    refreshPreparationCountMode,
+    eduNeedReadRows,
+    eduNeedMaterialRowHtml,
+    eduNeedRowHtml
+  });
+})();
+/* ===== end Reuse-aware Educational Need Engine v7.5 ===== */
+
+/* ===== Educational Reference Document Archive v7.6 ===== */
+;(function(){
+  const previousDocumentArchiveRenderNeedEvidence=typeof renderNeedEvidence==='function'?renderNeedEvidence:null;
+  const previousDocumentArchiveModalHtml=typeof modalHtml==='function'?modalHtml:null;
+  const previousDocumentArchiveNeedEvidenceDetailData=typeof needEvidenceDetailData==='function'?needEvidenceDetailData:null;
+  const MAX_LOCAL_DOCUMENT_BYTES=2.5*1024*1024;
+
+  function erdEnsureSetup(){
+    db.educationalReferenceDocuments=db.educationalReferenceDocuments||[];
+    if(typeof PERMISSIONS!=='undefined'){
+      const permissions=[
+        {key:'upload_learning_reference_documents',label:'أرشفة ورفع مستندات المراجع التعليمية'},
+        {key:'approve_learning_reference_documents',label:'اعتماد مستندات المراجع التعليمية المؤرشفة'}
+      ];
+      permissions.forEach(permission=>{
+        if(!PERMISSIONS.some(row=>row.key===permission.key)) PERMISSIONS.push(permission);
+      });
+    }
+    (db.users||[]).forEach(user=>{
+      if(user.role==='admin') return;
+      const perms=new Set(Array.isArray(user.permissions)?user.permissions:[]);
+      if(perms.has('create_need_evidence')) perms.add('upload_learning_reference_documents');
+      if(user.college==='إدارة التجهيزات' || perms.has('manage_users') || perms.has('approve_need')){
+        perms.add('approve_learning_reference_documents');
+      }
+      user.permissions=[...perms];
+    });
+  }
+
+  function erdEscape(value){
+    return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  function erdCanUpload(){
+    return hasPermission('upload_learning_reference_documents') || hasPermission('create_need_evidence');
+  }
+
+  function erdCanApprove(){
+    return hasPermission('approve_learning_reference_documents') || (isCentral() && hasPermission('approve_need'));
+  }
+
+  function erdSettingCode(list,name,fallback){
+    const row=(list||[]).find(item=>item.name===name);
+    if(row?.code) return String(row.code).toUpperCase();
+    const letters=String(name||'').replace(/[^\w]/g,'').slice(0,4).toUpperCase();
+    return letters || fallback;
+  }
+
+  function erdCollegeCode(college){
+    return erdSettingCode(db.settings?.colleges,college,'GEN');
+  }
+
+  function erdSectionCode(section){
+    return erdSettingCode(db.settings?.sections,section,'REF');
+  }
+
+  function erdNextDocumentNo(academicYear,college,section){
+    const year=String(academicYear||new Date().getFullYear()).replace(/[^\d]/g,'').slice(0,4)||String(new Date().getFullYear());
+    const prefix=`ERD-${year}-${erdCollegeCode(college)}-${erdSectionCode(section)}`;
+    const nums=(db.educationalReferenceDocuments||[])
+      .map(doc=>String(doc.documentNo||'').trim())
+      .filter(no=>no.startsWith(`${prefix}-`))
+      .map(no=>Number(no.split('-').pop()))
+      .filter(n=>Number.isFinite(n));
+    const next=nums.length?Math.max(...nums)+1:1;
+    return `${prefix}-${String(next).padStart(4,'0')}`;
+  }
+
+  function erdScopedDocuments(){
+    erdEnsureSetup();
+    let rows=db.educationalReferenceDocuments||[];
+    if(!isCentral()) rows=rows.filter(doc=>doc.college===state.currentUser.college);
+    if(hasDepartmentScope()) rows=rows.filter(doc=>(doc.mainDepartment||'القسم العام')===state.currentUser.department);
+    if(state.collegeFilter && state.collegeFilter!=='all') rows=rows.filter(doc=>doc.college===state.collegeFilter);
+    if(state.sectionFilter && state.sectionFilter!=='all') rows=rows.filter(doc=>doc.section===state.sectionFilter || (doc.mainDepartment||'')===state.sectionFilter);
+    if(state.search){
+      const q=String(state.search||'').trim();
+      rows=rows.filter(doc=>[
+        doc.documentNo,doc.title,doc.college,doc.mainDepartment,doc.section,
+        doc.courseName,doc.courseCode,doc.academicYear,doc.semester,
+        doc.fileName,doc.notes,doc.status
+      ].join(' ').includes(q));
+    }
+    return rows.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  }
+
+  function erdReferenceOptions(selected=''){
+    let refs=db.needEvidence||[];
+    if(!isCentral()) refs=refs.filter(ref=>ref.college===state.currentUser.college);
+    if(hasDepartmentScope()) refs=refs.filter(ref=>(ref.mainDepartment||'القسم العام')===state.currentUser.department);
+    const options=refs.slice(0,250).map(ref=>{
+      const label=`${ref.referenceNo||ref.requestNo||ref.id} - ${ref.courseName||'مقرر غير محدد'} - ${ref.itemNameAr||ref.itemNameEn||'بند غير محدد'}`;
+      return `<option value="${ref.id}" ${String(selected)===String(ref.id)?'selected':''}>${erdEscape(label)}</option>`;
+    }).join('');
+    return `<option value="">بدون ربط مباشر الآن</option>${options}`;
+  }
+
+  function erdFileInputHint(){
+    const mb=Math.round((MAX_LOCAL_DOCUMENT_BYTES/1024/1024)*10)/10;
+    return `يتم حفظ الملفات الصغيرة داخل أرشيف النظام حتى ${mb}MB. للملفات الكبيرة ضع رابطًا خارجيًا أو رابط Supabase Storage.`;
+  }
+
+  function learningReferenceDocumentModalHtml(){
+    erdEnsureSetup();
+    if(!erdCanUpload()) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">أرشفة مستند مرجعي</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا تملك صلاحية أرشفة مستندات المراجع التعليمية.</div></div></div></div>`;
+    const college=isCentral() ? (state.collegeFilter && state.collegeFilter!=='all'?state.collegeFilter:COLLEGE_OPTIONS[0]) : state.currentUser.college;
+    const mainDepartment=currentDepartmentName();
+    const section=state.sectionFilter && state.sectionFilter!=='all'?state.sectionFilter:(SECTION_OPTIONS[0]||'المراجع التعليمية');
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)">
+      <div class="modal modal-xl">
+        <div class="modal-header">
+          <div><div class="panel-title">أرشفة مستند مرجع تعليمي</div><div class="panel-subtitle">يرفع المستند كدليل رسمي مستقل، ويمكن ربطه بمرجع تعليمي محوسب دون أن يولد طلب شراء تلقائيًا.</div></div>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert">${erdFileInputHint()}</div>
+          <div class="form-grid">
+            <div><label class="label">القطاع</label>${isCentral()?`<select id="erd-college" class="select">${collegeOptions(college,false)}</select>`:`<input id="erd-college" class="input" value="${erdEscape(college)}" readonly>`}</div>
+            <div><label class="label">القسم الرئيسي</label><select id="erd-mainDepartment" class="select">${departmentOptions(mainDepartment,false)}</select></div>
+            <div><label class="label">القسم الفرعي</label><select id="erd-section" class="select">${sectionOptions(section,false)}</select></div>
+            <div><label class="label">اسم المقرر</label><input id="erd-courseName" class="input" placeholder="مثال: الكيمياء الصيدلية العملية"></div>
+            <div><label class="label">رمز المقرر</label><input id="erd-courseCode" class="input" placeholder="مثال: PHRM-251"></div>
+            <div><label class="label">العام الدراسي</label><input id="erd-academicYear" class="input" placeholder="مثال: 1448"></div>
+            <div><label class="label">الفصل</label><select id="erd-semester" class="select"><option>الأول</option><option>الثاني</option><option>كلاهما</option><option>الصيفي</option></select></div>
+            <div><label class="label">حالة الوثيقة</label><input class="input" value="مرفوعة" readonly></div>
+            <div class="full"><label class="label">عنوان المستند</label><input id="erd-title" class="input" placeholder="مثال: خطة التجارب العملية لمقرر ..."></div>
+            <div class="full"><label class="label">ربط اختياري بمرجع تعليمي محوسب</label><select id="erd-linkedEvidenceId" class="select">${erdReferenceOptions()}</select></div>
+            <div><label class="label">ملف المستند</label><input id="erd-file" class="input" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"></div>
+            <div><label class="label">أو رابط مستند خارجي</label><input id="erd-externalUrl" class="input" placeholder="https://..."></div>
+            <div class="full"><label class="label">ملاحظات التوثيق</label><textarea id="erd-notes" class="textarea" placeholder="أي ملاحظات عن مصدر المستند أو نطاق استخدامه"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+          <button class="btn btn-primary" onclick="saveLearningReferenceDocument()">حفظ وأرشفة</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function erdReadFileAsDataUrl(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=()=>reject(reader.error||new Error('تعذر قراءة الملف'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function saveLearningReferenceDocument(){
+    erdEnsureSetup();
+    if(!erdCanUpload()) return alert('لا تملك صلاحية أرشفة مستندات المراجع التعليمية.');
+    const file=document.getElementById('erd-file')?.files?.[0]||null;
+    const externalUrl=(document.getElementById('erd-externalUrl')?.value||'').trim();
+    if(!file && !externalUrl) return alert('ارفع ملفًا أو أدخل رابط مستند خارجي.');
+    if(file && file.size>MAX_LOCAL_DOCUMENT_BYTES && !externalUrl){
+      return alert('حجم الملف كبير للتخزين المحلي. أدخل رابطًا خارجيًا أو ارفعه لاحقًا إلى Supabase Storage ثم ضع الرابط هنا.');
+    }
+    const college=document.getElementById('erd-college')?.value||state.currentUser.college;
+    const section=document.getElementById('erd-section')?.value||'المراجع التعليمية';
+    const academicYear=(document.getElementById('erd-academicYear')?.value||'').trim();
+    const linkedEvidenceId=Number(document.getElementById('erd-linkedEvidenceId')?.value||0)||null;
+    let fileDataUrl='';
+    if(file && file.size<=MAX_LOCAL_DOCUMENT_BYTES) fileDataUrl=await erdReadFileAsDataUrl(file);
+    const documentNo=erdNextDocumentNo(academicYear,college,section);
+    const doc={
+      id:nextId(db.educationalReferenceDocuments),
+      documentNo,
+      title:(document.getElementById('erd-title')?.value||'').trim() || (file?.name || 'مستند مرجع تعليمي'),
+      college,
+      mainDepartment:document.getElementById('erd-mainDepartment')?.value||currentDepartmentName(),
+      section,
+      courseName:(document.getElementById('erd-courseName')?.value||'').trim(),
+      courseCode:(document.getElementById('erd-courseCode')?.value||'').trim(),
+      academicYear,
+      semester:document.getElementById('erd-semester')?.value||'الأول',
+      linkedEvidenceId,
+      fileName:file?.name||'',
+      fileType:file?.type||'',
+      fileSize:file?.size||0,
+      fileDataUrl,
+      externalUrl,
+      status:'مرفوعة',
+      notes:(document.getElementById('erd-notes')?.value||'').trim(),
+      createdAt:nowLocalString(),
+      createdBy:state.currentUser.id
+    };
+    db.educationalReferenceDocuments.unshift(doc);
+    if(linkedEvidenceId){
+      const ref=(db.needEvidence||[]).find(row=>Number(row.id)===Number(linkedEvidenceId));
+      if(ref){
+        ref.linkedDocumentIds=[...new Set([...(ref.linkedDocumentIds||[]),doc.id])];
+        ref.linkedDocumentNos=[...new Set([...(ref.linkedDocumentNos||[]),doc.documentNo])];
+        ref.documentNo=doc.documentNo;
+        ref.documentStatus=doc.status;
+      }
+    }
+    auditLog('أرشفة مستند مرجع تعليمي','learningReferenceDocument',doc.documentNo,`${doc.title} - ${doc.courseName||'بدون مقرر'}`,doc.college,doc.mainDepartment);
+    try{
+      saveDb();
+    }catch(error){
+      db.educationalReferenceDocuments=db.educationalReferenceDocuments.filter(row=>row.id!==doc.id);
+      db.auditLogs=(db.auditLogs||[]).filter(log=>!(log.targetType==='learningReferenceDocument' && log.targetId===doc.documentNo));
+      if(linkedEvidenceId){
+        const ref=(db.needEvidence||[]).find(row=>Number(row.id)===Number(linkedEvidenceId));
+        if(ref){
+          ref.linkedDocumentIds=(ref.linkedDocumentIds||[]).filter(id=>id!==doc.id);
+          ref.linkedDocumentNos=(ref.linkedDocumentNos||[]).filter(no=>no!==doc.documentNo);
+        }
+      }
+      return alert('تعذر حفظ المستند بسبب امتلاء مساحة التخزين المحلي. استخدم رابطًا خارجيًا للملف أو قلل حجم المستند.');
+    }
+    state.currentPage='needEvidence';
+    closeModal();
+    alert(`تم أرشفة المستند برقم ${documentNo}`);
+  }
+
+  function erdFind(id){
+    return (db.educationalReferenceDocuments||[]).find(doc=>Number(doc.id)===Number(id));
+  }
+
+  function openLearningReferenceDocument(id){
+    const doc=erdFind(id);
+    if(!doc) return alert('المستند غير موجود.');
+    const url=doc.fileDataUrl||doc.externalUrl;
+    if(!url) return alert('لا يوجد ملف أو رابط محفوظ لهذا المستند.');
+    window.open(url,'_blank','noopener');
+  }
+
+  function downloadLearningReferenceDocument(id){
+    const doc=erdFind(id);
+    if(!doc) return alert('المستند غير موجود.');
+    if(doc.fileDataUrl){
+      const a=document.createElement('a');
+      a.href=doc.fileDataUrl;
+      a.download=doc.fileName||`${doc.documentNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+    if(doc.externalUrl) return window.open(doc.externalUrl,'_blank','noopener');
+    alert('لا يوجد ملف أو رابط محفوظ لهذا المستند.');
+  }
+
+  function approveLearningReferenceDocument(id){
+    erdEnsureSetup();
+    if(!erdCanApprove()) return alert('لا تملك صلاحية اعتماد مستندات المراجع التعليمية.');
+    const doc=erdFind(id);
+    if(!doc) return alert('المستند غير موجود.');
+    doc.status='معتمدة';
+    doc.approvedAt=nowLocalString();
+    doc.approvedBy=state.currentUser.id;
+    if(doc.linkedEvidenceId){
+      const ref=(db.needEvidence||[]).find(row=>Number(row.id)===Number(doc.linkedEvidenceId));
+      if(ref) ref.documentStatus=doc.status;
+    }
+    auditLog('اعتماد مستند مرجع تعليمي','learningReferenceDocument',doc.documentNo,doc.title,doc.college,doc.mainDepartment);
+    saveDb();
+    render();
+  }
+
+  function rejectLearningReferenceDocument(id){
+    erdEnsureSetup();
+    if(!erdCanApprove()) return alert('لا تملك صلاحية رفض مستندات المراجع التعليمية.');
+    const doc=erdFind(id);
+    if(!doc) return alert('المستند غير موجود.');
+    const reason=prompt('سبب رفض المستند:')||'';
+    doc.status='مرفوضة';
+    doc.rejectedAt=nowLocalString();
+    doc.rejectedBy=state.currentUser.id;
+    doc.rejectionReason=reason;
+    auditLog('رفض مستند مرجع تعليمي','learningReferenceDocument',doc.documentNo,`${doc.title} - ${reason}`,doc.college,doc.mainDepartment);
+    saveDb();
+    render();
+  }
+
+  function erdDocumentActions(doc){
+    const buttons=[
+      `<button class="btn btn-secondary btn-sm" onclick="openLearningReferenceDocument(${doc.id})">عرض</button>`,
+      `<button class="btn btn-secondary btn-sm" onclick="downloadLearningReferenceDocument(${doc.id})">تحميل</button>`
+    ];
+    if(erdCanApprove() && doc.status==='مرفوعة'){
+      buttons.push(`<button class="btn btn-success btn-sm" onclick="approveLearningReferenceDocument(${doc.id})">اعتماد</button>`);
+      buttons.push(`<button class="btn btn-danger btn-sm" onclick="rejectLearningReferenceDocument(${doc.id})">رفض</button>`);
+    }
+    return `<div class="flex-actions">${buttons.join('')}</div>`;
+  }
+
+  function erdFileLabel(doc){
+    if(doc.fileName) return `${erdEscape(doc.fileName)}${doc.fileSize?` (${Math.ceil(doc.fileSize/1024)} KB)`:''}`;
+    if(doc.externalUrl) return 'رابط خارجي';
+    return '—';
+  }
+
+  function renderLearningReferenceDocumentArchivePanel(){
+    erdEnsureSetup();
+    const docs=erdScopedDocuments();
+    const rows=docs.map(doc=>[
+      doc.documentNo,
+      doc.college||'—',
+      doc.mainDepartment||'القسم العام',
+      doc.section||'—',
+      doc.courseName||'—',
+      doc.courseCode||'—',
+      doc.academicYear||'—',
+      doc.semester||'—',
+      doc.status?`<span class="badge badge-info">${erdEscape(doc.status)}</span>`:'—',
+      erdFileLabel(doc),
+      doc.linkedEvidenceId?`مرتبط بمرجع #${doc.linkedEvidenceId}`:'—',
+      actorName(doc.createdBy),
+      formatDateTime(doc.createdAt),
+      erdDocumentActions(doc)
+    ]);
+    const uploadButton=erdCanUpload()?`<button class="btn btn-primary" onclick="openModal('learningReferenceDocument')">+ أرشفة مستند مرجعي</button>`:'';
+    return `<div class="table-panel" style="margin-top:16px">
+      <div class="table-head">
+        <div><div class="panel-title">الأرشيف المستندي للمراجع التعليمية</div><div class="panel-subtitle">هذه الوثائق دليل مستندي مستقل، ولا تولد طلب شراء إلا بعد ربطها بمرجع تعليمي واعتماد مسار الاحتياج.</div></div>
+        <div class="flex-actions">${uploadButton}</div>
+      </div>
+      ${table(['رقم الوثيقة','القطاع','القسم الرئيسي','القسم الفرعي','المقرر','رمز المقرر','السنة','الفصل','الحالة','الملف','الربط','رفع بواسطة','تاريخ الرفع','إجراء'],rows)}
+    </div>`;
+  }
+
+  renderNeedEvidence=function(){
+    const base=previousDocumentArchiveRenderNeedEvidence?previousDocumentArchiveRenderNeedEvidence():'';
+    return `${base}${renderLearningReferenceDocumentArchivePanel()}`;
+  };
+
+  needEvidenceDetailData=function(id){
+    const data=previousDocumentArchiveNeedEvidenceDetailData?previousDocumentArchiveNeedEvidenceDetailData(id):null;
+    if(!data) return data;
+    const docs=(db.educationalReferenceDocuments||[]).filter(doc=>Number(doc.linkedEvidenceId)===Number(id));
+    docs.forEach(doc=>{
+      data.rows.push(['رقم الوثيقة المؤرشفة',doc.documentNo]);
+      data.rows.push(['حالة الوثيقة',doc.status||'—']);
+      data.rows.push(['عنوان الوثيقة',doc.title||'—']);
+      data.rows.push(['ملف الوثيقة',doc.fileName||doc.externalUrl||'—']);
+    });
+    return data;
+  };
+
+  modalHtml=function(){
+    if(state.modal==='learningReferenceDocument') return learningReferenceDocumentModalHtml();
+    return previousDocumentArchiveModalHtml?previousDocumentArchiveModalHtml():'';
+  };
+
+  erdEnsureSetup();
+
+  Object.assign(window,{
+    saveLearningReferenceDocument,
+    openLearningReferenceDocument,
+    downloadLearningReferenceDocument,
+    approveLearningReferenceDocument,
+    rejectLearningReferenceDocument
+  });
+})();
+/* ===== end Educational Reference Document Archive v7.6 ===== */

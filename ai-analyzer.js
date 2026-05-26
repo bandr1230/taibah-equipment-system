@@ -612,16 +612,27 @@
     const result=run?.ai_result_json||null;
     const tabs=AI_ANALYSIS_TYPES.map(type=>`<button class="report-tab ${state.aiAnalysisType===type.id?'active':''}" onclick="aiSetType('${type.id}')">${type.label}</button>`).join('');
     return `<div class="ai-analyzer-page">
-      <div class="report-tabs">${tabs}</div>
+      <div class="report-tabs ai-analysis-tabs">${tabs}</div>
       <div class="panel ai-control-panel">
-        <div class="form-grid">
-          <div><label class="label">نوع التحليل</label><select class="select" onchange="aiSetType(this.value)">${AI_ANALYSIS_TYPES.map(type=>`<option value="${type.id}" ${state.aiAnalysisType===type.id?'selected':''}>${type.label}</option>`).join('')}</select></div>
-          <div><label class="label">القطاع</label><select class="select" onchange="aiSetSector(this.value)">${aiSectorOptions()}</select></div>
-          <div><label class="label">من تاريخ</label><input class="input" type="date" value="${aiEscape(state.aiAnalysisDateFrom)}" onchange="aiSetDateFrom(this.value)"></div>
-          <div><label class="label">إلى تاريخ</label><input class="input" type="date" value="${aiEscape(state.aiAnalysisDateTo)}" onchange="aiSetDateTo(this.value)"></div>
-          <div class="full"><label class="label">الصنف أو الجهاز عند الحاجة</label><input class="input" placeholder="ابحث باسم صنف، جهاز، بلاغ، مقرر..." value="${aiEscape(state.aiAnalysisEntityQuery)}" oninput="aiSetEntityQuery(this.value)"></div>
+        <div class="ai-filter-head">
+          <div>
+            <div class="panel-title">نطاق التحليل</div>
+            <div class="panel-subtitle">اختر نوع التحليل من الأزرار أعلاه، ثم اضبط القطاع والفترة والبحث من هذه البطاقة فقط.</div>
+          </div>
+          <div class="ai-current-type-pill">${aiTypeLabel(state.aiAnalysisType)}</div>
         </div>
-        <div class="report-actions">
+        <div class="ai-filter-grid">
+          <div class="ai-selected-type-card">
+            <span>نوع التحليل الحالي</span>
+            <strong>${aiTypeLabel(state.aiAnalysisType)}</strong>
+            <em>يتغير من شريط أنواع التحليل بالأعلى</em>
+          </div>
+          <label class="ai-filter-field"><span>القطاع</span><select class="select" onchange="aiSetSector(this.value)">${aiSectorOptions()}</select></label>
+          <label class="ai-filter-field"><span>من تاريخ</span><input class="input" type="date" value="${aiEscape(state.aiAnalysisDateFrom)}" onchange="aiSetDateFrom(this.value)"></label>
+          <label class="ai-filter-field"><span>إلى تاريخ</span><input class="input" type="date" value="${aiEscape(state.aiAnalysisDateTo)}" onchange="aiSetDateTo(this.value)"></label>
+          <label class="ai-filter-field ai-filter-search"><span>الصنف أو الجهاز عند الحاجة</span><input class="input" placeholder="ابحث باسم صنف، جهاز، بلاغ، مقرر..." value="${aiEscape(state.aiAnalysisEntityQuery)}" oninput="aiSetEntityQuery(this.value)"></label>
+        </div>
+        <div class="report-actions ai-actions">
           <button class="btn btn-primary" onclick="runAiAnalyzer()" ${state.aiAnalysisStatus==='running'||!aiCanRun()?'disabled':''}>تشغيل التحليل</button>
           <button class="btn btn-secondary" onclick="printAiReport()">تصدير PDF</button>
           <button class="btn btn-secondary" onclick="exportAiReport()">تصدير Excel</button>
@@ -630,7 +641,7 @@
         <div class="alert ai-governance-note">هذه التوصيات مساعدة ولا تغني عن المراجعة الفنية أو الإدارية. المحلل لا يعتمد ولا يغلق ولا ينشئ أوامر صرف تلقائيًا.</div>
       </div>
       <div class="ai-status-line"><strong>حالة التحليل:</strong> ${state.aiAnalysisStatus==='running'?'جاري التحليل':(state.aiAnalysisMessage||'جاهز')} ${run?`<span>آخر تشغيل: ${formatDateTime(run.created_at)} | الثقة ${Math.round(Number(run.confidence_score||0)*100)}%</span>`:''}</div>
-      ${result?`<div class="panel ai-summary-panel"><div class="table-head"><div class="panel-title">${aiTypeLabel(result.analysis_type)}</div>${aiSourceBadge(result)}</div><p>${aiEscape(result.executive_summary)}</p><div class="ai-meta"><span>${AI_STATUS_LABELS[result.overall_status]||result.overall_status}</span><span>المخاطر: ${aiPriorityLabel(result.risk_level)}</span><span>الثقة: ${Math.round(Number(result.confidence_score||0)*100)}%</span></div>${result.data_quality_notes?.length?`<div class="alert">${result.data_quality_notes.map(aiEscape).join('<br>')}</div>`:''}</div>${aiFindingsHtml(result)}<div class="table-panel"><div class="table-head"><div class="panel-title">التوصيات</div></div>${aiRecommendationsTable(run)}</div>${aiChartsHtml(result)}`:`<div class="panel"><div class="panel-title">لم يتم تشغيل التحليل بعد</div><div class="panel-subtitle">اختر نوع التحليل والفترة ثم اضغط تشغيل التحليل. سيتم حفظ النتيجة والتوصيات في سجل المحلل الذكي.</div></div>`}
+      ${result?`<div class="panel ai-summary-panel"><div class="table-head"><div class="panel-title">${aiTypeLabel(result.analysis_type)}</div>${aiSourceBadge(result)}</div><p>${aiEscape(result.executive_summary)}</p><div class="ai-meta"><span>${AI_STATUS_LABELS[result.overall_status]||result.overall_status}</span><span>المخاطر: ${aiPriorityLabel(result.risk_level)}</span><span>الثقة: ${Math.round(Number(result.confidence_score||0)*100)}%</span></div>${result.data_quality_notes?.length?`<div class="alert">${result.data_quality_notes.map(aiEscape).join('<br>')}</div>`:''}</div>${aiFindingsHtml(result)}<div class="table-panel"><div class="table-head"><div class="panel-title">التوصيات</div></div>${aiRecommendationsTable(run)}</div>${aiChartsHtml(result)}`:`<div class="panel"><div class="panel-title">لم يتم تشغيل التحليل بعد</div><div class="panel-subtitle">اختر نوع التحليل من الأزرار العليا، ثم اضبط نطاق الفلاتر واضغط تشغيل التحليل. سيتم حفظ النتيجة والتوصيات في سجل المحلل الذكي.</div></div>`}
     </div>`;
   }
 

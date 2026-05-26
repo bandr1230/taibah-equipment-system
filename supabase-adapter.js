@@ -141,6 +141,7 @@ async function applyRemoteDb(remoteData, updatedAt){
   if(typeof normalizeAllNeedWorkflow === 'function') normalizeAllNeedWorkflow();
   if(typeof repairNeedActorMismatches === 'function') repairNeedActorMismatches();
   if(typeof ensureMaintenanceData === 'function') ensureMaintenanceData();
+  if(typeof ensureMaintenanceTicketWorkflow === 'function') ensureMaintenanceTicketWorkflow();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   remoteSync.suppressNextSave = false;
 }
