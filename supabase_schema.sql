@@ -1,3 +1,8 @@
+-- Source ownership signature.
+-- Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+-- Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+-- This marker is source-level only and is not rendered in UI or reports.
+
 -- Supabase schema for Taibah University demo system
 -- نفّذ هذا الملف داخل Supabase SQL Editor مرة واحدة فقط.
 
@@ -9,33 +14,36 @@ create table if not exists public.app_state (
 );
 
 -- Explicit Data API grants required by Supabase's 2026 public schema change.
--- The current web client uses the anon key for app_state sync, so anon needs
--- read/write access here. RLS policies below still control row access.
-grant select, insert, update on table public.app_state to anon;
+-- Production rule: the shared app_state row contains the full application state,
+-- so it must not be exposed to anon. Unauthenticated browser clients should
+-- fall back to local mode until a real authenticated sync path is available.
+revoke all on table public.app_state from anon;
 grant select, insert, update on table public.app_state to authenticated;
 grant select, insert, update, delete on table public.app_state to service_role;
 
 alter table public.app_state enable row level security;
 
--- سياسة تجريبية مفتوحة للقراءة والكتابة عبر anon key.
--- مناسبة للاختبار فقط. لا تستخدمها للإنتاج الرسمي.
+-- سياسات محمية للمستخدمين الموثقين فقط.
 drop policy if exists "demo read app_state" on public.app_state;
 drop policy if exists "demo insert app_state" on public.app_state;
 drop policy if exists "demo update app_state" on public.app_state;
+drop policy if exists "authenticated read app_state" on public.app_state;
+drop policy if exists "authenticated insert app_state" on public.app_state;
+drop policy if exists "authenticated update app_state" on public.app_state;
 
-create policy "demo read app_state"
+create policy "authenticated read app_state"
 on public.app_state for select
-to anon, authenticated
+to authenticated
 using (true);
 
-create policy "demo insert app_state"
+create policy "authenticated insert app_state"
 on public.app_state for insert
-to anon, authenticated
+to authenticated
 with check (true);
 
-create policy "demo update app_state"
+create policy "authenticated update app_state"
 on public.app_state for update
-to anon, authenticated
+to authenticated
 using (true)
 with check (true);
 
@@ -54,7 +62,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.ai_analysis_runs (
   id uuid primary key default gen_random_uuid(),
   analysis_type text not null,
-  sector_id uuid null,
+  sector_id text null,
   date_from date,
   date_to date,
   requested_by uuid null,
@@ -98,6 +106,14 @@ grant select, insert, update, delete on table public.ai_recommendations to servi
 alter table public.ai_analysis_runs enable row level security;
 alter table public.ai_recommendations enable row level security;
 
+do $$
+begin
+  alter table public.ai_analysis_runs
+    alter column sector_id type text using sector_id::text;
+exception
+  when others then null;
+end $$;
+
 drop policy if exists "demo read ai_analysis_runs" on public.ai_analysis_runs;
 drop policy if exists "demo insert ai_analysis_runs" on public.ai_analysis_runs;
 drop policy if exists "demo update ai_analysis_runs" on public.ai_analysis_runs;
@@ -122,7 +138,7 @@ to authenticated
 using (
   requested_by = auth.uid()
   or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-  or sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+  or sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
 );
 
 create policy "authenticated update scoped ai_analysis_runs"
@@ -131,12 +147,12 @@ to authenticated
 using (
   requested_by = auth.uid()
   or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-  or sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+  or sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
 )
 with check (
   requested_by = auth.uid()
   or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-  or sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+  or sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
 );
 
 create policy "authenticated read scoped ai_recommendations"
@@ -149,7 +165,7 @@ using (
     and (
       run.requested_by = auth.uid()
       or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-      or run.sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+      or run.sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
     )
   )
 );
@@ -164,7 +180,7 @@ with check (
     and (
       run.requested_by = auth.uid()
       or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-      or run.sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+      or run.sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
     )
   )
 );
@@ -250,7 +266,7 @@ using (
     and (
       run.requested_by = auth.uid()
       or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-      or run.sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+      or run.sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
     )
   )
 )
@@ -261,7 +277,7 @@ with check (
     and (
       run.requested_by = auth.uid()
       or coalesce(auth.jwt()->'app_metadata'->>'role','') in ('admin','system_admin')
-      or run.sector_id::text = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
+      or run.sector_id = coalesce(auth.jwt()->'app_metadata'->>'sector_id','')
     )
   )
 );

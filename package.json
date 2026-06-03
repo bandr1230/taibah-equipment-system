@@ -6,15 +6,17 @@
   "description": "منصة التجهيزات التعليمية - Android APK wrapper",
   "scripts": {
     "build": "node scripts/build-web.mjs",
+    "test:smoke": "node scripts/smoke-check.mjs",
+    "verify:ownership": "node scripts/verify-ownership-signature.mjs",
     "android:add": "npx cap add android",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:run": "npm run build && npx cap run android"
   },
   "dependencies": {
-    "@capacitor/android": "latest",
-    "@capacitor/cli": "latest",
-    "@capacitor/core": "latest"
+    "@capacitor/android": "8.3.4",
+    "@capacitor/cli": "8.3.4",
+    "@capacitor/core": "8.3.4"
   },
   "devDependencies": {}
 }

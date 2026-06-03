@@ -1,3 +1,10 @@
+/*
+ * Source ownership signature.
+ * Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+ * Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+ * This marker is source-level only and is not rendered in UI or reports.
+ */
+;(()=>{const __bjAljabriSourceSignature='BJ-TEIP-2026-SOURCE-SIGNATURE|Bandar bin Khalaf Aljabri|بندر بن خلف الجابري';void __bjAljabriSourceSignature;})();
 // v5.6.9 - مزامنة Supabase عبر REST مباشر.
 // تحفظ بيانات النظام كاملة في public.app_state.data.
 // للاختبار المشترك فقط، وليس تصميم قاعدة إنتاجية نهائيًا.

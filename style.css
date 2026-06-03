@@ -1,3 +1,9 @@
+/*
+ * Source ownership signature.
+ * Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+ * Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+ * This marker is source-level only and is not rendered in UI or reports.
+ */
 :root{
   --green:#0a8e6e;--blue:#4056e3;--turquoise:#00aeda;--navy:#111144;--gray:#f2f2f2;
   --yellow:#e5c603;--pink:#ffd1dc;--white:#fff;--bg:#f7f9fc;--text:#1f2742;--muted:#6b7280;
@@ -61,6 +67,7 @@ button,input,select,textarea{font-family:inherit}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:right;padding:13px 14px;border-bottom:1px solid #eef2f7;font-size:14px;white-space:nowrap;vertical-align:top}
 th{background:#f8fafc;color:#5a647e;font-weight:900}
+.table-wrap input[type="radio"][name="support-source-item"]{width:18px;height:18px;accent-color:var(--green);cursor:pointer;vertical-align:middle}
 .badge{display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:900}
 .badge-ok{background:#dbf3eb;color:#0b6b54}.badge-low{background:#fff2c5;color:#8a6800}.badge-danger{background:#ffe2e2;color:#a93d3d}.badge-info{background:#e6f6fc;color:#006d88}
 .flex-actions{display:flex;gap:8px;flex-wrap:wrap}

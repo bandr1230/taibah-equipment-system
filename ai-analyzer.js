@@ -1,3 +1,10 @@
+/*
+ * Source ownership signature.
+ * Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+ * Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+ * This marker is source-level only and is not rendered in UI or reports.
+ */
+;(()=>{const __bjAljabriSourceSignature='BJ-TEIP-2026-SOURCE-SIGNATURE|Bandar bin Khalaf Aljabri|بندر بن خلف الجابري';void __bjAljabriSourceSignature;})();
 (function(){
   const AI_ANALYSIS_TYPES=[
     {id:'needs',label:'تحليل الاحتياج'},
@@ -95,6 +102,41 @@
   function aiSetDateTo(value){ensureAiAnalyzerState(); state.aiAnalysisDateTo=value||''; render();}
   function aiSetEntityQuery(value){ensureAiAnalyzerState(); state.aiAnalysisEntityQuery=value||'';}
   Object.assign(window,{aiSetType,aiSetSector,aiSetDateFrom,aiSetDateTo,aiSetEntityQuery});
+
+  function aiCaptureScope(type=state.aiAnalysisType||'needs'){
+    const sector=aiIsCentral()?(state.aiAnalysisSector||'all'):(state.currentUser?.college||'');
+    return {
+      type,
+      sector_id:sector||'all',
+      date_from:state.aiAnalysisDateFrom||'',
+      date_to:state.aiAnalysisDateTo||'',
+      entity_query:state.aiAnalysisEntityQuery||'',
+      requested_by:aiCurrentUserId()
+    };
+  }
+
+  function aiWithScope(scope,callback){
+    const previous={
+      type:state.aiAnalysisType,
+      sector:state.aiAnalysisSector,
+      from:state.aiAnalysisDateFrom,
+      to:state.aiAnalysisDateTo,
+      query:state.aiAnalysisEntityQuery
+    };
+    state.aiAnalysisType=scope.type;
+    state.aiAnalysisSector=scope.sector_id;
+    state.aiAnalysisDateFrom=scope.date_from||'';
+    state.aiAnalysisDateTo=scope.date_to||'';
+    state.aiAnalysisEntityQuery=scope.entity_query||'';
+    try{return callback();}
+    finally{
+      state.aiAnalysisType=previous.type;
+      state.aiAnalysisSector=previous.sector;
+      state.aiAnalysisDateFrom=previous.from;
+      state.aiAnalysisDateTo=previous.to;
+      state.aiAnalysisEntityQuery=previous.query;
+    }
+  }
 
   function aiWithinDate(row,fields){
     const from=aiDateOnly(state.aiAnalysisDateFrom||'');
@@ -327,17 +369,16 @@
     return '';
   }
 
-  function aiPayload(type){
-    const sector=aiIsCentral()?state.aiAnalysisSector:state.currentUser?.college;
+  function aiPayload(type,scope=aiCaptureScope(type)){
     return {
       analysis_type:type,
-      sector_id:sector||'all',
-      sector:sector||'all',
-      date_from:state.aiAnalysisDateFrom||null,
-      date_to:state.aiAnalysisDateTo||null,
-      search_query:state.aiAnalysisEntityQuery||'',
+      sector_id:scope.sector_id||'all',
+      sector:scope.sector_id||'all',
+      date_from:scope.date_from||null,
+      date_to:scope.date_to||null,
+      search_query:scope.entity_query||'',
       entity_id:null,
-      requested_by:aiCurrentUserId()
+      requested_by:scope.requested_by
     };
   }
 
@@ -349,8 +390,7 @@
     return result;
   }
 
-  async function aiRequestBackend(type){
-    const payload=aiPayload(type);
+  async function aiRequestBackend(type,payload=aiPayload(type)){
     if(window.supabase?.functions?.invoke){
       const {data,error}=await window.supabase.functions.invoke('ai-analyzer',{body:payload});
       if(error) throw error;
@@ -389,11 +429,11 @@
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)?raw:null;
   }
 
-  function aiPatchRemoteRecommendation(rec,patch){
+  async function aiPatchRemoteRecommendation(rec,patch){
     if(!rec?.remote_id) return;
     const endpoint=aiSupabaseRest(`ai_recommendations?id=eq.${encodeURIComponent(rec.remote_id)}`);
     if(!endpoint) return;
-    fetch(endpoint,{
+    return fetch(endpoint,{
       method:'PATCH',
       headers:{
         apikey:window.SUPABASE_ANON_KEY,
@@ -405,20 +445,20 @@
     }).catch(()=>{});
   }
 
-  function aiInputSummary(type,source){
+  function aiInputSummary(type,source,scope=aiCaptureScope(type)){
     return {
       analysis_type:type,
-      sector:aiIsCentral()?state.aiAnalysisSector:state.currentUser?.college,
-      date_from:state.aiAnalysisDateFrom||'',
-      date_to:state.aiAnalysisDateTo||'',
-      entity_query:state.aiAnalysisEntityQuery||'',
+      sector:scope.sector_id||'all',
+      date_from:scope.date_from||'',
+      date_to:scope.date_to||'',
+      entity_query:scope.entity_query||'',
       source
     };
   }
 
-  function aiPersistRun(result,source='local'){
+  function aiPersistRun(result,source='local',scope=aiCaptureScope(result.analysis_type||state.aiAnalysisType)){
     ensureAiAnalyzerData();
-    const type=result.analysis_type||state.aiAnalysisType;
+    const type=result.analysis_type||scope.type||state.aiAnalysisType;
     const persisted=result._persistedRun||null;
     const remoteRun=persisted?.run||persisted||null;
     const remoteRecommendations=Array.isArray(persisted?.recommendations)?persisted.recommendations:[];
@@ -426,11 +466,11 @@
       id:nextId(db.aiAnalysisRuns),
       remote_id:remoteRun?.id||null,
       analysis_type:type,
-      sector_id:aiIsCentral()?state.aiAnalysisSector:state.currentUser?.college,
-      date_from:state.aiAnalysisDateFrom||'',
-      date_to:state.aiAnalysisDateTo||'',
-      requested_by:aiCurrentUserId(),
-      input_summary:aiInputSummary(type,source),
+      sector_id:scope.sector_id||'all',
+      date_from:scope.date_from||'',
+      date_to:scope.date_to||'',
+      requested_by:scope.requested_by,
+      input_summary:aiInputSummary(type,source,scope),
       ai_result_json:result,
       status:'completed',
       confidence_score:result.confidence_score,
@@ -474,21 +514,22 @@
     ensureAiAnalyzerState();
     if(!aiCanRun()) return alert('لا تملك صلاحية تشغيل المحلل الذكي.');
     const type=state.aiAnalysisType||'needs';
+    const scope=aiCaptureScope(type);
     state.aiAnalysisStatus='running';
     state.aiAnalysisMessage='جاري تشغيل التحليل...';
     render();
     let source='backend';
     let result;
     try{
-      result=await aiRequestBackend(type);
+      result=await aiRequestBackend(type,aiPayload(type,scope));
     }catch(error){
       console.error('ai-analyzer invoke failed:', error);
       source='local';
-      result=aiLocalAnalyze(type);
+      result=aiWithScope(scope,()=>aiLocalAnalyze(type));
       result.meta={...(result.meta||{}),used_ai:false,used_fallback:true,message:'تم استخدام تحليل محلي احتياطي لتعذر الاتصال بخدمة المحلل الذكي.'};
     }
-    result=aiValidateResult(result,type);
-    aiPersistRun(result,source);
+    result=aiWithScope(scope,()=>aiValidateResult(result,type));
+    aiPersistRun(result,source,scope);
     state.aiAnalysisStatus='completed';
     state.aiAnalysisMessage=result.meta?.message || (source==='backend'?'تم تشغيل التحليل عبر ai-analyzer.':'تم استخدام تحليل محلي احتياطي.');
     render();
@@ -498,8 +539,44 @@
   function aiLatestRun(){
     ensureAiAnalyzerData();
     const selected=(db.aiAnalysisRuns||[]).find(run=>Number(run.id)===Number(state.aiSelectedRunId));
-    if(selected) return selected;
-    return (db.aiAnalysisRuns||[]).find(run=>run.analysis_type===(state.aiAnalysisType||'needs'))||null;
+    if(selected && aiRunMatchesCurrentScope(selected)) return selected;
+    return (db.aiAnalysisRuns||[]).find(run=>aiRunMatchesCurrentScope(run))||null;
+  }
+
+  function aiRunSector(run){
+    return aiText(run?.sector_id||run?.input_summary?.sector||'all')||'all';
+  }
+
+  function aiRunMatchesViewer(run){
+    const sector=aiRunSector(run);
+    if(aiIsCentral()){
+      if(state.collegeFilter && state.collegeFilter!=='all' && sector!==state.collegeFilter) return false;
+      return true;
+    }
+    return sector && sector!=='all' && aiText(sector)===aiText(state.currentUser?.college);
+  }
+
+  function aiRunMatchesCurrentScope(run){
+    const scope=aiCaptureScope(state.aiAnalysisType||'needs');
+    if(!run || run.analysis_type!==scope.type) return false;
+    if(aiRunSector(run)!==(scope.sector_id||'all')) return false;
+    if(aiText(run.date_from||'')!==aiText(scope.date_from||'')) return false;
+    if(aiText(run.date_to||'')!==aiText(scope.date_to||'')) return false;
+    if(aiText(run.input_summary?.entity_query||'')!==aiText(scope.entity_query||'')) return false;
+    return aiRunMatchesViewer(run);
+  }
+
+  function aiVisibleRuns(){
+    ensureAiAnalyzerData();
+    return (db.aiAnalysisRuns||[]).filter(aiRunMatchesViewer);
+  }
+
+  function aiVisibleRecommendations(status=null){
+    const visibleRunIds=new Set(aiVisibleRuns().map(run=>String(run.id)));
+    return (db.aiRecommendations||[]).filter(rec=>
+      (!status || rec.status===status) &&
+      visibleRunIds.has(String(rec.analysis_run_id))
+    );
   }
 
   function aiStatusBadge(status){
@@ -515,7 +592,7 @@
     return '<span class="badge badge-info">تحليل قواعدي</span>';
   }
 
-  function approveAiRecommendation(id){
+  async function approveAiRecommendation(id){
     ensureAiAnalyzerData();
     if(!aiCanApprove()) return alert('لا تملك صلاحية اعتماد توصيات المحلل الذكي.');
     const rec=db.aiRecommendations.find(row=>Number(row.id)===Number(id));
@@ -527,13 +604,13 @@
     rec.rejected_by=null;
     rec.rejected_at=null;
     rec.rejection_reason='';
-    aiPatchRemoteRecommendation(rec,{status:'approved',approved_by:aiUuidOrNull(rec.approved_by),approved_at:new Date().toISOString(),rejected_by:null,rejected_at:null,rejection_reason:null});
+    await aiPatchRemoteRecommendation(rec,{status:'approved',approved_by:aiUuidOrNull(rec.approved_by),approved_at:new Date().toISOString(),rejected_by:null,rejected_at:null,rejection_reason:null});
     auditLog('اعتماد توصية المحلل الذكي','aiRecommendation',rec.id,rec.title,'المحلل الذكي',rec.related_entity_type);
     saveDb();
     render();
   }
 
-  function rejectAiRecommendation(id){
+  async function rejectAiRecommendation(id){
     ensureAiAnalyzerData();
     if(!aiCanApprove()) return alert('لا تملك صلاحية رفض توصيات المحلل الذكي.');
     const rec=db.aiRecommendations.find(row=>Number(row.id)===Number(id));
@@ -546,7 +623,7 @@
     rec.rejection_reason=reason;
     rec.approved_by=null;
     rec.approved_at=null;
-    aiPatchRemoteRecommendation(rec,{status:'rejected',rejected_by:aiUuidOrNull(rec.rejected_by),rejected_at:new Date().toISOString(),rejection_reason:reason,approved_by:null,approved_at:null});
+    await aiPatchRemoteRecommendation(rec,{status:'rejected',rejected_by:aiUuidOrNull(rec.rejected_by),rejected_at:new Date().toISOString(),rejection_reason:reason,approved_by:null,approved_at:null});
     auditLog('رفض توصية المحلل الذكي','aiRecommendation',rec.id,reason||rec.title,'المحلل الذكي',rec.related_entity_type);
     saveDb();
     render();
@@ -688,16 +765,16 @@
   reportData=function(){
     ensureAiAnalyzerData();
     const tab=state.reportTab;
-    if(tab==='ai_results') return {title:'تقرير نتائج المحلل الذكي',headers:['التاريخ','النوع','القطاع','الحالة','الثقة','الملخص'],rows:(db.aiAnalysisRuns||[]).map(run=>[formatDateTime(run.created_at),aiTypeLabel(run.analysis_type),run.sector_id||'كل القطاعات',run.status,`${Math.round(Number(run.confidence_score||0)*100)}%`,run.ai_result_json?.executive_summary||'—'])};
+    if(tab==='ai_results') return {title:'تقرير نتائج المحلل الذكي',headers:['التاريخ','النوع','القطاع','الحالة','الثقة','الملخص'],rows:aiVisibleRuns().map(run=>[formatDateTime(run.created_at),aiTypeLabel(run.analysis_type),run.sector_id||'كل القطاعات',run.status,`${Math.round(Number(run.confidence_score||0)*100)}%`,run.ai_result_json?.executive_summary||'—'])};
     if(tab==='ai_approved') return aiRecommendationsReport('approved','تقرير التوصيات المعتمدة');
     if(tab==='ai_rejected') return aiRecommendationsReport('rejected','تقرير التوصيات المرفوضة');
-    if(tab==='ai_risks') return {title:'تقرير مخاطر المحلل الذكي',headers:['التاريخ','التحليل','مستوى المخاطر','النتيجة','الدليل'],rows:(db.aiAnalysisRuns||[]).flatMap(run=>(run.ai_result_json?.key_findings||[]).filter(f=>['high','critical'].includes(f.priority)).map(f=>[formatDateTime(run.created_at),aiTypeLabel(run.analysis_type),aiPriorityLabel(f.priority),f.title,f.evidence||'—']))};
-    if(tab==='ai_savings') return {title:'تقرير فرص التوفير',headers:['التاريخ','التوصية','الأولوية','الأثر المتوقع','الحالة'],rows:(db.aiRecommendations||[]).filter(r=>['redistribute','purchase','replace'].includes(r.recommendation_type)).map(r=>[formatDateTime(r.created_at),r.title,aiPriorityLabel(r.priority),r.expected_impact||'—',r.status])};
+    if(tab==='ai_risks') return {title:'تقرير مخاطر المحلل الذكي',headers:['التاريخ','التحليل','مستوى المخاطر','النتيجة','الدليل'],rows:aiVisibleRuns().flatMap(run=>(run.ai_result_json?.key_findings||[]).filter(f=>['high','critical'].includes(f.priority)).map(f=>[formatDateTime(run.created_at),aiTypeLabel(run.analysis_type),aiPriorityLabel(f.priority),f.title,f.evidence||'—']))};
+    if(tab==='ai_savings') return {title:'تقرير فرص التوفير',headers:['التاريخ','التوصية','الأولوية','الأثر المتوقع','الحالة'],rows:aiVisibleRecommendations().filter(r=>['redistribute','purchase','replace'].includes(r.recommendation_type)).map(r=>[formatDateTime(r.created_at),r.title,aiPriorityLabel(r.priority),r.expected_impact||'—',r.status])};
     return previousAiReportData?previousAiReportData():{title:'تقرير',headers:[],rows:[]};
   };
 
   function aiRecommendationsReport(status,title){
-    return {title,headers:['التاريخ','التوصية','النوع','الأولوية','الأثر','الارتباط','المراجع'],rows:(db.aiRecommendations||[]).filter(r=>r.status===status).map(r=>[formatDateTime(r.created_at),r.title,r.recommendation_type,aiPriorityLabel(r.priority),r.expected_impact||'—',`${r.related_entity_type}: ${aiEntityName(r.related_entity_type,r.related_entity_id)}`,status==='approved'?actorName(r.approved_by):actorName(r.rejected_by)])};
+    return {title,headers:['التاريخ','التوصية','النوع','الأولوية','الأثر','الارتباط','المراجع'],rows:aiVisibleRecommendations(status).map(r=>[formatDateTime(r.created_at),r.title,r.recommendation_type,aiPriorityLabel(r.priority),r.expected_impact||'—',`${r.related_entity_type}: ${aiEntityName(r.related_entity_type,r.related_entity_id)}`,status==='approved'?actorName(r.approved_by):actorName(r.rejected_by)])};
   }
 
   ensureAiAnalyzerData();

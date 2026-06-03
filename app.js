@@ -1,3 +1,10 @@
+/*
+ * Source ownership signature.
+ * Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+ * Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+ * This marker is source-level only and is not rendered in UI or reports.
+ */
+;(()=>{const __bjAljabriSourceSignature='BJ-TEIP-2026-SOURCE-SIGNATURE|Bandar bin Khalaf Aljabri|بندر بن خلف الجابري';void __bjAljabriSourceSignature;})();
 function saveDb(){localStorage.setItem(STORAGE_KEY,JSON.stringify(db)); if(typeof saveRemoteDb==='function')saveRemoteDb()}
 function nextId(col){return col&&col.length?Math.max(...col.map(x=>Number(x.id)||0))+1:1}
 function nowLocalString(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`}
@@ -170,7 +177,30 @@ function filtersHtml(opts={college:true,section:true,search:true,forceCollege:fa
 function renderExecutive(){const m=metrics();return `<div class="executive-hero"><div class="executive-card"><div class="executive-title">جامعة طيبة — منصة موحدة للقطاعات التعليمية</div><div class="executive-text">تدير المنصة مخزون القطاعات، طلبات الصرف، رفع الاحتياج، وتبادل الدعم بين القطاعات، مع لوحة متابعة مركزية لإدارة التجهيزات.</div><div class="executive-list"><div class="executive-item">إتاحة رؤية المخزون بين القطاعات لدعم تبادل المنفعة وتقليل الهدر.</div><div class="executive-item">رفع الاحتياج لإدارة التجهيزات بناءً على بيانات فعلية من المخزون.</div><div class="executive-item">اعتماد أو رفض طلبات الصرف والدعم بسجل موثق قابل للتقرير.</div></div></div><div class="executive-card"><div class="executive-title">ملخص سريع</div><div class="executive-list"><div class="executive-item">القطاعات المفعلة: ${m.colleges}</div><div class="executive-item">الأصناف المسجلة: ${m.items}</div><div class="executive-item">طلبات دعم معلقة: ${m.pendingSupport}</div><div class="executive-item">احتياجات معلقة: ${m.pendingNeeds}</div></div></div></div>${kpisHtml(m)}${alertsHtml()}<div class="section-split"><div class="table-panel"><div class="table-head"><div class="panel-title">أصناف تحتاج متابعة</div><div class="panel-subtitle">أصناف وصلت للحد الأدنى أو أقل</div></div>${table(['القطاع','القسم','الصنف','الكمية','الحد الأدنى'],lowStock().slice(0,6).map(i=>[i.college,i.section,itemName(i),i.qty,i.minQty]))}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات دعم معلقة</div><div class="panel-subtitle">طلبات بين الكليات تنتظر الإجراء</div></div>${table(['رقم الطلب','من','إلى','الصنف','الكمية','الحالة'],filteredSupport().filter(r=>(r.status||'pending')==='pending').slice(0,6).map(r=>[r.requestNo,r.fromCollege,r.toCollege,r.itemName,r.qty,statusBadge(r.status)]))}</div></div>`}
 function kpisHtml(m){return `<div class="grid"><div class="metric accent-blue"><div class="metric-label">إجمالي الأصناف</div><div class="metric-value">${m.items}</div><div class="metric-note">على مستوى النطاق المصرح</div></div><div class="metric accent-green"><div class="metric-label">الأجهزة التعليمية</div><div class="metric-value">${m.devices}</div><div class="metric-note">جاهزية وتشغيل</div></div><div class="metric accent-yellow"><div class="metric-label">طلبات معلقة</div><div class="metric-value">${m.pendingIssue}</div><div class="metric-note">بانتظار الاعتماد</div></div><div class="metric accent-pink"><div class="metric-label">مواد تحت الحد</div><div class="metric-value">${m.low}</div><div class="metric-note">تحتاج متابعة</div></div></div>`}
 function renderDashboard(){return `<div class="hero"><div class="hero-title">لوحة متابعة ${isCentral()?'جامعة طيبة':state.currentUser.college}</div><div class="hero-text">تعرض مؤشرات المخزون والصرف والاحتياج والدعم بين القطاعات بصورة مختصرة.</div></div>${kpisHtml(metrics())}${alertsHtml()}<div class="table-panel"><div class="table-head"><div class="panel-title">حالة الأجهزة التعليمية</div></div>${table(['القطاع','الجهاز','الرقم التسلسلي','الحالة','الموقع','الكمية'],visibleItems(true).filter(i=>i.section==='الأجهزة التعليمية').map(i=>[i.college,itemName(i),i.serialNumber||'—',i.deviceStatus||'يعمل',i.location||'—',i.qty]))}</div>`}
-function table(headers,rows){return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${c??'—'}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${headers.length}">لا توجد بيانات</td></tr>`}</tbody></table></div>`}
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function isTrustedTableHtml(value){
+  const text=String(value||'').trim();
+  if(!text.startsWith('<')) return false;
+  if(/<script|javascript:|data:text\/html|<iframe|<object|<embed/i.test(text)) return false;
+  if(/on(?!click)\w+\s*=/i.test(text)) return false;
+  const handlers=[...text.matchAll(/\bonclick\s*=\s*(['"])(.*?)\1/gi)].map(match=>match[2].trim());
+  const safeHandler=/^[A-Za-z_$][\w$]*(?:\((?:\s*(?:-?\d+(?:\.\d+)?|'[^'<>`]*'|"[^"<>`]*"|null|true|false)\s*,?)*\))?$/;
+  if(handlers.some(handler=>!safeHandler.test(handler))) return false;
+  if(/^<input\s+type="radio"\s+name="support-source-item"\s+value="\d+"\s*(?:checked)?\s*>$/i.test(text)) return true;
+  return /^(<span class="badge\b|<div class="(?:flex-actions|workflow|progress|mini-progress|report-actions)\b|<button class="btn\b|<a class="btn\b|<input type="(?:radio|checkbox)"\b)/.test(text);
+}
+function renderTableCell(value){
+  if(value===null||typeof value==='undefined'||value==='') return '—';
+  return isTrustedTableHtml(value) ? String(value) : escapeHtml(value);
+}
+function supportSourceRadioHtml(itemId, checked=false){
+  const id=Number(itemId);
+  if(!Number.isFinite(id)||id<=0) return 'â€”';
+  return `<input type="radio" name="support-source-item" value="${id}" ${checked?'checked':''}>`;
+}
+function table(headers,rows){return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${renderTableCell(c)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${headers.length}">لا توجد بيانات</td></tr>`}</tbody></table></div>`}
 function renderItems(){const rows=visibleItems().map(i=>[i.college,i.code,itemName(i),i.nameEn||'—',i.section,i.unit,i.qty,i.minQty,i.location||'—',i.serialNumber||'—',i.section==='الأجهزة التعليمية'?(i.deviceStatus||'يعمل'):(i.qty<=i.minQty?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>'),hasPermission('edit_item')?`<div class="flex-actions"><button class="btn btn-secondary btn-sm" onclick="openModal('item',${i.id})">تعديل</button></div>`:'—']);return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">${isCentral()?'عرض مركزي للأصناف حسب القطاع والقسم.':'يعرض فقط أصناف ومخزون القطاع التابع للحساب الحالي.'}</div></div>${table(['القطاع','الرمز','العربي','English','القسم','الوحدة','الكمية','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>`}
 function renderTransactions(){const rows=visibleTransactions().map(t=>{const i=getItemById(t.itemId); return [t.type==='receive'?'<span class="badge badge-ok">إدخال</span>':'<span class="badge badge-low">طلب صرف</span>',t.college,t.section,itemName(i),t.qty,t.unit,t.type==='issue'?statusBadge(t.status):'<span class="badge badge-ok">مكتمل</span>',formatDateTime(t.transactionAt),actorName(t.createdBy),transactionActions(t)]});return `<div class="toolbar"><div class="toolbar-right"><input class="input search-input" placeholder="بحث..." value="${state.search}" oninput="setSearch(this.value,this)">${collegeFilterControl(false)}<select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div><div class="toolbar-left">${hasPermission('add_issue')?`<button class="btn btn-warning" onclick="openModal('transaction',null,'issue')">+ طلب صرف</button>`:''}</div></div><div class="table-panel"><div class="table-head"><div class="panel-title">سجلات الصرف والحركات</div><div class="panel-subtitle">${isCentral()?'عرض مركزي لحركات الصرف والحركات المسجلة على مستوى الجامعة.':'يعرض فقط حركات الصرف الخاصة بالقطاع التابع للحساب.'}</div></div>${table(['النوع','القطاع','القسم','الصنف','الكمية','الوحدة','الحالة','التاريخ','صاحب الإجراء','إجراء'],rows)}</div>`}
 function renderExchange(){const items=visibleItems(true); const rows=items.map(i=>[i.college,i.section,itemName(i),i.nameEn||'—',i.qty,i.unit,i.location||'—',i.college!==state.currentUser.college&&hasPermission('request_support')?`<button class="btn btn-primary btn-sm" onclick="openSupportFromItem(${i.id})">طلب دعم</button>`:'—']); const reqRows=filteredSupport().map(r=>[r.requestNo,r.supportType||'دعم تشغيلي',r.fromCollege,r.toCollege,r.itemName,r.qty,r.unit,statusBadge(r.status),approvalPath('support',r.status),formatDateTime(r.createdAt),supportActions(r)]);return `<div class="hero"><div class="hero-title">مخزون القطاعات التعليمية</div><div class="hero-text">تمكن الصفحة الكليات من رؤية الأصناف المتاحة لدى القطاعات الأخرى وطلب دعم/إعارة/سلفة تشغيلية وفق اعتماد القطاع المالكة للصنف.</div></div>${filtersHtml({forceCollege:true})}<div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف المخزنة لدى جميع القطاعات</div><div class="panel-subtitle">يمكن البحث باسم الصنف بالعربية أو الإنجليزية أو الرمز، وتظهر النتائج من جميع القطاعات حسب الصلاحية.</div></div>${table(['القطاع','القسم','الصنف','English','المتاح','الوحدة','الموقع','طلب'],rows)}</div><div class="table-panel"><div class="table-head"><div class="panel-title">طلبات الدعم بين القطاعات</div></div>${table(['رقم الطلب','نوع الطلب','الجهة الطالبة','الجهة المالكة','الصنف','الكمية','الوحدة','الحالة','مسار الاعتماد','تاريخ الطلب','إجراء'],reqRows)}</div>`}
@@ -2421,27 +2451,18 @@ function renderSmartAnalyst(){
 }
 
 const __smartAnalystNavItems=navItems;
+// Legacy smart analyst helpers are kept for compatibility; ai-analyzer.js owns the active analyst route.
 navItems=function(){
-  const items=__smartAnalystNavItems();
-  const canSeeSmart=state.currentUser && (hasPermission('view_executive')||hasPermission('view_equipment')||hasPermission('report_senior'));
-  if(canSeeSmart && !items.some(i=>i.id==='analyst')){
-    const item={id:'analyst',label:'المحلل الذكي',icon:'AI',permission:'view_executive'};
-    const executiveIdx=items.findIndex(i=>i.id==='executive');
-    if(executiveIdx>=0) items.splice(executiveIdx+1,0,item);
-    else items.unshift(item);
-  }
-  return items;
+  return __smartAnalystNavItems();
 }
 
 const __smartAnalystGetPageTitle=getPageTitle;
 getPageTitle=function(){
-  if(state.currentPage==='analyst') return 'المحلل الذكي';
   return __smartAnalystGetPageTitle();
 }
 
 const __smartAnalystRenderPageContent=renderPageContent;
 renderPageContent=function(){
-  if(state.currentPage==='analyst') return renderSmartAnalyst();
   return __smartAnalystRenderPageContent();
 }
 /* ===== end Smart Analyst Page ===== */
@@ -8437,7 +8458,7 @@ saveSupport=function(){
     if(!req) return '';
     const candidates=supportRoutingSourceItems(req);
     const rows=candidates.map(item=>[
-      `<input type="radio" name="support-source-item" value="${item.id}" ${Number(req.sourceItemId||0)===Number(item.id)?'checked':''}>`,
+      supportSourceRadioHtml(item.id,Number(req.sourceItemId||0)===Number(item.id)),
       supportRoutingEscape(item.college),
       supportRoutingEscape(item.mainDepartment||'القسم العام'),
       supportRoutingEscape(item.section),
@@ -10233,7 +10254,7 @@ saveSupport=function(){
     if(!req || !spCanReviewAll()) return supportDetailsModalHtml();
     const sources=spAvailableSources(req);
     const sourceRows=sources.map(item=>[
-      `<input type="radio" name="support-source-item" value="${item.id}" ${Number(req.sourceItemId||0)===Number(item.id)?'checked':''}>`,
+      supportSourceRadioHtml(item.id,Number(req.sourceItemId||0)===Number(item.id)),
       spCanSeeSourceSector()?spEscape(item.college):'محجوب',
       spEscape(item.mainDepartment||'القسم العام'),
       spEscape(item.section||'—'),
@@ -12112,3 +12133,218 @@ saveSupport=function(){
   });
 })();
 /* ===== end Educational Reference Document Archive v7.6 ===== */
+
+/* ===== Equipment Final Approved Needs Report v7.7 ===== */
+;(function(){
+  const previousEquipmentApprovedNeedsRenderEquipment=typeof renderEquipment==='function'?renderEquipment:null;
+
+  function eqApprovedNeedsCanView(){
+    return isCentral() && (hasPermission('approve_need') || hasPermission('report_needs') || hasPermission('manage_org'));
+  }
+
+  function eqApprovedNeedsText(value){
+    return String(value??'').trim();
+  }
+
+  function eqApprovedNeedsEscape(value){
+    return eqApprovedNeedsText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  function eqApprovedNeedsStatus(status){
+    const raw=eqApprovedNeedsText(status||'pending_sector_approval');
+    if(raw==='pending') return 'pending_sector_approval';
+    return raw;
+  }
+
+  function eqApprovedNeedsDateOnly(value){
+    const raw=eqApprovedNeedsText(value);
+    if(!raw) return '';
+    const match=raw.match(/\d{4}-\d{2}-\d{2}/);
+    return match?match[0]:raw.slice(0,10);
+  }
+
+  function eqApprovedNeedsWithinDate(row){
+    const from=eqApprovedNeedsDateOnly(state.dateFrom);
+    const to=eqApprovedNeedsDateOnly(state.dateTo);
+    if(!from && !to) return true;
+    const dates=[row.reviewedAt,row.approvedAt,row.sectorApprovedAt,row.createdAt]
+      .map(eqApprovedNeedsDateOnly)
+      .filter(Boolean);
+    if(!dates.length) return false;
+    return dates.some(date=>(!from || date>=from) && (!to || date<=to));
+  }
+
+  function eqApprovedNeedsMatchesSearch(row){
+    const q=eqApprovedNeedsText(state.search).toLowerCase();
+    if(!q) return true;
+    return [
+      row.requestNo,row.erpCode,row.college,row.mainDepartment,row.section,
+      row.itemNameAr,row.itemNameEn,row.workflowStage,row.returnNote,
+      statusText(row.status),actorName(row.createdBy),actorName(row.sectorApprovedBy),actorName(row.reviewedBy)
+    ].join(' ').toLowerCase().includes(q);
+  }
+
+  function eqApprovedNeedsRowsSource(){
+    let rows=(db.needsRequests||[]).filter(row=>eqApprovedNeedsStatus(row.status)==='approved');
+    if(state.collegeFilter && state.collegeFilter!=='all') rows=rows.filter(row=>row.college===state.collegeFilter);
+    if(state.sectionFilter && state.sectionFilter!=='all'){
+      rows=rows.filter(row=>row.section===state.sectionFilter || (row.mainDepartment||'')===state.sectionFilter);
+    }
+    rows=rows.filter(eqApprovedNeedsMatchesSearch).filter(eqApprovedNeedsWithinDate);
+    return rows.sort((a,b)=>(b.reviewedAt||b.approvedAt||b.createdAt||'').localeCompare(a.reviewedAt||a.approvedAt||a.createdAt||''));
+  }
+
+  function eqApprovedNeedsSourceLabel(need){
+    const source=eqApprovedNeedsText(need.calculationSource);
+    return need.referenceBased || source.startsWith('educational_') ? 'من المرجع التعليمي' : 'يدوي';
+  }
+
+  function eqApprovedNeedsStockText(need){
+    if(typeof workflowStockText==='function') return workflowStockText(need);
+    if(typeof need.stockAvailable!=='undefined' && need.stockAvailable!==null && need.stockAvailable!=='') return need.stockAvailable;
+    return '—';
+  }
+
+  function eqApprovedNeedsDataRows(){
+    return eqApprovedNeedsRowsSource().map(need=>[
+      need.requestNo||'—',
+      need.erpCode||'—',
+      need.college||'—',
+      need.mainDepartment||'القسم العام',
+      need.section||'—',
+      need.itemNameAr||'—',
+      need.itemNameEn||'—',
+      eqApprovedNeedsSourceLabel(need),
+      Number(need.year1Qty||0),
+      Number(need.year2Qty||0),
+      Number(need.grossQty||need.qty||0),
+      eqApprovedNeedsStockText(need),
+      Number(need.qty||0),
+      need.unit||'—',
+      need.evidenceCount||evidenceCountForNeed(need.id)||0,
+      formatDateTime(need.sectorApprovedAt),
+      actorName(need.sectorApprovedBy),
+      formatDateTime(need.reviewedAt||need.approvedAt),
+      actorName(need.reviewedBy||need.approvedBy)
+    ]);
+  }
+
+  function equipmentApprovedNeedsReportData(){
+    const rows=eqApprovedNeedsRowsSource();
+    const totalQty=rows.reduce((sum,row)=>sum+(Number(row.qty)||0),0);
+    const sectors=new Set(rows.map(row=>row.college).filter(Boolean)).size;
+    return {
+      template:'equipment-approved-needs-final',
+      title:'تقرير الاحتياجات المعتمدة نهائيًا من إدارة التجهيزات',
+      subtitle:'يعرض فقط طلبات الاحتياج التي وصلت إلى الاعتماد النهائي من إدارة التجهيزات، ولا يشمل المسودات أو الطلبات تحت الإجراء أو المعادة أو المرفوضة.',
+      headers:['رقم الطلب','رمز ERP','القطاع','القسم الرئيسي','الفئة','البند بالعربي','English','المصدر','الفصل الأول','الفصل الثاني','الإجمالي قبل الرصيد','الرصيد','الصافي المعتمد','الوحدة','عدد المراجع','تاريخ اعتماد القطاع','معتمد القطاع','تاريخ اعتماد التجهيزات','معتمد التجهيزات'],
+      rows:eqApprovedNeedsDataRows(),
+      summary:[
+        ['إجمالي الطلبات المعتمدة نهائيًا',rows.length],
+        ['عدد القطاعات',sectors],
+        ['إجمالي الصافي المعتمد',totalQty],
+        ['نطاق التقرير',state.collegeFilter && state.collegeFilter!=='all'?state.collegeFilter:'جميع القطاعات المتاحة لإدارة التجهيزات']
+      ]
+    };
+  }
+
+  function renderEquipmentApprovedNeedsPanel(){
+    if(!eqApprovedNeedsCanView()) return '';
+    const rows=eqApprovedNeedsRowsSource();
+    const previewRows=rows.map(need=>[
+      need.requestNo||'—',
+      need.college||'—',
+      need.mainDepartment||'القسم العام',
+      need.section||'—',
+      need.itemNameAr||need.itemNameEn||'—',
+      eqApprovedNeedsSourceLabel(need),
+      Number(need.year1Qty||0),
+      Number(need.year2Qty||0),
+      eqApprovedNeedsStockText(need),
+      `<span class="badge badge-ok">${Number(need.qty||0)} ${eqApprovedNeedsEscape(need.unit||'')}</span>`,
+      actorName(need.sectorApprovedBy),
+      actorName(need.reviewedBy||need.approvedBy),
+      formatDateTime(need.reviewedAt||need.approvedAt)
+    ]);
+    const totalQty=rows.reduce((sum,row)=>sum+(Number(row.qty)||0),0);
+    const refs=rows.reduce((sum,row)=>sum+(Number(row.evidenceCount||evidenceCountForNeed(row.id))||0),0);
+    const filterBar=`<div class="toolbar filter-toolbar">
+      <div class="toolbar-right">
+        <div class="filter-control filter-search"><span>بحث في المعتمد</span><input class="input search-input" placeholder="رقم الطلب، القطاع، الصنف..." value="${eqApprovedNeedsEscape(state.search)}" oninput="setSearch(this.value,this)"></div>
+        <div class="filter-control filter-college"><span>القطاع</span>${collegeFilterControl(false)}</div>
+        <div class="filter-control filter-section"><span>القسم أو الفئة</span><select class="select" onchange="setSectionFilter(this.value)">${sectionOptions(state.sectionFilter,true)}</select></div>
+        <div class="filter-control filter-date"><span>من تاريخ</span><input class="input" type="date" value="${eqApprovedNeedsEscape(state.dateFrom||'')}" onchange="setDateFrom(this.value)"></div>
+        <div class="filter-control filter-date"><span>إلى تاريخ</span><input class="input" type="date" value="${eqApprovedNeedsEscape(state.dateTo||'')}" onchange="setDateTo(this.value)"></div>
+      </div>
+      <div class="toolbar-left"></div>
+    </div>`;
+    return `<div class="hero edu-need-page-hero" style="margin-top:18px">
+      <div>
+        <div class="hero-title">الاحتياجات المعتمدة نهائيًا</div>
+        <div class="hero-text">تقرير مخصص لإدارة التجهيزات فقط، يعرض الطلبات التي انتهت بالاعتماد النهائي ولا يخلطها مع المسودات أو الطلبات تحت الإجراء.</div>
+      </div>
+      <div class="flex-actions">
+        <button class="btn btn-primary" onclick="printEquipmentApprovedNeedsReport()">PDF نهائي</button>
+        <button class="btn btn-secondary" onclick="exportEquipmentApprovedNeedsReport()">Excel نهائي</button>
+      </div>
+    </div>
+    ${filterBar}
+    <div class="grid">
+      <div class="metric accent-green"><div class="metric-label">طلبات معتمدة نهائيًا</div><div class="metric-value">${rows.length}</div><div class="metric-note">status = approved فقط</div></div>
+      <div class="metric accent-blue"><div class="metric-label">قطاعات مستفيدة</div><div class="metric-value">${new Set(rows.map(row=>row.college).filter(Boolean)).size}</div><div class="metric-note">حسب الفلاتر الحالية</div></div>
+      <div class="metric accent-yellow"><div class="metric-label">إجمالي الصافي المعتمد</div><div class="metric-value">${totalQty}</div><div class="metric-note">مجموع كميات البنود</div></div>
+      <div class="metric accent-pink"><div class="metric-label">المراجع المرتبطة</div><div class="metric-value">${refs}</div><div class="metric-note">شواهد ومراجع تعليمية</div></div>
+    </div>
+    <div class="table-panel">
+      <div class="table-head">
+        <div><div class="panel-title">سجل الاحتياجات المعتمدة نهائيًا</div><div class="panel-subtitle">هذا السجل هو مصدر التصدير النهائي لإدارة التجهيزات، ولا يعرض إلا الطلبات المعتمدة من إدارة التجهيزات.</div></div>
+      </div>
+      ${table(['رقم الطلب','القطاع','القسم الرئيسي','الفئة','الصنف','المصدر','الفصل الأول','الفصل الثاني','الرصيد','الصافي المعتمد','معتمد القطاع','معتمد التجهيزات','تاريخ اعتماد التجهيزات'],previewRows)}
+    </div>`;
+  }
+
+  function printEquipmentApprovedNeedsReport(){
+    if(!eqApprovedNeedsCanView()) return alert('لا تملك صلاحية استخراج تقرير الاحتياجات المعتمدة نهائيًا.');
+    openPrint(equipmentApprovedNeedsReportData());
+  }
+
+  function exportEquipmentApprovedNeedsReport(){
+    if(!eqApprovedNeedsCanView()) return alert('لا تملك صلاحية تصدير تقرير الاحتياجات المعتمدة نهائيًا.');
+    exportExcel(equipmentApprovedNeedsReportData(),'equipment-approved-needs-final-report.xlsx');
+  }
+
+  renderEquipment=function(){
+    const base=previousEquipmentApprovedNeedsRenderEquipment?previousEquipmentApprovedNeedsRenderEquipment():'';
+    return `${base}${renderEquipmentApprovedNeedsPanel()}`;
+  };
+
+  Object.assign(window,{
+    equipmentApprovedNeedsReportData,
+    printEquipmentApprovedNeedsReport,
+    exportEquipmentApprovedNeedsReport
+  });
+})();
+/* ===== end Equipment Final Approved Needs Report v7.7 ===== */
+
+/* ===== Need Evidence Generate Action De-dup v7.8 ===== */
+;(function(){
+  const previousNeedEvidenceGenerateDedupRender=typeof renderNeedEvidence==='function'?renderNeedEvidence:null;
+
+  function stripNeedEvidenceGenerateAction(html){
+    return String(html||'').replace(
+      /<button\b(?=[^>]*onclick=["']openModal\(["']needFromReferences["']\)["'])[^>]*>[\s\S]*?<\/button>/g,
+      ''
+    );
+  }
+
+  renderNeedEvidence=function(){
+    const html=previousNeedEvidenceGenerateDedupRender?previousNeedEvidenceGenerateDedupRender():'';
+    return stripNeedEvidenceGenerateAction(html);
+  };
+})();
+/* ===== end Need Evidence Generate Action De-dup v7.8 ===== */

@@ -1,5 +1,12 @@
 /* Need calculation engine.
    Pure functions only: no DOM, no localStorage, no app state. */
+/*
+ * Source ownership signature.
+ * Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+ * Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+ * This marker is source-level only and is not rendered in UI or reports.
+ */
+;(()=>{const __bjAljabriSourceSignature='BJ-TEIP-2026-SOURCE-SIGNATURE|Bandar bin Khalaf Aljabri|بندر بن خلف الجابري';void __bjAljabriSourceSignature;})();
 (function(root,factory){
   const engine=factory();
   if(typeof module==='object' && module.exports) module.exports=engine;
