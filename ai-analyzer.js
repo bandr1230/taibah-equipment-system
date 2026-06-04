@@ -369,6 +369,15 @@
     return '';
   }
 
+  function aiRemoteAnalyzerEnabled(){
+    return Boolean(
+      window.AI_ANALYZER_ENDPOINT ||
+      window.ENABLE_REMOTE_AI_ANALYZER === true ||
+      window.ENABLE_AI_ANALYZER_BACKEND === true ||
+      window.AI_ANALYZER_AUTO_BACKEND === true
+    );
+  }
+
   function aiPayload(type,scope=aiCaptureScope(type)){
     return {
       analysis_type:type,
@@ -477,7 +486,7 @@
       created_at:aiNow(),
       approved_by:null,
       approved_at:null,
-      notes:source==='backend'?'تم التحليل عبر ai-analyzer.':'تم التحليل محليًا لأن خدمة ai-analyzer غير متاحة.'
+      notes:source==='backend'?'تم التحليل عبر ai-analyzer.':(result.meta?.used_fallback?'تم التحليل محليًا لأن خدمة ai-analyzer غير متاحة.':'تم التحليل محليًا من بيانات البرنامج.')
     };
     db.aiAnalysisRuns.unshift(run);
     (result.recommendations||[]).forEach((rec,index)=>{
@@ -518,10 +527,16 @@
     state.aiAnalysisStatus='running';
     state.aiAnalysisMessage='جاري تشغيل التحليل...';
     render();
-    let source='backend';
+    const remoteEnabled=aiRemoteAnalyzerEnabled();
+    let source=remoteEnabled?'backend':'local';
     let result;
     try{
-      result=await aiRequestBackend(type,aiPayload(type,scope));
+      if(remoteEnabled){
+        result=await aiRequestBackend(type,aiPayload(type,scope));
+      }else{
+        result=aiWithScope(scope,()=>aiLocalAnalyze(type));
+        result.meta={...(result.meta||{}),used_ai:false,used_fallback:false,local_analysis:true,message:'تم تشغيل تحليل محلي من بيانات البرنامج.'};
+      }
     }catch(error){
       console.error('ai-analyzer invoke failed:', error);
       source='local';
@@ -588,8 +603,23 @@
   function aiSourceBadge(result){
     if(!result) return '';
     if(result.meta?.used_ai) return '<span class="badge badge-ok">تحليل ذكي</span>';
-    if(result.meta?.used_fallback) return '<span class="badge badge-warning">تحليل محلي احتياطي</span>';
+    if(result.meta?.used_fallback && aiRemoteAnalyzerEnabled()) return '<span class="badge badge-warning">تحليل محلي احتياطي</span>';
+    if(result.meta?.used_fallback || result.meta?.local_analysis) return '<span class="badge badge-info">تحليل محلي</span>';
     return '<span class="badge badge-info">تحليل قواعدي</span>';
+  }
+
+  function aiAnalysisStatusTone(result){
+    if(state.aiAnalysisStatus==='running') return 'running';
+    if(result?.meta?.used_fallback && aiRemoteAnalyzerEnabled()) return 'warning';
+    if(result?.meta?.used_ai) return 'remote';
+    if(result) return 'local';
+    return 'idle';
+  }
+
+  function aiAnalysisDisplayMessage(result){
+    if(state.aiAnalysisStatus==='running') return 'جاري التحليل';
+    if(result?.meta?.used_fallback && !aiRemoteAnalyzerEnabled()) return 'تم تشغيل تحليل محلي من بيانات البرنامج.';
+    return state.aiAnalysisMessage || result?.meta?.message || 'جاهز';
   }
 
   async function approveAiRecommendation(id){
@@ -717,7 +747,7 @@
         </div>
         <div class="alert ai-governance-note">هذه التوصيات مساعدة ولا تغني عن المراجعة الفنية أو الإدارية. المحلل لا يعتمد ولا يغلق ولا ينشئ أوامر صرف تلقائيًا.</div>
       </div>
-      <div class="ai-status-line"><strong>حالة التحليل:</strong> ${state.aiAnalysisStatus==='running'?'جاري التحليل':(state.aiAnalysisMessage||'جاهز')} ${run?`<span>آخر تشغيل: ${formatDateTime(run.created_at)} | الثقة ${Math.round(Number(run.confidence_score||0)*100)}%</span>`:''}</div>
+      <div class="ai-status-line ai-status-${aiAnalysisStatusTone(result)}"><strong>حالة التحليل:</strong> ${aiAnalysisDisplayMessage(result)} ${run?`<span>آخر تشغيل: ${formatDateTime(run.created_at)} | الثقة ${Math.round(Number(run.confidence_score||0)*100)}%</span>`:''}</div>
       ${result?`<div class="panel ai-summary-panel"><div class="table-head"><div class="panel-title">${aiTypeLabel(result.analysis_type)}</div>${aiSourceBadge(result)}</div><p>${aiEscape(result.executive_summary)}</p><div class="ai-meta"><span>${AI_STATUS_LABELS[result.overall_status]||result.overall_status}</span><span>المخاطر: ${aiPriorityLabel(result.risk_level)}</span><span>الثقة: ${Math.round(Number(result.confidence_score||0)*100)}%</span></div>${result.data_quality_notes?.length?`<div class="alert">${result.data_quality_notes.map(aiEscape).join('<br>')}</div>`:''}</div>${aiFindingsHtml(result)}<div class="table-panel"><div class="table-head"><div class="panel-title">التوصيات</div></div>${aiRecommendationsTable(run)}</div>${aiChartsHtml(result)}`:`<div class="panel"><div class="panel-title">لم يتم تشغيل التحليل بعد</div><div class="panel-subtitle">اختر نوع التحليل من الأزرار العليا، ثم اضبط نطاق الفلاتر واضغط تشغيل التحليل. سيتم حفظ النتيجة والتوصيات في سجل المحلل الذكي.</div></div>`}
     </div>`;
   }

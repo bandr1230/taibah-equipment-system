@@ -155,6 +155,15 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
 .workflow-card strong{display:block;color:var(--navy);font-size:13px;margin-bottom:7px}
 .workflow-card b{display:block;font-size:28px;color:var(--navy);line-height:1.1}
 .workflow-card span{display:block;color:var(--muted);font-size:12px;line-height:1.7;margin-top:5px}
+.need-action-summary{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin:0 0 12px}
+.need-action-card{box-shadow:0 8px 22px rgba(16,35,63,.06);border-top-width:4px}
+.need-action-issue{border-top-color:#0a8e6e;background:#f4fbf8}
+.need-action-support{border-top-color:#0aa6c2;background:#f7fcff}
+.need-action-need{border-top-color:#c24141;background:#fff8f8}
+.need-action-schedule{border-top-color:#ffb020;background:#fffaf0}
+.need-action-admin_route{border-top-color:#4056e3;background:#f7f9ff}
+.need-action-review,.need-action-none{border-top-color:#94a3b8;background:#fbfdff}
+.need-action-note{margin-bottom:18px}
 .workflow-note{display:inline-block;max-width:260px;white-space:normal;line-height:1.7;color:#5a647e}
 .maintenance-tabs{margin-top:0}
 .maintenance-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
@@ -168,7 +177,8 @@ th{background:#f8fafc;color:#5a647e;font-weight:900}
 @media(max-width:900px){.alert-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.alert-grid{grid-template-columns:1fr}}
 @media(max-width:1100px){.need-workflow-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:560px){.need-workflow-summary{grid-template-columns:1fr}}
+@media(max-width:1100px){.need-action-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.need-workflow-summary,.need-action-summary{grid-template-columns:1fr}}
 @media(max-width:1100px){.maintenance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.asset-profile-head{grid-template-columns:1fr}}
 @media(max-width:560px){.maintenance-kpi-grid{grid-template-columns:1fr}}
 
@@ -957,6 +967,10 @@ body{
 .ai-actions{align-items:center;gap:10px;margin-top:14px}
 .ai-governance-note{margin-top:12px}
 .ai-status-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #dfe7f2;border-radius:12px;padding:12px 14px;color:#111144}
+.ai-status-local{background:#f4fbf8;border-color:#bfe8d8}
+.ai-status-remote{background:#f7fbff;border-color:#c8d8f4}
+.ai-status-warning{background:#fff9df;border-color:#f0e1a3;color:#7d6200}
+.ai-status-running{background:#f8fbff;border-color:#b8cef5}
 .ai-status-line span{color:#62687c;font-size:12px}
 .ai-summary-panel p{margin:10px 0;line-height:1.9;color:#24304d}
 .ai-meta{display:flex;gap:8px;flex-wrap:wrap}
@@ -975,3 +989,70 @@ body{
   .ai-status-line{align-items:flex-start;flex-direction:column}
 }
 /* ===== end AI Analyzer ===== */
+
+/* ===== Laboratory readiness operational routing v7.9 ===== */
+.readiness-hero{
+  align-items:center;
+}
+.readiness-summary{
+  grid-template-columns:repeat(6,minmax(150px,1fr));
+}
+.readiness-card{
+  border-top-width:4px;
+}
+.readiness-card b{
+  font-size:25px;
+}
+.readiness-ready{border-top-color:#0a8e6e;background:#f5fcf9}
+.readiness-issue{border-top-color:#4056e3;background:#f7f8ff}
+.readiness-support{border-top-color:#00aeda;background:#f3fbfd}
+.readiness-partial{border-top-color:#e5c603;background:#fffdf2}
+.readiness-processing{border-top-color:#7b879b;background:#fafbfc}
+.readiness-urgent{border-top-color:#d13d4b;background:#fff8f8}
+.readiness-note{
+  border-right:4px solid #0a8e6e;
+  line-height:1.8;
+}
+.readiness-table .table-wrap{
+  max-height:none;
+}
+.readiness-table small{
+  color:var(--muted);
+  line-height:1.7;
+}
+.readiness-table .mini-progress{
+  display:grid;
+  gap:3px;
+  min-width:130px;
+}
+.readiness-table .mini-progress strong{
+  color:var(--ink);
+  font-weight:800;
+}
+.readiness-actions{
+  min-width:190px;
+  justify-content:flex-start;
+}
+.readiness-actions .btn{
+  white-space:normal;
+  line-height:1.5;
+}
+@media(max-width:1200px){
+  .readiness-summary{
+    grid-template-columns:repeat(3,minmax(160px,1fr));
+  }
+}
+@media(max-width:760px){
+  .readiness-summary{
+    grid-template-columns:1fr 1fr;
+  }
+  .readiness-hero{
+    align-items:stretch;
+  }
+}
+@media(max-width:520px){
+  .readiness-summary{
+    grid-template-columns:1fr;
+  }
+}
+/* ===== end Laboratory readiness operational routing v7.9 ===== */

@@ -6670,6 +6670,165 @@ saveSupport=function(){
     return {key:'low',label:'منخفضة',badge:'badge-info',days,scheduled};
   }
 
+  function needRiskNorm(value){
+    return needRiskText(value)
+      .toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/ة/g,'ه')
+      .replace(/ى/g,'ي')
+      .replace(/[^\u0600-\u06FFa-z0-9]+/g,'');
+  }
+
+  function needRiskCategoryKey(ref){
+    return needRiskText(ref.referenceCategoryKey||ref.categoryKey||ref.category||'')
+      .toLowerCase()
+      .replace(/[^a-z_]+/g,'');
+  }
+
+  function needRiskIsReusable(ref){
+    const category=needRiskCategoryKey(ref);
+    const policy=needRiskText(ref.reusePolicy||ref.lifecyclePolicy||ref.calculationMode||'').toLowerCase();
+    return category==='device' || ['reusable_peak','shared','peak'].includes(policy) || /قابل|مشترك|ذروة/.test(policy);
+  }
+
+  function needRiskItemKey(ref){
+    return [
+      ref.itemNameAr,
+      ref.itemNameEn,
+      ref.nameAr,
+      ref.nameEn,
+      ref.code,
+      ref.unit||ref.requestUnit
+    ].map(needRiskNorm).filter(Boolean).join('|');
+  }
+
+  function needRiskScheduleKey(ref){
+    return [
+      needRiskNorm(ref.college),
+      needRiskNorm(ref.mainDepartment||ref.section),
+      needRiskItemKey(ref),
+      needRiskNorm(ref.academicYear),
+      needRiskNorm(ref.semester),
+      Number(ref.academicWeek||ref.weekNo||ref.experimentWeek||1)||1,
+      needRiskNorm(ref.scheduleDay||ref.day||'week'),
+      needRiskNorm(ref.scheduleSlot||ref.timeSlot||ref.period||'slot')
+    ].join('|');
+  }
+
+  function needRiskConflictCount(ref,rows){
+    if(!needRiskIsReusable(ref)) return 0;
+    const key=needRiskScheduleKey(ref);
+    return (rows||[]).filter(row=>needRiskIsReusable(row)&&needRiskScheduleKey(row)===key).length;
+  }
+
+  function needRiskCanSeeSupportSources(){
+    return isCentral() ||
+      hasPermission('view_support_source_availability') ||
+      hasPermission('view_support_transfer_details') ||
+      hasPermission('view_support_admin_report') ||
+      hasPermission('assign_support_source');
+  }
+
+  function needRiskSupportSourceExists(ref){
+    const wanted=needRiskNorm(ref.itemNameAr||ref.itemNameEn||ref.itemName||'');
+    const unit=needRiskNorm(ref.unit||ref.requestUnit||'');
+    if(!wanted) return false;
+    return (db.items||[]).some(item=>{
+      if(Number(item.qty||0)<=0) return false;
+      if(needRiskText(item.college)===needRiskText(ref.college)) return false;
+      if(typeof scopeIsCentralCollege==='function' && scopeIsCentralCollege(item.college)) return false;
+      const itemNames=needRiskNorm([item.nameAr,item.nameEn,item.name,item.code].filter(Boolean).join(' '));
+      const sameName=itemNames.includes(wanted) || wanted.includes(needRiskNorm(item.nameAr||item.nameEn||item.name||''));
+      const sameUnit=!unit || needRiskNorm(item.unit)===unit;
+      return sameName && sameUnit;
+    });
+  }
+
+  function needRiskActionForRef(ref,risk,rows){
+    const deficit=Number(ref.deficit||0);
+    const stock=Number(ref.stockAvailable||0);
+    const gross=Number(ref.grossNeed||ref.estimatedNeed||0);
+    const conflictCount=needRiskConflictCount(ref,rows);
+    if(risk.days<0){
+      return {key:'review',label:'مراجعة/أرشفة',badge:'badge-info',reason:'موعد التجربة مضى؛ راجع هل تم الصرف أو يلزم توثيق الأثر.'};
+    }
+    if(deficit<=0 && (stock>0 || gross>0)){
+      return {key:'issue',label:'صرف من مخزون القطاع',badge:'badge-ok',reason:'الرصيد يغطي الاحتياج المحسوب في وقت التجربة.'};
+    }
+    if(conflictCount>1){
+      return {key:'schedule',label:'تعارض جدولة',badge:'badge-warning',reason:`الصنف قابل للمشاركة ومطلوب في ${conflictCount} مراجع ضمن نفس الفترة؛ راجع الجدولة قبل الشراء.`};
+    }
+    if(deficit>0 && needRiskCanSeeSupportSources() && needRiskSupportSourceExists(ref)){
+      return {key:'support',label:'طلب دعم بين القطاعات',badge:'badge-info',reason:'يوجد مسار دعم محتمل، وتحديد المصدر يبقى ضمن صلاحيات إدارة التجهيزات.'};
+    }
+    if(deficit>0 && !needRiskCanSeeSupportSources()){
+      return {key:'admin_route',label:'إحالة لإدارة التجهيزات',badge:'badge-warning',reason:'يوجد عجز؛ الإدارة تقرر هل يعالج بدعم داخلي أو احتياج نهائي دون كشف مصادر الدعم.'};
+    }
+    if(deficit>0){
+      return {key:'need',label:'رفع احتياج نهائي',badge:'badge-danger',reason:'العجز غير مغطى ضمن الرصيد الظاهر ولا توجد معالجة دعم مناسبة ضمن الصلاحيات الحالية.'};
+    }
+    return {key:'none',label:'لا إجراء',badge:'badge-info',reason:'لا يظهر عجز تشغيلي حالي ضمن نطاق الفلاتر.'};
+  }
+
+  function needRiskSafeActionForRef(ref,risk,rows){
+    try{
+      return needRiskActionForRef(ref,risk,rows);
+    }catch(err){
+      console.warn('[needRisk] action calculation failed',err,ref);
+      return {key:'review',label:'مراجعة',badge:'badge-warning',reason:'تعذر حساب مسار المعالجة لهذا السجل بسبب بيانات ناقصة؛ راجع المرجع قبل اتخاذ إجراء.'};
+    }
+  }
+
+  function needRiskCategoryLabel(ref){
+    if(ref.categoryLabel) return ref.categoryLabel;
+    if(ref.referenceCategory) return ref.referenceCategory;
+    if(typeof eduReferenceCategory==='function'){
+      const meta=eduReferenceCategory(ref.referenceCategoryKey);
+      if(meta && meta.label) return meta.label;
+    }
+    return '—';
+  }
+
+  function needRiskActionBadge(action){
+    action=action||{label:'مراجعة',badge:'badge-warning'};
+    return `<span class="badge ${action.badge}">${needRiskEscape(action.label)}</span>`;
+  }
+
+  function needRiskDecisionSummary(enriched){
+    const labels={
+      issue:'صرف من المخزون',
+      support:'طلب دعم',
+      need:'رفع احتياج',
+      schedule:'تعارض جدولة',
+      admin_route:'إحالة للإدارة',
+      review:'مراجعة/أرشفة',
+      none:'لا إجراء'
+    };
+    const counts={};
+    (enriched||[]).forEach(row=>{
+      const key=row?.action?.key||'review';
+      counts[key]=(counts[key]||0)+1;
+    });
+    return Object.keys(labels).map(key=>({key,label:labels[key],count:counts[key]||0}));
+  }
+
+  function needRiskActionSummaryHtml(enriched){
+    const summary=needRiskDecisionSummary(enriched);
+    return `<div class="need-action-summary">${summary.map(item=>`<div class="workflow-card need-action-card need-action-${item.key}"><strong>${item.label}</strong><b>${item.count}</b><span>${item.key==='admin_route'?'مسار لا يكشف مصادر الدعم للقطاعات':item.key==='schedule'?'يفضل مراجعته قبل إنشاء طلب شراء':'إجراء مقترح لا ينفذ تلقائيًا'}</span></div>`).join('')}</div>
+    <div class="alert need-action-note">هذه قراءة تشغيلية فقط: لا يتم إنشاء طلب صرف أو دعم أو احتياج من هذه الصفحة تلقائيًا. التحويل النهائي يتم من الصفحات المعتمدة وبحسب الصلاحيات.</div>`;
+  }
+
+  function showNeedRiskDecisionSummary(){
+    ensureNeedRiskState();
+    const start=needRiskParseDate(state.needRiskStartDate)||needRiskParseDate(nowLocalString());
+    const asOf=needRiskParseDate(state.needRiskAsOfDate)||needRiskParseDate(nowLocalString());
+    const rows=needRiskVisibleReferences();
+    const enriched=rows.map(ref=>({ref,risk:needRiskLevel(ref,start,asOf)}));
+    enriched.forEach(row=>{ row.action=needRiskSafeActionForRef(row.ref,row.risk,rows); });
+    const text=needRiskDecisionSummary(enriched).map(item=>`${item.label}: ${item.count}`).join('\n');
+    alert(`ملخص الإجراءات المقترحة:\n${text}\n\nهذه النتائج للقراءة فقط ولا تنفذ أي إجراء تلقائيًا.`);
+  }
+
   function needRiskVisibleReferences(){
     let rows=typeof visibleNeedEvidence==='function'?visibleNeedEvidence():(db.needEvidence||[]);
     if(state.needRiskAcademicYear){
@@ -6691,6 +6850,7 @@ saveSupport=function(){
   window.setNeedRiskAcademicYear=setNeedRiskAcademicYear;
   window.setNeedRiskStartDate=setNeedRiskStartDate;
   window.setNeedRiskAsOfDate=setNeedRiskAsOfDate;
+  window.showNeedRiskDecisionSummary=showNeedRiskDecisionSummary;
 
   function needRiskAcademicYearOptions(selected=''){
     const years=[...new Set((db.needEvidence||[]).map(ref=>ref.academicYear).filter(Boolean))].sort();
@@ -6703,6 +6863,7 @@ saveSupport=function(){
     const asOf=needRiskParseDate(state.needRiskAsOfDate)||needRiskParseDate(nowLocalString());
     const rows=needRiskVisibleReferences();
     const enriched=rows.map(ref=>({ref,risk:needRiskLevel(ref,start,asOf)}));
+    enriched.forEach(row=>{ row.action=needRiskSafeActionForRef(row.ref,row.risk,rows); });
     const counts={
       critical:enriched.filter(row=>row.risk.key==='critical').length,
       high:enriched.filter(row=>row.risk.key==='high').length,
@@ -6711,10 +6872,11 @@ saveSupport=function(){
     };
     const tableRows=enriched
       .sort((a,b)=>a.risk.days-b.risk.days)
-      .map(({ref,risk})=>[
+      .map(({ref,risk,action})=>[
         learningReferenceNumber(ref),
         ref.college||'—',
         ref.mainDepartment||'القسم العام',
+        needRiskCategoryLabel(ref),
         ref.courseName||'—',
         ref.experimentName||'—',
         ref.academicYear||'—',
@@ -6725,11 +6887,13 @@ saveSupport=function(){
         ref.itemNameAr||ref.itemNameEn||'—',
         ref.stockAvailable||0,
         ref.deficit||0,
-        `<span class="badge ${risk.badge}">${risk.label}</span>`
+        `<span class="badge ${risk.badge}">${risk.label}</span>`,
+        needRiskActionBadge(action),
+        needRiskEscape(action?.reason||'تعذر تحديد سبب الإجراء لهذا السجل.')
       ]);
     return `<div class="hero edu-need-page-hero">
       <div><div class="hero-title">مقياس حالات الاحتياج</div><div class="hero-text">يقيس أولوية المرجع التعليمي بناءً على بداية الدراسة، الفصل، أسبوع التجربة، الرصيد، والعجز الفعلي.</div></div>
-      <div class="flex-actions">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة مرجع</button>`:''}${hasPermission('create_need')?`<button class="btn btn-secondary" onclick="openModal('needFromReferences')">توليد احتياج</button>`:''}</div>
+      <div class="flex-actions">${hasPermission('create_need_evidence')?`<button class="btn btn-primary" onclick="openModal('evidence')">+ إضافة مرجع</button>`:''}<button class="btn btn-secondary" onclick="showNeedRiskDecisionSummary()">ملخص الإجراءات</button>${hasPermission('create_need')?`<button class="btn btn-secondary" onclick="openModal('needFromReferences')">توليد احتياج نهائي</button>`:''}</div>
     </div>
     <div class="need-workflow-summary">
       <div class="workflow-card"><strong>حرجة</strong><b>${counts.critical}</b><span>لا يوجد رصيد كاف أو الموعد قريب جدًا</span></div>
@@ -6738,13 +6902,14 @@ saveSupport=function(){
       <div class="workflow-card"><strong>منخفضة</strong><b>${counts.low}</b><span>بعيدة أو مضى موعدها</span></div>
       <div class="workflow-card"><strong>المراجع</strong><b>${rows.length}</b><span>ضمن نطاق الصلاحية والفلتر</span></div>
     </div>
+    ${needRiskActionSummaryHtml(enriched)}
     <div class="toolbar filter-toolbar"><div class="toolbar-right">
       <label class="filter-control"><span>العام الدراسي</span><select class="select" onchange="setNeedRiskAcademicYear(this.value)">${needRiskAcademicYearOptions(state.needRiskAcademicYear)}</select></label>
       <label class="filter-control"><span>تاريخ بداية الدراسة</span><input class="input" type="date" value="${state.needRiskStartDate||''}" onchange="setNeedRiskStartDate(this.value)"></label>
       <label class="filter-control"><span>تاريخ رفع/طرح الاحتياج</span><input class="input" type="date" value="${state.needRiskAsOfDate||''}" onchange="setNeedRiskAsOfDate(this.value)"></label>
     </div><div class="toolbar-left"></div></div>
-    <div class="table-panel"><div class="table-head"><div class="panel-title">قراءة أولوية المراجع التعليمية</div><div class="panel-subtitle">الفصل الأول يبدأ من تاريخ بداية الدراسة، والفصل الثاني يحسب بعد 15 أسبوعًا. التجارب السابقة تظهر منخفضة، والقريبة أو بلا رصيد كاف تظهر أعلى أولوية.</div></div>
-    ${table(['رقم المرجع','القطاع','القسم','المقرر','التجربة','العام','الفصل','الأسبوع','تاريخ التجربة','المدة','الصنف','الرصيد','العجز','المقياس'],tableRows)}</div>`;
+    <div class="table-panel"><div class="table-head"><div class="panel-title">قراءة أولوية المراجع ومسار المعالجة</div><div class="panel-subtitle">المقياس يحدد درجة الاستعجال، ومسار المعالجة يفرق بين الصرف من المخزون، الدعم، رفع الاحتياج النهائي، أو تعارض الجدولة.</div></div>
+    ${table(['رقم المرجع','القطاع','القسم','التصنيف','المقرر','التجربة','العام','الفصل','الأسبوع','تاريخ التجربة','المدة','الصنف','الرصيد','العجز','المقياس','الإجراء المقترح','سبب الإجراء'],tableRows)}</div>`;
   }
 
   function sectorOwnerForCollege(college){
@@ -9898,6 +10063,10 @@ saveSupport=function(){
       return x.length>=6 && y.length>=6 && (x.includes(y) || y.includes(x));
     }));
   }
+  function spVariantsMatch(reference,item){
+    return typeof window.itemVariantIdentityCompatible!=='function' ||
+      window.itemVariantIdentityCompatible(item,reference);
+  }
   function spFindCatalogItem(name,unit='',section=''){
     const aliases=spAliasList([name]);
     const canonicalUnit=spUnit(unit);
@@ -9906,7 +10075,7 @@ saveSupport=function(){
     return (db.items||[]).find(item=>{
       if(canonicalUnit && spUnit(item.unit)!==canonicalUnit) return false;
       if(wantedSection && spText(item.section)!==wantedSection) return false;
-      return spAliasesMatch(aliases,spItemAliases(item));
+      return spAliasesMatch(aliases,spItemAliases(item)) && spVariantsMatch({itemNameAr:name},item);
     }) || null;
   }
   function spIsEquipmentUser(user=spUser()){
@@ -10174,6 +10343,7 @@ saveSupport=function(){
       .filter(item=>spText(item.college)!==spReqRequester(req))
       .filter(item=>!unit || spUnit(item.unit)===unit)
       .filter(item=>spAliasesMatch(wantedAliases,spItemAliases(item)) || (req.itemId && Number(item.id)===Number(req.itemId)))
+      .filter(item=>spVariantsMatch(req,item))
       .sort((a,b)=>{
         const qty=Number(req.requestedQty||req.qty||0);
         const aEnough=Number(a.qty||0)>=qty?0:1;
@@ -10454,6 +10624,12 @@ saveSupport=function(){
     const source=spSelectedSourceItem();
     if(!source) return alert('لا يمكن تنفيذ التحويل قبل تحديد مصدر الدعم.');
     if(spText(source.college)===spReqRequester(req)) return alert('لا يمكن اختيار القطاع الطالب كمصدر دعم.');
+    const sourceNameMatches=spAliasesMatch(spRequestAliases(req),spItemAliases(source)) ||
+      (req.itemId && Number(source.id)===Number(req.itemId));
+    const sourceUnitMatches=!req.unit || spUnit(source.unit)===spUnit(req.unit);
+    if(!sourceNameMatches || !sourceUnitMatches || !spVariantsMatch(req,source)){
+      return alert('المصدر المختار لا يطابق اسم الصنف ومقاسه أو سعته أو مواصفاته.');
+    }
     const approvedQty=Number(document.getElementById('support-approved-qty')?.value||0);
     if(!(approvedQty>0)) return alert('أدخل كمية معتمدة صحيحة.');
     if(approvedQty>Number(source.qty||0)) return alert('الكمية المعتمدة أكبر من الرصيد المتاح لدى القطاع المانح.');
@@ -10508,7 +10684,8 @@ saveSupport=function(){
       spText(item.college)===spReqRequester(req) &&
       spUnit(item.unit)===unit &&
       (!section || spText(item.section)===section) &&
-      spAliasesMatch(wantedAliases,spItemAliases(item))
+      spAliasesMatch(wantedAliases,spItemAliases(item)) &&
+      spVariantsMatch(source||req,item)
     );
   }
   function spCreateTargetItem(req,source){
@@ -10528,6 +10705,15 @@ saveSupport=function(){
       minQty:source.minQty||0,
       location:'',
       notes:`دعم معتمد من إدارة التجهيزات - ${req.requestNo}`,
+      specA:source.specA||req.specA||'',
+      specB:source.specB||req.specB||'',
+      specifications:source.specifications||req.specifications||'',
+      size:source.size||req.size||'',
+      sizeValue:source.sizeValue||req.sizeValue||null,
+      sizeUnit:source.sizeUnit||req.sizeUnit||'',
+      dimensions:source.dimensions||req.dimensions||'',
+      material:source.material||req.material||'',
+      grade:source.grade||req.grade||'',
       serialNumber:'',
       deviceStatus:source.deviceStatus||'',
       createdAt:spNow(),
@@ -10544,6 +10730,12 @@ saveSupport=function(){
     if(spStatus(req.status)!==SUPPORT_STATUS.pendingTransfer) return alert('لا يمكن تنفيذ التحويل قبل اعتماده.');
     const source=getItemById(Number(req.sourceItemId||0));
     if(!source || !req.sourceSector) return alert('لا يمكن تنفيذ التحويل قبل تحديد مصدر الدعم.');
+    const sourceNameMatches=spAliasesMatch(spRequestAliases(req),spItemAliases(source)) ||
+      (req.itemId && Number(source.id)===Number(req.itemId));
+    const sourceUnitMatches=!req.unit || spUnit(source.unit)===spUnit(req.unit);
+    if(spText(source.college)!==spReqSource(req) || !sourceNameMatches || !sourceUnitMatches || !spVariantsMatch(req,source)){
+      return alert('تعذر التنفيذ لأن سجل المصدر لا يطابق الصنف ومقاسه أو سعته أو مواصفاته.');
+    }
     const qty=Number(req.approvedQty||0);
     if(!(qty>0)) return alert('أدخل كمية معتمدة صحيحة.');
     if(qty>Number(source.qty||0)) return alert('الكمية المعتمدة أكبر من الرصيد المتاح لدى القطاع المانح.');
@@ -12348,3 +12540,717 @@ saveSupport=function(){
   };
 })();
 /* ===== end Need Evidence Generate Action De-dup v7.8 ===== */
+
+/* ===== Laboratory Readiness Operational Routing v7.9 ===== */
+;(function(){
+  const previousReadinessNavItems=typeof navItems==='function'?navItems:null;
+  const previousReadinessGetPageTitle=typeof getPageTitle==='function'?getPageTitle:null;
+  const previousReadinessRenderPageContent=typeof renderPageContent==='function'?renderPageContent:null;
+  const previousReadinessModalHtml=typeof modalHtml==='function'?modalHtml:null;
+  const EQUIPMENT_SECTOR='إدارة التجهيزات';
+  const FINAL_SUPPORT_STATUSES=['مكتمل','مرفوض','ملغى','completed','rejected','cancelled'];
+
+  function nrText(value){ return String(value??'').trim(); }
+  function nrEscape(value){
+    return nrText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function nrNorm(value){
+    return nrText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,'')
+      .trim();
+  }
+  function nrWords(value){
+    return nrText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+  function nrAsciiDigits(value){
+    return nrText(value)
+      .replace(/[٠-٩]/g,digit=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/[۰-۹]/g,digit=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+  }
+  function nrVariantUnitKey(value){
+    if(nrText(value)==='٪') return 'percent';
+    const key=nrNorm(value);
+    if(['%','٪','بالمئه','بالمائه','percent','pct'].includes(key)) return 'percent';
+    if(['مل','ملل','مليلتر','مليلتر','ml'].includes(key)) return 'ml';
+    if(['ميكرولتر','مايكرولتر','ul','µl'].includes(key)) return 'ul';
+    if(['لتر','liter','litre','l'].includes(key)) return 'l';
+    if(['ملجم','مجم','مليجرام','milligram','mg'].includes(key)) return 'mg';
+    if(['جرام','غرام','gm','gram','g'].includes(key)) return 'g';
+    if(['كيلو','كيلوجرام','كيلوغرام','kg'].includes(key)) return 'kg';
+    if(['ملم','مم','millimeter','millimetre','mm'].includes(key)) return 'mm';
+    if(['سم','سنتيمتر','centimeter','centimetre','cm'].includes(key)) return 'cm';
+    if(['مولار','molar','mol','m'].includes(key)) return 'molar';
+    return key;
+  }
+  function nrVariantTokens(value){
+    const text=nrAsciiDigits(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[٫,]/g,'.');
+    const tokens=new Set();
+    const measurement=/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct|ميكرولتر|مايكرولتر|µl|ul|مليلتر|مليلتر|ملل|مل|ml|لتر|liter|litre|l|ملجم|مجم|مليجرام|milligram|mg|كيلوجرام|كيلوغرام|كيلو|kg|جرام|غرام|gram|gm|g|ملم|مم|millimeter|millimetre|mm|سنتيمتر|سم|centimeter|centimetre|cm|مولار|molar|mol|m)(?![\u0600-\u06FFa-z])/gi;
+    let match;
+    while((match=measurement.exec(text))){
+      tokens.add(`measure:${Number(match[1])}:${nrVariantUnitKey(match[2])}`);
+    }
+    const numbers=text.match(/\d+(?:\.\d+)?/g)||[];
+    numbers.forEach(number=>tokens.add(`number:${Number(number)}`));
+    const normalized=nrNorm(text);
+    const words=new Set(nrWords(text));
+    const sizes=[
+      ['size:xs',['xs','extrasmall','مقاسxs']],
+      ['size:s',['s','small','صغير','مقاسs']],
+      ['size:m',['m','medium','متوسط','مقاسm']],
+      ['size:l',['l','large','كبير','مقاسl']],
+      ['size:xl',['xl','extralarge','مقاسxl']],
+      ['size:xxl',['xxl','مقاسxxl']]
+    ];
+    sizes.forEach(([token,aliases])=>{
+      if(aliases.some(alias=>words.has(alias)||normalized.includes(`مقاس${alias}`))) tokens.add(token);
+    });
+    const descriptors=[
+      ['material:glass',['زجاج','زجاجي','glass']],
+      ['material:plastic',['بلاستيك','بلاستيكي','plastic']],
+      ['material:nitrile',['نتريل','نيتريل','nitrile']],
+      ['material:latex',['لاتكس','latex']],
+      ['material:stainless',['ستانلس','stainless']],
+      ['sterility:nonsterile',['غيرمعقم','nonsterile']],
+      ['sterility:sterile',['معقم','sterile']]
+    ];
+    descriptors.forEach(([token,aliases])=>{
+      if(aliases.some(alias=>normalized.includes(nrNorm(alias)))) tokens.add(token);
+    });
+    if(tokens.has('sterility:nonsterile')) tokens.delete('sterility:sterile');
+    return tokens;
+  }
+  function nrReferenceVariantTokens(ref){
+    return nrVariantTokens([
+      ref?.itemNameAr,ref?.itemNameEn,ref?.itemName,
+      ref?.specA,ref?.specB,ref?.specifications,
+      ref?.size,ref?.sizeValue,ref?.sizeUnit,ref?.dimensions,
+      ref?.material,ref?.grade,ref?.sourceConcentration,ref?.targetConcentration
+    ].filter(Boolean).join(' '));
+  }
+  function nrInventoryVariantTokens(item){
+    return nrVariantTokens([
+      item?.nameAr,item?.nameEn,item?.name,
+      item?.specA,item?.specB,item?.specifications,
+      item?.size,item?.sizeValue,item?.sizeUnit,item?.dimensions,
+      item?.material,item?.grade,item?.notes
+    ].filter(Boolean).join(' '));
+  }
+  function nrVariantsCompatible(item,ref){
+    const referenceTokens=nrReferenceVariantTokens(ref);
+    const inventoryTokens=nrInventoryVariantTokens(item);
+    if(!referenceTokens.size && !inventoryTokens.size) return true;
+    if(!referenceTokens.size || !inventoryTokens.size) return false;
+    return [...referenceTokens].every(token=>inventoryTokens.has(token));
+  }
+  function nrNum(value){
+    const number=Number(value||0);
+    return Number.isFinite(number)?Math.max(number,0):0;
+  }
+  function nrEngine(){ return window.NeedEngine||null; }
+  function nrCanonicalUnit(unit){
+    return nrEngine()?.canonicalUnit ? nrEngine().canonicalUnit(unit) : nrText(unit);
+  }
+  function nrUnitFamily(unit){
+    return nrEngine()?.unitFamily ? nrEngine().unitFamily(unit) : nrCanonicalUnit(unit);
+  }
+  function nrConvert(qty,fromUnit,toUnit){
+    if(nrEngine()?.convertQty) return nrEngine().convertQty(qty,fromUnit,toUnit);
+    return nrNum(qty);
+  }
+  function nrRoundQty(qty,unit){
+    const value=nrNum(qty);
+    if(nrUnitFamily(unit)==='count') return Math.ceil(value);
+    return Math.ceil(value*100)/100;
+  }
+  function nrDateOnly(value){
+    const match=nrText(value).match(/\d{4}-\d{2}-\d{2}/);
+    return match?match[0]:nrText(value).slice(0,10);
+  }
+  function nrParseDate(value){
+    const raw=nrDateOnly(value);
+    if(!raw) return null;
+    const date=new Date(`${raw}T00:00:00`);
+    return Number.isNaN(date.getTime())?null:date;
+  }
+  function nrFormatDate(date){
+    if(!(date instanceof Date)||Number.isNaN(date.getTime())) return '—';
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+  }
+  function nrAddDays(date,days){
+    const next=new Date(date.getTime());
+    next.setDate(next.getDate()+days);
+    return next;
+  }
+  function nrDaysBetween(from,to){
+    return Math.ceil((to.getTime()-from.getTime())/(24*60*60*1000));
+  }
+  function nrSemesterStart(startDate,semester){
+    return ['الثاني','second','2'].includes(nrText(semester))?nrAddDays(startDate,15*7):startDate;
+  }
+  function nrScheduledDate(ref,startDate){
+    const week=Math.max(1,Math.min(15,Number(ref.academicWeek||ref.weekNo||ref.experimentWeek||1)||1));
+    return nrAddDays(nrSemesterStart(startDate,ref.semester),(week-1)*7);
+  }
+  function nrCategoryKey(ref){
+    return nrText(ref?.referenceCategoryKey||ref?.categoryKey||ref?.category||'').toLowerCase().replace(/[^a-z_]+/g,'');
+  }
+  function nrCategoryLabel(ref){
+    if(ref?.categoryLabel) return ref.categoryLabel;
+    if(ref?.referenceCategory) return ref.referenceCategory;
+    if(typeof eduReferenceCategory==='function') return eduReferenceCategory(nrCategoryKey(ref)||'chemical')?.label||'—';
+    return '—';
+  }
+  function nrIsReusable(ref){
+    const category=nrCategoryKey(ref);
+    const policy=nrText(ref?.reusePolicy||ref?.lifecyclePolicy||ref?.calculationMode||'').toLowerCase();
+    return category==='device' || ['reusable','reusable_peak','shared','peak','durable'].includes(policy) || ref?.basis==='reusable' || ref?.consumptionBasis==='reusable';
+  }
+  function nrReferenceNo(ref){
+    return typeof learningReferenceNumber==='function'?learningReferenceNumber(ref):(ref?.referenceNo||ref?.requestNo||`ER-${ref?.id||''}`);
+  }
+  function nrItemName(row){
+    return typeof itemName==='function'?itemName(row):(row?.nameAr||row?.name||row?.nameEn||'—');
+  }
+  function nrReferenceName(ref){ return nrText(ref?.itemNameAr||ref?.itemNameEn||ref?.itemName||''); }
+  function nrScheduleKey(ref){
+    return [
+      nrNorm(ref?.college),
+      nrNorm(ref?.itemNameAr||ref?.itemNameEn),
+      nrNorm(ref?.requestUnit||ref?.unit),
+      nrNorm(ref?.specA),
+      nrNorm(ref?.academicYear),
+      nrNorm(ref?.semester),
+      Number(ref?.academicWeek||ref?.weekNo||ref?.experimentWeek||1)||1,
+      nrNorm(ref?.scheduleDay||ref?.day||'week'),
+      nrNorm(ref?.scheduleSlot||ref?.timeSlot||ref?.period||'slot')
+    ].join('|');
+  }
+  function nrOccurrenceKey(ref){
+    if(nrIsReusable(ref)) return `readiness|shared|${nrScheduleKey(ref)}`;
+    return `readiness|ref:${ref?.id||nrReferenceNo(ref)}|${nrNorm(ref?.academicYear)}|${nrNorm(ref?.semester)}|${Number(ref?.academicWeek||ref?.weekNo||ref?.experimentWeek||1)||1}`;
+  }
+  function nrOccurrenceQty(ref){
+    const repeats=Math.max(1,nrNum(ref?.repeats||ref?.usesCount)||1);
+    let calculated=nrNum(ref?.grossNeed||ref?.estimatedNeed)/repeats;
+    if(!(calculated>0) && nrEngine()?.calcMaterial){
+      try{
+        calculated=nrNum(nrEngine().calcMaterial({...ref,repeats:1,usesCount:1}).grossNeed);
+      }catch(error){
+        console.warn('[Readiness] Could not calculate one occurrence',error,ref);
+      }
+    }
+    return nrRoundQty(calculated,ref?.requestUnit||ref?.unit);
+  }
+  function nrConcurrentDemand(ref,rows){
+    if(!nrIsReusable(ref)) return nrOccurrenceQty(ref);
+    const key=nrScheduleKey(ref);
+    return nrRoundQty((rows||[])
+      .filter(row=>nrIsReusable(row)&&nrScheduleKey(row)===key)
+      .reduce((sum,row)=>sum+nrOccurrenceQty(row),0),ref?.requestUnit||ref?.unit);
+  }
+  function nrMatchesReference(item,ref){
+    if(!item || nrText(item.college)!==nrText(ref.college)) return false;
+    const requestUnit=ref.requestUnit||ref.unit;
+    if(requestUnit && nrUnitFamily(item.unit)!==nrUnitFamily(requestUnit)) return false;
+    const wanted=[ref.itemNameAr,ref.itemNameEn,ref.itemName].map(nrNorm).filter(Boolean);
+    const itemAliases=[item.nameAr,item.nameEn,item.name,item.code].map(nrNorm).filter(Boolean);
+    const nameMatches=wanted.some(left=>itemAliases.some(right=>left===right || (left.length>=5 && right.length>=5 && (left.includes(right)||right.includes(left)))));
+    if(!nameMatches) return false;
+    if(!nrVariantsCompatible(item,ref)) return false;
+    const ignored=new Set(['مقاس','يعمل','قابل','للاشتعال','تعليمي','تعليميه','قطعه','عبوه','علبه','جهاز']);
+    const specTokens=nrWords([ref.specA,ref.specB].filter(Boolean).join(' '))
+      .filter(token=>token.length>=2 && !ignored.has(token));
+    if(!specTokens.length) return true;
+    const itemText=nrWords([item.nameAr,item.nameEn,item.name,item.notes,item.specifications,item.deviceStatus].filter(Boolean).join(' '));
+    return specTokens.every(token=>itemText.includes(token));
+  }
+  function nrPendingIssueQty(itemId){
+    return (db.transactions||[])
+      .filter(tx=>tx.type==='issue' && Number(tx.itemId)===Number(itemId) && nrText(tx.status||'pending')==='pending')
+      .reduce((sum,tx)=>sum+nrNum(tx.qty),0);
+  }
+  function nrOperationalItemQty(item,ref){
+    if(nrCategoryKey(ref)==='device'){
+      const status=nrNorm(item?.deviceStatus);
+      if(['تحتالصيانه','متوقف','خارجالخدمه','عطل'].some(value=>status.includes(value))) return 0;
+    }
+    return Math.max(nrNum(item?.qty)-nrPendingIssueQty(item?.id),0);
+  }
+  function nrLocalMatches(ref){
+    const requestUnit=ref.requestUnit||ref.unit;
+    return (db.items||[])
+      .filter(item=>nrMatchesReference(item,ref))
+      .map(item=>{
+        const availableItemUnit=nrOperationalItemQty(item,ref);
+        const availableRequestUnit=nrConvert(availableItemUnit,item.unit,requestUnit);
+        return {item,availableItemUnit,availableRequestUnit};
+      })
+      .sort((a,b)=>b.availableRequestUnit-a.availableRequestUnit);
+  }
+  function nrLinkedIssue(occurrenceKey){
+    return (db.transactions||[]).find(tx=>
+      tx.type==='issue' &&
+      nrText(tx.relatedOccurrenceKey)===nrText(occurrenceKey) &&
+      !['rejected','cancelled'].includes(nrText(tx.status))
+    )||null;
+  }
+  function nrLinkedSupport(occurrenceKey){
+    return (db.supportRequests||[]).find(req=>
+      nrText(req.relatedOccurrenceKey)===nrText(occurrenceKey) &&
+      !['مرفوض','ملغى','rejected','cancelled'].includes(nrText(req.status))
+    )||null;
+  }
+  function nrSupportCompleted(req){
+    return Boolean(req)&&['مكتمل','completed','approved'].includes(nrText(req.status));
+  }
+  function nrIssueCompleted(tx){ return Boolean(tx)&&['approved','completed'].includes(nrText(tx.status)); }
+  function nrCanActForRef(ref){
+    return Boolean(state.currentUser) && nrText(state.currentUser.college)===nrText(ref.college);
+  }
+  function nrCanCreateSupport(){
+    return hasPermission('create_support_request') || hasPermission('request_support');
+  }
+  function nrVisibleReferences(){
+    let rows=typeof visibleNeedEvidence==='function'?visibleNeedEvidence():(db.needEvidence||[]);
+    if(state.needRiskAcademicYear) rows=rows.filter(ref=>nrText(ref.academicYear)===nrText(state.needRiskAcademicYear));
+    return rows;
+  }
+  function nrBuildPlan(ref,rows,startDate,asOfDate){
+    const requestUnit=ref.requestUnit||ref.unit||'عدد';
+    const reusable=nrIsReusable(ref);
+    const scheduled=nrScheduledDate(ref,startDate);
+    const days=nrDaysBetween(asOfDate,scheduled);
+    const occurrenceKey=nrOccurrenceKey(ref);
+    const requiredQty=nrConcurrentDemand(ref,rows);
+    const matches=nrLocalMatches(ref);
+    const best=matches[0]||null;
+    const available=nrRoundQty(best?.availableRequestUnit||0,requestUnit);
+    const linkedIssue=nrLinkedIssue(occurrenceKey);
+    const linkedSupport=nrLinkedSupport(occurrenceKey);
+    const completed=nrIssueCompleted(linkedIssue)||nrSupportCompleted(linkedSupport);
+    const issueCommitted=linkedIssue?nrConvert(nrNum(linkedIssue.qty),linkedIssue.unit||requestUnit,requestUnit):0;
+    const supportCommitted=linkedSupport?nrNum(linkedSupport.approvedQty||linkedSupport.requestedQty||linkedSupport.qty):0;
+    const remaining=completed?0:Math.max(requiredQty-issueCommitted-supportCommitted,0);
+    let issueQty=0;
+    let supportQty=0;
+    let key='review';
+    let label='يحتاج مراجعة';
+    let badge='badge-warning';
+    let reason='تعذر تحديد مسار تشغيلي تلقائي لهذا المرجع.';
+
+    if(completed){
+      key='completed';
+      label=nrIssueCompleted(linkedIssue)?'تم الصرف للتجربة':'تم تأمين الدعم';
+      badge='badge-ok';
+      reason='اكتملت معالجة الموعد التشغيلي المرتبط بهذا المرجع.';
+    }else if(remaining<=0 && (linkedIssue||linkedSupport)){
+      key='processing';
+      label='طلب قيد المعالجة';
+      badge='badge-info';
+      reason='توجد طلبات تشغيلية تغطي الكمية المطلوبة لهذا الموعد، وبانتظار اكتمال مسارها.';
+    }else if(reusable){
+      if(available>=remaining){
+        key='ready';
+        label='جاهز للتشغيل';
+        badge='badge-ok';
+        reason='الطاقة التشغيلية المتاحة في القطاع تغطي الاستخدام المتزامن، ولا يلزم صرف دائم.';
+      }else if(!linkedSupport){
+        supportQty=nrRoundQty(Math.max(remaining-available,0),requestUnit);
+        key='support';
+        label='طلب دعم/إعارة';
+        badge='badge-info';
+        reason='الطاقة التشغيلية المحلية لا تغطي الاستخدام المتزامن؛ يطلب دعم أو إعارة دون كشف مصدر الدعم للقطاع.';
+      }else{
+        key='processing';
+        label='طلب دعم قيد المعالجة';
+        badge='badge-info';
+        reason='يوجد طلب دعم مرتبط بالموعد التشغيلي وبانتظار قرار إدارة التجهيزات.';
+      }
+    }else{
+      if(!linkedIssue) issueQty=nrRoundQty(Math.min(remaining,available),requestUnit);
+      const afterIssue=Math.max(remaining-issueQty,0);
+      if(afterIssue>0 && !linkedSupport) supportQty=nrRoundQty(afterIssue,requestUnit);
+      if(issueQty>0 && supportQty>0){
+        key='partial';
+        label='صرف المتاح + دعم للعجز';
+        badge='badge-warning';
+        reason='يتوفر جزء من كمية تشغيل التجربة داخل القطاع، بينما يحتاج العجز إلى طلب دعم مستقل.';
+      }else if(issueQty>0){
+        key='issue';
+        label='طلب صرف';
+        badge='badge-ok';
+        reason='الرصيد الحي المطابق داخل القطاع يغطي كمية تشغيل التجربة القادمة.';
+      }else if(supportQty>0){
+        key='support';
+        label='طلب دعم';
+        badge='badge-info';
+        reason='لا يكفي الرصيد الحي المطابق داخل القطاع؛ يرسل طلب دعم إلى إدارة التجهيزات دون كشف المصدر.';
+      }else if(linkedIssue||linkedSupport){
+        key='processing';
+        label='طلب قيد المعالجة';
+        badge='badge-info';
+        reason='يوجد طلب تشغيلي مرتبط بهذا المرجع وبانتظار اكتمال الإجراء.';
+      }
+    }
+    const unresolved=!['ready','completed'].includes(key);
+    let urgency={key:'low',label:'منخفضة',badge:'badge-info'};
+    if(!unresolved) urgency={key:'ready',label:'جاهزة',badge:'badge-ok'};
+    else if(days<0) urgency={key:'overdue',label:'متأخرة',badge:'badge-danger'};
+    else if(days<=7) urgency={key:'critical',label:'حرجة',badge:'badge-danger'};
+    else if(days<=21) urgency={key:'high',label:'عالية',badge:'badge-danger'};
+    else if(days<=45) urgency={key:'medium',label:'متوسطة',badge:'badge-warning'};
+    return {
+      ref,requestUnit,reusable,scheduled,days,occurrenceKey,requiredQty,matches,best,available,
+      linkedIssue,linkedSupport,issueQty,supportQty,key,label,badge,reason,urgency
+    };
+  }
+  function nrCurrentPlan(ref){
+    nrEnsureState();
+    const start=nrParseDate(state.needRiskStartDate)||nrParseDate(nowLocalString());
+    const asOf=nrParseDate(state.needRiskAsOfDate)||nrParseDate(nowLocalString());
+    return nrBuildPlan(ref,nrVisibleReferences(),start,asOf);
+  }
+  function nrEnsureState(){
+    if(typeof state.needRiskAcademicYear==='undefined') state.needRiskAcademicYear='';
+    if(typeof state.needRiskStartDate==='undefined') state.needRiskStartDate=nrDateOnly(nowLocalString());
+    if(typeof state.needRiskAsOfDate==='undefined') state.needRiskAsOfDate=nrDateOnly(nowLocalString());
+  }
+  function nrReferenceById(id){
+    return (db.needEvidence||[]).find(ref=>String(ref.id)===String(id))||null;
+  }
+  function nrStatusBadge(plan){
+    return `<span class="badge ${plan.badge}">${nrEscape(plan.label)}</span>`;
+  }
+  function nrUrgencyBadge(plan){
+    return `<span class="badge ${plan.urgency.badge}">${nrEscape(plan.urgency.label)}</span>`;
+  }
+  function nrActionButtons(plan){
+    const buttons=[];
+    if(plan.linkedIssue) buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openNeedRiskLinked('issue',${Number(plan.linkedIssue.id)})">عرض طلب الصرف</button>`);
+    if(plan.linkedSupport) buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openNeedRiskLinked('support',${Number(plan.linkedSupport.id)})">عرض طلب الدعم</button>`);
+    if(nrCanActForRef(plan.ref)){
+      if(plan.issueQty>0 && !plan.linkedIssue && hasPermission('add_issue')){
+        buttons.push(`<button class="btn btn-warning btn-sm" onclick="openNeedRiskIssue('${nrEscape(plan.ref.id)}')">طلب صرف ${nrEscape(plan.issueQty)} ${nrEscape(plan.requestUnit)}</button>`);
+      }
+      if(plan.supportQty>0 && !plan.linkedSupport && nrCanCreateSupport()){
+        buttons.push(`<button class="btn btn-primary btn-sm" onclick="openNeedRiskSupport('${nrEscape(plan.ref.id)}')">طلب دعم ${nrEscape(plan.supportQty)} ${nrEscape(plan.requestUnit)}</button>`);
+      }
+    }
+    return buttons.length?`<div class="flex-actions readiness-actions">${buttons.join('')}</div>`:nrStatusBadge(plan);
+  }
+  function nrSummary(plans){
+    return {
+      ready:plans.filter(plan=>['ready','completed'].includes(plan.key)).length,
+      issue:plans.filter(plan=>plan.issueQty>0).length,
+      support:plans.filter(plan=>plan.supportQty>0).length,
+      partial:plans.filter(plan=>plan.key==='partial').length,
+      processing:plans.filter(plan=>Boolean(plan.linkedIssue||plan.linkedSupport)&&!['completed'].includes(plan.key)).length,
+      urgent:plans.filter(plan=>['critical','overdue'].includes(plan.urgency.key)&&!['ready','completed'].includes(plan.key)).length
+    };
+  }
+  function showNeedRiskReadinessSummary(){
+    nrEnsureState();
+    const start=nrParseDate(state.needRiskStartDate)||nrParseDate(nowLocalString());
+    const asOf=nrParseDate(state.needRiskAsOfDate)||nrParseDate(nowLocalString());
+    const rows=nrVisibleReferences();
+    const summary=nrSummary(rows.map(ref=>nrBuildPlan(ref,rows,start,asOf)));
+    alert(`ملخص جاهزية المعامل:\nجاهزة: ${summary.ready}\nتحتاج طلب صرف: ${summary.issue}\nتحتاج طلب دعم: ${summary.support}\nمعالجة مشتركة: ${summary.partial}\nطلبات قيد المعالجة: ${summary.processing}\nحرجة أو متأخرة: ${summary.urgent}`);
+  }
+  function nrAcademicYearOptions(selected=''){
+    const years=[...new Set((db.needEvidence||[]).map(ref=>ref.academicYear).filter(Boolean))].sort();
+    return `<option value="" ${!selected?'selected':''}>كل الأعوام</option>${years.map(year=>`<option value="${nrEscape(year)}" ${selected===year?'selected':''}>${nrEscape(year)}</option>`).join('')}`;
+  }
+  function nrRenderPage(){
+    nrEnsureState();
+    const start=nrParseDate(state.needRiskStartDate)||nrParseDate(nowLocalString());
+    const asOf=nrParseDate(state.needRiskAsOfDate)||nrParseDate(nowLocalString());
+    const rows=nrVisibleReferences();
+    const plans=rows.map(ref=>nrBuildPlan(ref,rows,start,asOf)).sort((a,b)=>a.days-b.days);
+    const summary=nrSummary(plans);
+    const tableRows=plans.map(plan=>[
+      nrReferenceNo(plan.ref),
+      plan.ref.college||'—',
+      plan.ref.mainDepartment||'القسم العام',
+      `<div class="mini-progress"><strong>${nrEscape(plan.ref.courseName||'—')}</strong><small>${nrEscape(plan.ref.experimentName||'—')}</small></div>`,
+      nrCategoryLabel(plan.ref),
+      plan.ref.itemNameAr||plan.ref.itemNameEn||'—',
+      nrFormatDate(plan.scheduled),
+      plan.days<0?`متأخر ${Math.abs(plan.days)} يوم`:`متبقي ${plan.days} يوم`,
+      `${plan.requiredQty} ${nrEscape(plan.requestUnit)}`,
+      `<div class="mini-progress"><strong>${plan.available} ${nrEscape(plan.requestUnit)}</strong><small>${plan.best?`السجل المطابق: ${nrEscape(nrItemName(plan.best.item))}`:'لا يوجد سجل مخزون مطابق'}</small></div>`,
+      nrUrgencyBadge(plan),
+      nrStatusBadge(plan),
+      nrActionButtons(plan),
+      nrEscape(plan.reason)
+    ]);
+    return `<div class="hero edu-need-page-hero readiness-hero">
+      <div><div class="hero-title">مقياس جاهزية المعامل والمقررات</div><div class="hero-text">يراقب موعد التجربة والرصيد الحي للقطاع، ثم يوجّه إلى طلب صرف أو دعم فقط. توليد الاحتياج النهائي يبقى حصريًا في صفحة طلبات الاحتياج.</div></div>
+      <div class="flex-actions"><button class="btn btn-secondary" onclick="showNeedRiskReadinessSummary()">ملخص الجاهزية</button></div>
+    </div>
+    <div class="need-workflow-summary readiness-summary">
+      <div class="workflow-card readiness-card readiness-ready"><strong>جاهزة</strong><b>${summary.ready}</b><span>لا تحتاج إجراءً تشغيليًا جديدًا</span></div>
+      <div class="workflow-card readiness-card readiness-issue"><strong>تحتاج طلب صرف</strong><b>${summary.issue}</b><span>الرصيد المحلي يغطي الكمية المطلوبة</span></div>
+      <div class="workflow-card readiness-card readiness-support"><strong>تحتاج طلب دعم</strong><b>${summary.support}</b><span>العجز يوجّه إلى إدارة التجهيزات</span></div>
+      <div class="workflow-card readiness-card readiness-partial"><strong>معالجة مشتركة</strong><b>${summary.partial}</b><span>صرف المتاح وطلب دعم للعجز</span></div>
+      <div class="workflow-card readiness-card readiness-processing"><strong>طلبات قيد المعالجة</strong><b>${summary.processing}</b><span>مرتبطة بالمرجع والموعد لمنع التكرار</span></div>
+      <div class="workflow-card readiness-card readiness-urgent"><strong>حرجة أو متأخرة</strong><b>${summary.urgent}</b><span>تحتاج متابعة تشغيلية عاجلة</span></div>
+    </div>
+    <div class="alert readiness-note">هذه الصفحة لا تولّد طلب احتياج ولا تعتمد أو تصرف تلقائيًا. تتم مطابقة الرصيد على اسم الصنف والمقاس والسعة والتركيز والمواصفات المميزة؛ ولا يُستخدم رصيد صنف عام لصنف ذي مقاس محدد أو العكس.</div>
+    <div class="toolbar filter-toolbar"><div class="toolbar-right">
+      <label class="filter-control"><span>العام الدراسي</span><select class="select" onchange="setNeedRiskAcademicYear(this.value)">${nrAcademicYearOptions(state.needRiskAcademicYear)}</select></label>
+      <label class="filter-control"><span>تاريخ بداية الدراسة</span><input class="input" type="date" value="${nrEscape(state.needRiskStartDate||'')}" onchange="setNeedRiskStartDate(this.value)"></label>
+      <label class="filter-control"><span>تاريخ القياس</span><input class="input" type="date" value="${nrEscape(state.needRiskAsOfDate||'')}" onchange="setNeedRiskAsOfDate(this.value)"></label>
+    </div><div class="toolbar-left"></div></div>
+    <div class="table-panel readiness-table"><div class="table-head"><div><div class="panel-title">جاهزية التجارب ومسار المعالجة</div><div class="panel-subtitle">كمية التشغيل تمثل الموعد القادم فقط، والرصيد المعروض هو أفضل رصيد حي مطابق داخل قطاع المرجع بعد حجز طلبات الصرف المعلقة.</div></div></div>
+    ${table(['رقم المرجع','القطاع','القسم','المقرر / التجربة','التصنيف','الصنف','تاريخ التجربة','المدة','كمية التشغيل','الرصيد الحي','الأولوية','الجاهزية','الإجراء','سبب التوجيه'],tableRows)}</div>`;
+  }
+  function openNeedRiskLinked(type,id){
+    state.modal=null;
+    state.editId=null;
+    state.search='';
+    if(type==='support'){
+      const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(id));
+      state.currentPage='exchange';
+      state.search=req?.requestNo||'';
+    }else{
+      const tx=(db.transactions||[]).find(row=>Number(row.id)===Number(id));
+      state.currentPage='transactions';
+      state.search=tx?.requestNo||tx?.itemName||'';
+    }
+    render();
+  }
+  function openNeedRiskIssue(refId){
+    const ref=nrReferenceById(refId);
+    if(!ref) return alert('المرجع التعليمي غير موجود.');
+    if(!nrCanActForRef(ref)) return alert('لا يمكن إنشاء طلب صرف إلا من حساب القطاع صاحب المرجع.');
+    if(!hasPermission('add_issue')) return alert('لا تملك صلاحية إنشاء طلب صرف.');
+    const plan=nrCurrentPlan(ref);
+    if(plan.linkedIssue) return alert('يوجد طلب صرف مرتبط بهذا المرجع والموعد بالفعل.');
+    if(!(plan.issueQty>0)) return alert('لا توجد كمية متاحة مؤهلة للصرف لهذا الموعد حاليًا.');
+    state.needRiskActionContext={type:'issue',refId:ref.id,occurrenceKey:plan.occurrenceKey};
+    state.modal='needRiskIssue';
+    render();
+  }
+  function openNeedRiskSupport(refId){
+    const ref=nrReferenceById(refId);
+    if(!ref) return alert('المرجع التعليمي غير موجود.');
+    if(!nrCanActForRef(ref)) return alert('لا يمكن إنشاء طلب دعم إلا من حساب القطاع صاحب المرجع.');
+    if(!nrCanCreateSupport()) return alert('لا تملك صلاحية إنشاء طلب دعم.');
+    const plan=nrCurrentPlan(ref);
+    if(plan.linkedSupport) return alert('يوجد طلب دعم مرتبط بهذا المرجع والموعد بالفعل.');
+    if(!(plan.supportQty>0)) return alert('لا يوجد عجز تشغيلي مؤهل لطلب الدعم حاليًا.');
+    state.needRiskActionContext={type:'support',refId:ref.id,occurrenceKey:plan.occurrenceKey};
+    state.modal='needRiskSupport';
+    render();
+  }
+  function needRiskUpdateIssueItem(select){
+    const option=select?.selectedOptions?.[0];
+    const qty=document.getElementById('need-risk-issue-qty');
+    const hint=document.getElementById('need-risk-issue-stock');
+    if(qty && option) qty.value=option.dataset.suggested||'0';
+    if(hint && option) hint.textContent=`المتاح بعد حجز الطلبات المعلقة: ${option.dataset.available||0} ${option.dataset.unit||''}`;
+  }
+  function nrIssueModalHtml(){
+    const ref=nrReferenceById(state.needRiskActionContext?.refId);
+    if(!ref) return '';
+    const plan=nrCurrentPlan(ref);
+    const matches=plan.matches.filter(match=>match.availableRequestUnit>0);
+    const options=matches.map(match=>{
+      const suggestedRequest=Math.min(plan.issueQty,match.availableRequestUnit);
+      const suggestedItem=nrRoundQty(nrConvert(suggestedRequest,plan.requestUnit,match.item.unit),match.item.unit);
+      return `<option value="${match.item.id}" data-suggested="${suggestedItem}" data-available="${nrRoundQty(match.availableItemUnit,match.item.unit)}" data-unit="${nrEscape(match.item.unit)}">${nrEscape(nrItemName(match.item))} - ${nrEscape(match.item.location||'بدون موقع')} - المتاح ${nrRoundQty(match.availableItemUnit,match.item.unit)} ${nrEscape(match.item.unit)}</option>`;
+    }).join('');
+    const first=matches[0];
+    const firstSuggested=first?nrRoundQty(nrConvert(Math.min(plan.issueQty,first.availableRequestUnit),plan.requestUnit,first.item.unit),first.item.unit):0;
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">طلب صرف لتجربة قادمة</div><div class="panel-subtitle">${nrEscape(nrReferenceNo(ref))} - ${nrEscape(ref.courseName||'—')} - ${nrEscape(ref.experimentName||'—')}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+      <div class="modal-body"><div class="alert">كمية تشغيل الموعد: <strong>${plan.requiredQty} ${nrEscape(plan.requestUnit)}</strong>. لا يخصم الرصيد إلا بعد الاعتماد المعتاد.</div><div class="form-grid">
+        <div class="full"><label class="label">سجل الصنف داخل القطاع</label><select id="need-risk-issue-item" class="select" onchange="needRiskUpdateIssueItem(this)">${options}</select></div>
+        <div><label class="label">الكمية المطلوب صرفها</label><input id="need-risk-issue-qty" class="input" type="number" min="0.01" step="0.01" value="${firstSuggested}"></div>
+        <div><label class="label">الرصيد الحي</label><div id="need-risk-issue-stock" class="alert">المتاح بعد حجز الطلبات المعلقة: ${first?nrRoundQty(first.availableItemUnit,first.item.unit):0} ${nrEscape(first?.item.unit||'')}</div></div>
+        <div class="full"><label class="label">ملاحظات الطلب</label><textarea id="need-risk-issue-notes" class="textarea">صرف تشغيلي للمرجع ${nrEscape(nrReferenceNo(ref))} - ${nrEscape(ref.courseName||'')} - ${nrEscape(ref.experimentName||'')}</textarea></div>
+      </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-warning" onclick="saveNeedRiskIssueRequest()">إرسال طلب الصرف</button></div></div></div>`;
+  }
+  function nrSupportModalHtml(){
+    const ref=nrReferenceById(state.needRiskActionContext?.refId);
+    if(!ref) return '';
+    const plan=nrCurrentPlan(ref);
+    const defaultType=plan.reusable?'سلفة تشغيلية':'دعم تشغيلي';
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">طلب دعم لتجربة قادمة</div><div class="panel-subtitle">${nrEscape(nrReferenceNo(ref))} - ${nrEscape(ref.courseName||'—')} - ${nrEscape(ref.experimentName||'—')}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+      <div class="modal-body"><div class="alert">يرسل الطلب إلى إدارة التجهيزات دون عرض أرصدة القطاعات الأخرى أو تحديد القطاع المانح.</div><div class="form-grid">
+        <div><label class="label">الصنف</label><input class="input" value="${nrEscape(nrReferenceName(ref))}" readonly></div>
+        <div><label class="label">الكمية المقترحة للعجز</label><input id="need-risk-support-qty" class="input" type="number" min="0.01" step="0.01" value="${plan.supportQty}"></div>
+        <div><label class="label">الوحدة</label><input class="input" value="${nrEscape(plan.requestUnit)}" readonly></div>
+        <div><label class="label">نوع الطلب</label><select id="need-risk-support-type" class="select"><option ${defaultType==='دعم تشغيلي'?'selected':''}>دعم تشغيلي</option><option ${defaultType==='سلفة تشغيلية'?'selected':''}>سلفة تشغيلية</option><option>نقل عهدة</option></select></div>
+        <div class="full"><label class="label">مبرر الطلب</label><textarea id="need-risk-support-justification" class="textarea">عجز تشغيلي للمرجع ${nrEscape(nrReferenceNo(ref))} قبل تجربة ${nrEscape(ref.experimentName||'')} للمقرر ${nrEscape(ref.courseName||'')}.</textarea></div>
+        <div class="full"><label class="label">ملاحظات</label><textarea id="need-risk-support-notes" class="textarea"></textarea></div>
+      </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedRiskSupportRequest()">إرسال طلب الدعم</button></div></div></div>`;
+  }
+  function nrUniqueNo(prefix,collection,fieldName='requestNo'){
+    if(typeof window.generateUniqueNo==='function') return window.generateUniqueNo(prefix,collection,fieldName);
+    if(typeof nextNo==='function') return nextNo(prefix,collection);
+    return `${prefix}-${new Date().getFullYear()}-${String((collection||[]).length+1).padStart(4,'0')}`;
+  }
+  function saveNeedRiskIssueRequest(){
+    const ref=nrReferenceById(state.needRiskActionContext?.refId);
+    if(!ref || !nrCanActForRef(ref)) return alert('لا يمكن إنشاء طلب الصرف خارج نطاق القطاع.');
+    if(!hasPermission('add_issue')) return alert('لا تملك صلاحية إنشاء طلب صرف.');
+    const plan=nrCurrentPlan(ref);
+    if(plan.linkedIssue) return alert('يوجد طلب صرف مرتبط بهذا المرجع والموعد بالفعل.');
+    const item=getItemById(Number(document.getElementById('need-risk-issue-item')?.value||0));
+    const qty=nrNum(document.getElementById('need-risk-issue-qty')?.value);
+    if(!item || !nrMatchesReference(item,ref)) return alert('اختر سجل صنف مطابقًا داخل القطاع.');
+    const available=nrOperationalItemQty(item,ref);
+    if(!(qty>0)) return alert('أدخل كمية صرف صحيحة.');
+    if(qty>available) return alert(`الكمية المطلوبة أعلى من الرصيد الحي المتاح: ${available} ${item.unit}.`);
+    const qtyInRequestUnit=nrConvert(qty,item.unit,plan.requestUnit);
+    if(qtyInRequestUnit>plan.issueQty+0.0001) return alert('الكمية المطلوبة أعلى من كمية الصرف المقترحة لهذا الموعد.');
+    const now=nowLocalString();
+    const tx={
+      id:nextId(db.transactions),
+      requestNo:nrUniqueNo('IR',db.transactions,'requestNo'),
+      type:'issue',
+      status:'pending',
+      itemId:item.id,
+      itemName:nrItemName(item),
+      college:item.college,
+      mainDepartment:item.mainDepartment||ref.mainDepartment||'القسم العام',
+      section:item.section||ref.section,
+      qty,
+      unit:item.unit,
+      transactionAt:now,
+      notes:nrText(document.getElementById('need-risk-issue-notes')?.value),
+      sourceContext:'need_risk_readiness',
+      relatedReferenceId:ref.id,
+      relatedReferenceNo:nrReferenceNo(ref),
+      relatedOccurrenceKey:plan.occurrenceKey,
+      relatedCourseName:ref.courseName||'',
+      relatedExperimentName:ref.experimentName||'',
+      relatedExperimentDate:nrFormatDate(plan.scheduled),
+      createdAt:now,
+      createdBy:state.currentUser.id
+    };
+    db.transactions.unshift(tx);
+    auditLog('إنشاء طلب صرف من مقياس الجاهزية','transaction',tx.requestNo,`${tx.itemName} - كمية ${qty} ${tx.unit} - المرجع ${tx.relatedReferenceNo}`,tx.college,tx.mainDepartment);
+    saveDb();
+    closeModal();
+    alert(`تم إنشاء طلب الصرف ${tx.requestNo} وربطه بالمرجع والموعد التشغيلي.`);
+  }
+  function saveNeedRiskSupportRequest(){
+    const ref=nrReferenceById(state.needRiskActionContext?.refId);
+    if(!ref || !nrCanActForRef(ref)) return alert('لا يمكن إنشاء طلب الدعم خارج نطاق القطاع.');
+    if(!nrCanCreateSupport()) return alert('لا تملك صلاحية إنشاء طلب دعم.');
+    const plan=nrCurrentPlan(ref);
+    if(plan.linkedSupport) return alert('يوجد طلب دعم مرتبط بهذا المرجع والموعد بالفعل.');
+    const qty=nrNum(document.getElementById('need-risk-support-qty')?.value);
+    if(!(qty>0)) return alert('أدخل كمية دعم صحيحة.');
+    if(qty>plan.supportQty+0.0001) return alert('الكمية المطلوبة أعلى من العجز التشغيلي المحسوب لهذا الموعد.');
+    const now=nowLocalString();
+    const requestNo=nrUniqueNo('SR',db.supportRequests,'requestNo');
+    const requestType=document.getElementById('need-risk-support-type')?.value||'دعم تشغيلي';
+    const req={
+      id:nextId(db.supportRequests),
+      requestNo,
+      requestType,
+      supportType:requestType,
+      itemId:null,
+      requestedItemId:null,
+      itemName:nrReferenceName(ref),
+      requestedItemName:nrReferenceName(ref),
+      itemNameAr:ref.itemNameAr||ref.itemName||'',
+      itemNameEn:ref.itemNameEn||'',
+      requestedItemNameAr:ref.itemNameAr||ref.itemName||'',
+      requestedItemNameEn:ref.itemNameEn||'',
+      specA:ref.specA||'',
+      specB:ref.specB||'',
+      specifications:ref.specifications||[ref.specA,ref.specB].filter(Boolean).join(' | '),
+      size:ref.size||'',
+      sizeValue:ref.sizeValue||null,
+      sizeUnit:ref.sizeUnit||'',
+      dimensions:ref.dimensions||'',
+      material:ref.material||'',
+      grade:ref.grade||'',
+      requestedQty:qty,
+      qty,
+      unit:plan.requestUnit,
+      requesterSector:ref.college,
+      requesterDepartment:ref.mainDepartment||'القسم العام',
+      fromCollege:ref.college,
+      toCollege:EQUIPMENT_SECTOR,
+      mainDepartment:ref.mainDepartment||'القسم العام',
+      section:ref.section||'القسم العام',
+      justification:nrText(document.getElementById('need-risk-support-justification')?.value),
+      notes:nrText(document.getElementById('need-risk-support-notes')?.value),
+      status:'قيد مراجعة إدارة التجهيزات',
+      workflowStage:'قيد مراجعة إدارة التجهيزات',
+      sourceContext:'need_risk_readiness',
+      relatedReferenceId:ref.id,
+      relatedReferenceNo:nrReferenceNo(ref),
+      relatedOccurrenceKey:plan.occurrenceKey,
+      relatedCourseName:ref.courseName||'',
+      relatedExperimentName:ref.experimentName||'',
+      relatedExperimentDate:nrFormatDate(plan.scheduled),
+      createdAt:now,
+      createdBy:state.currentUser.id,
+      reviewedAt:null,reviewedBy:null,reviewNotes:'',
+      sourceSector:null,sourceItemId:null,sourceLocation:null,approvedQty:null,sourceAssignedAt:null,sourceAssignedBy:null,sourceNotes:'',
+      transferApprovedAt:null,transferApprovedBy:null,transferredAt:null,transferredBy:null,completedAt:null,completedBy:null,
+      rejectedAt:null,rejectedBy:null,rejectionReason:'',returnedAt:null,returnedBy:null,returnNotes:'',cancelledAt:null,cancelledBy:null,cancellationReason:'',
+      updatedAt:now,
+      updatedBy:state.currentUser.id
+    };
+    db.supportRequests.unshift(req);
+    auditLog('إنشاء طلب دعم من مقياس الجاهزية','support',req.requestNo,`تم إنشاء طلب دعم للصنف ${req.itemName} بكمية ${qty} ${req.unit} للمرجع ${req.relatedReferenceNo}`,req.requesterSector,req.mainDepartment);
+    saveDb();
+    closeModal();
+    alert(`تم إنشاء طلب الدعم ${req.requestNo} وإرساله إلى إدارة التجهيزات دون تحديد مصدر الدعم.`);
+  }
+
+  navItems=function(){
+    const items=previousReadinessNavItems?previousReadinessNavItems():[];
+    return items.map(item=>item.id==='needRisk'?{...item,label:'جاهزية المعامل'}:item);
+  };
+  getPageTitle=function(){
+    if(state.currentPage==='needRisk') return 'مقياس جاهزية المعامل والمقررات';
+    return previousReadinessGetPageTitle?previousReadinessGetPageTitle():'';
+  };
+  renderPageContent=function(){
+    if(state.currentPage==='needRisk') return nrRenderPage();
+    return previousReadinessRenderPageContent?previousReadinessRenderPageContent():'';
+  };
+  modalHtml=function(){
+    if(state.modal==='needRiskIssue') return nrIssueModalHtml();
+    if(state.modal==='needRiskSupport') return nrSupportModalHtml();
+    return previousReadinessModalHtml?previousReadinessModalHtml():'';
+  };
+  Object.assign(window,{
+    showNeedRiskReadinessSummary,
+    openNeedRiskIssue,
+    openNeedRiskSupport,
+    openNeedRiskLinked,
+    needRiskUpdateIssueItem,
+    saveNeedRiskIssueRequest,
+    saveNeedRiskSupportRequest,
+    itemVariantIdentityCompatible:nrVariantsCompatible,
+    itemVariantIdentityTokens:value=>[...nrVariantTokens(value)]
+  });
+})();
+/* ===== end Laboratory Readiness Operational Routing v7.9 ===== */

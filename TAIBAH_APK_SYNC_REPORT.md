@@ -161,3 +161,78 @@ taibah-apk/Taibah-Equipment-latest-debug.apk
 - `assets/public/app.js`
 - `assets/public/data.js`
 - `assets/public/index.html`
+
+## تحديث 2026-06-04 - مقياس جاهزية المعامل
+
+تمت مزامنة تحديث مقياس جاهزية المعامل والمقررات إلى تطبيق Android.
+
+### الملفات المحدثة
+
+- `app.js`
+- `style.css`
+- `index.html`
+- `service-worker.js`
+
+### منع ظهور نسخة قديمة
+
+تم تحديث مفاتيح النسخة داخل `index.html` إلى:
+
+```text
+app.js?v=20260604-readiness-v79
+style.css?v=20260604-readiness-v79
+```
+
+وتم تحديث اسم كاش Service Worker إلى:
+
+```text
+educational-equipment-platform-v2-20260604-readiness-v79
+```
+
+### التحقق والبناء
+
+- نجح بناء ملفات الويب داخل المشروع الأصلي وداخل `taibah-apk`.
+- نجح `test:smoke` في النسختين.
+- نجح فحص بصمة الملكية في النسختين.
+- نجحت مزامنة Capacitor في النسختين.
+- نجح `gradlew assembleDebug`.
+- تم فحص محتوى APK والتأكد من وجود طبقة:
+  `Laboratory Readiness Operational Routing v7.9`
+- تم التأكد أن APK يحتوي على مفاتيح النسخة والكاش الجديدة.
+
+### ملف APK النهائي
+
+```text
+Taibah-Equipment-latest-debug.apk
+```
+
+- الحجم: 5,024,553 bytes
+- SHA256: `FD46D0D40EE0933B20682253FD786D7FF60DEB2A1B3B54236746FB9619C1DDF8`
+
+## تحديث 2026-06-04 - منع تضارب هوية الأصناف
+
+تمت مزامنة إصلاح مطابقة الأصناف إلى تطبيق Android، بحيث لا يستخدم مقياس الجاهزية أو مسار الدعم رصيد صنف عام لصنف ذي مقاس أو سعة أو تركيز محدد.
+
+### قواعد المطابقة المحدثة
+
+- `سحاحة` لا تطابق `سحاحة 50 مل`.
+- `سحاحة 25 مل` لا تطابق `سحاحة 50 مل`.
+- المقاسات والسعات والتركيزات والأرقام والمواد المميزة أصبحت جزءًا من هوية الصنف.
+- تحديد مصدر الدعم وتنفيذ التحويل يتحققان من هوية الصنف داخل الدالة، وليس من واجهة الاختيار فقط.
+- يعرض جدول الجاهزية اسم سجل المخزون المطابق أسفل الرصيد الحي.
+
+### نسخة الكاش
+
+```text
+app.js?v=20260604-item-identity-v80
+style.css?v=20260604-item-identity-v80
+educational-equipment-platform-v2-20260604-item-identity-v80
+```
+
+### ملف APK النهائي
+
+```text
+Taibah-Equipment-latest-debug.apk
+```
+
+- الحجم: 5,026,910 bytes
+- SHA256: `2D1EEDA84C9360F9BD6AD708BA3A9B4400B9183FF03E3A925FFFCB7A26687614`
