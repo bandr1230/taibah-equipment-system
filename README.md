@@ -1,1 +1,0 @@
-# taibah-equipment-system
