@@ -1,0 +1,60 @@
+# حزمة GitHub لتشغيل نسخة المتصفح
+
+تم توليد هذا المجلد تلقائيًا من ملفات المشروع الأصلية.
+
+## طريقة الاستخدام
+ارفع محتوى هذا المجلد إلى GitHub أو افتحه كمستودع مستقل.
+
+## تحديث الحزمة
+من جذر المشروع الأصلي شغل:
+
+```bash
+npm run prepare:github
+```
+
+سيتم حذف محتوى `github_upload` السابق فقط، ثم نسخ أحدث ملفات تشغيل المتصفح.
+
+## الملفات الأساسية المنسوخة
+- .gitignore
+- .vercelignore
+- vercel.json
+- package.json
+- package-lock.json
+- index.html
+- style.css
+- app.js
+- data.js
+- need-engine.js
+- ai-analyzer.js
+- supabase-config.js
+- supabase-adapter.js
+- supabase_schema.sql
+- public-asset.html
+- public-asset.js
+- manifest.webmanifest
+- service-worker.js
+- taibah-logo.png
+- icons
+- scripts/build-web.mjs
+- scripts/smoke-check.mjs
+- scripts/verify-ownership-signature.mjs
+- supabase/functions/ai-analyzer/index.ts
+- supabase/functions/ai-analyzer/README.md
+
+## ملفات التوثيق المنسوخة
+- GITHUB_BROWSER_FILE_LIST.txt
+- GITHUB_BROWSER_UPLOAD_GUIDE.md
+- PERMISSIONS_MATRIX.md
+- SUPPORT_WORKFLOW.md
+- docs/01_project_overview.md
+- docs/02_permissions_model.md
+- docs/03_inventory_logic.md
+- docs/04_assets_and_public_links.md
+- docs/05_need_evidence.md
+- docs/06_supabase_and_data_flow.md
+- docs/07_support_requests.md
+- docs/08_reports_and_exports.md
+- docs/10_decisions_log.md
+
+## ملفات أساسية مفقودة
+- لا يوجد

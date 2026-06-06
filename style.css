@@ -1056,3 +1056,46 @@ body{
   }
 }
 /* ===== end Laboratory readiness operational routing v7.9 ===== */
+
+/* ===== Item specification identity v8.1 ===== */
+.item-identity-filters{
+  border-right:4px solid var(--brand-green);
+  background:linear-gradient(180deg,#ffffff 0%,#f8fbfe 100%);
+  margin-bottom:12px;
+}
+.item-identity-filters .filter-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(160px,1fr));
+  gap:12px;
+  align-items:end;
+}
+.item-identity-filters .label{
+  font-weight:900;
+  color:var(--navy);
+}
+.item-identity-filters .select{
+  min-height:44px;
+  background:#fff;
+}
+.modal-xl .form-grid{
+  grid-template-columns:repeat(4,minmax(170px,1fr));
+}
+.modal-xl .form-grid .full{
+  grid-column:1/-1;
+}
+.item-device-only{
+  transition:opacity .15s ease;
+}
+@media(max-width:1100px){
+  .item-identity-filters .filter-grid,
+  .modal-xl .form-grid{
+    grid-template-columns:repeat(2,minmax(160px,1fr));
+  }
+}
+@media(max-width:640px){
+  .item-identity-filters .filter-grid,
+  .modal-xl .form-grid{
+    grid-template-columns:1fr;
+  }
+}
+/* ===== end Item specification identity v8.1 ===== */

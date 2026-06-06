@@ -183,7 +183,51 @@ db.users=(db.users||[]).map(u=>{
   if((u.college==='إدارة التجهيزات'||perms.includes('manage_users'))&&!perms.includes('view_audit'))perms.push('view_audit');
   return {...u,college:u.college||u.department||'كلية الصيدلة',department:u.department||'القسم العام',permissions:[...new Set(perms)]};
 });
-db.items=(db.items||[]).map(item=>({...item,college:item.college||'كلية الصيدلة',nameAr:item.nameAr||item.name||'',nameEn:item.nameEn||''}));
+function inferItemSpecFromName(item){
+  const text=String([item.nameAr,item.nameEn,item.name].filter(Boolean).join(' ')||'');
+  const normalized=text
+    .replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  const percent=normalized.match(/(\d+(?:\.\d+)?)\s*(%|٪)/);
+  if(percent) return {specType:'تركيز',specValue:percent[1],specUnit:'%'};
+  const measure=normalized.match(/(\d+(?:\.\d+)?)\s*(مل|ملل|ml|لتر|µl|ul|مم|سم|cm|mm)\b/i);
+  if(measure) return {specType:'سعة',specValue:measure[1],specUnit:measure[2]};
+  const size=normalized.match(/\b(XS|S|M|L|XL|XXL)\b/i);
+  if(size) return {specType:'مقاس',specValue:size[1].toUpperCase(),specUnit:'لا يوجد'};
+  return {specType:'لا يوجد',specValue:'',specUnit:'لا يوجد'};
+}
+function stripItemVariantName(value){
+  return String(value||'')
+    .replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/(\d+(?:\.\d+)?)\s*(%|٪|مل|ملل|ml|لتر|µl|ul|مم|سم|cm|mm)\b/gi,' ')
+    .replace(/\b(XS|S|M|L|XL|XXL)\b/gi,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+db.items=(db.items||[]).map(item=>{
+  const spec=inferItemSpecFromName(item);
+  const displayNameAr=item.displayNameAr||item.nameAr||item.name||'';
+  const displayNameEn=item.displayNameEn||item.nameEn||'';
+  return {
+    ...item,
+    college:item.college||'كلية الصيدلة',
+    nameAr:item.nameAr||item.name||'',
+    nameEn:item.nameEn||'',
+    displayNameAr,
+    displayNameEn,
+    baseNameAr:item.baseNameAr||stripItemVariantName(displayNameAr)||displayNameAr,
+    baseNameEn:item.baseNameEn||stripItemVariantName(displayNameEn)||displayNameEn,
+    stockUnit:item.stockUnit||item.unit||'حبة',
+    specType:item.specType||spec.specType,
+    specValue:item.specValue||spec.specValue,
+    specUnit:item.specUnit||spec.specUnit,
+    packageSize:item.packageSize||0,
+    packageUnit:item.packageUnit||'',
+    packagePieces:item.packagePieces||0,
+    packageType:item.packageType||''
+  };
+});
 db.transactions=(db.transactions||[]).map(t=>({...t,college:t.college||(db.items||[]).find(i=>i.id===t.itemId)?.college||'كلية الصيدلة'}));
 
 function freshDefaultDb(){

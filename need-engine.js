@@ -164,16 +164,29 @@
 
   function itemIdentityParts(row,mainDepartment,section){
     const category=normalizeKey(row.referenceCategoryKey||row.categoryKey||row.category||section);
+    const specType=normalizeKey(row.specType||row.specificationType||row.measurementType);
+    const specValue=normalizeKey(row.specValue||row.specificationValue||row.sizeValue||row.concentrationValue);
+    const specUnit=normalizeKey(row.specUnit||row.specificationUnit||row.sizeUnit||row.concentrationUnit);
     const specA=normalizeKey(row.specA||row.size||row.model||row.sourceConcentration||row.concentration);
     const specB=normalizeKey(row.specB||row.packageType||row.deviceCondition);
+    const packageIdentity=[
+      normalizeKey(row.packageSize||row.packSize),
+      normalizeKey(row.packageUnit),
+      normalizeKey(row.packagePieces||row.piecesPerPackage),
+      normalizeKey(row.packageType)
+    ].join(':');
     return [
       normalizeKey(row.itemNameAr||row.itemNameEn),
       normalizeKey(row.requestUnit),
       normalizeKey(mainDepartment),
       normalizeKey(section),
       category,
+      specType,
+      specValue,
+      specUnit,
       specA,
-      category==='chemical' ? '' : specB
+      category==='chemical' ? '' : specB,
+      packageIdentity
     ];
   }
 
@@ -210,8 +223,15 @@
       preparationCount:toNumber(row.preparationCount||1),
       preparationCountMode:String(row.preparationCountMode||'').trim(),
       solutionVolumeTotal:toNumber(row.solutionVolumeTotal||row.finalSolutionTotal),
+      specType:String(row.specType||row.specificationType||row.measurementType||'').trim(),
+      specValue:String(row.specValue||row.specificationValue||row.sizeValue||row.concentrationValue||'').trim(),
+      specUnit:String(row.specUnit||row.specificationUnit||row.sizeUnit||row.concentrationUnit||'').trim(),
       specA:String(row.specA||'').trim(),
-      specB:String(row.specB||'').trim()
+      specB:String(row.specB||'').trim(),
+      packageSize:toNumber(row.packageSize||row.packSize),
+      packageUnit:String(row.packageUnit||'').trim(),
+      packagePieces:toNumber(row.packagePieces||row.piecesPerPackage),
+      packageType:String(row.packageType||'').trim()
     };
     const maleStudents=safe.maleSections*safe.malePerSection;
     const femaleStudents=safe.femaleSections*safe.femalePerSection;
@@ -281,6 +301,15 @@
           itemNameEn:row.itemNameEn,
           unit:row.requestUnit,
           requestUnit:row.requestUnit,
+          specType:row.specType,
+          specValue:row.specValue,
+          specUnit:row.specUnit,
+          specA:row.specA,
+          specB:row.specB,
+          packageSize:row.packageSize,
+          packageUnit:row.packageUnit,
+          packagePieces:row.packagePieces,
+          packageType:row.packageType,
           usageUnits:new Set(),
           term1Gross:0,
           term2Gross:0,
@@ -296,6 +325,9 @@
       const agg=map.get(key);
       if(row.itemNameAr && !agg.itemNameAr) agg.itemNameAr=row.itemNameAr;
       if(row.itemNameEn && !agg.itemNameEn) agg.itemNameEn=row.itemNameEn;
+      ['specType','specValue','specUnit','specA','specB','packageSize','packageUnit','packagePieces','packageType'].forEach(field=>{
+        if((row[field] || row[field]===0) && !agg[field]) agg[field]=row[field];
+      });
       const peak=isPeakBased(row);
       agg.calculationModes.add(peak?'peak':'sum');
       if(peak){

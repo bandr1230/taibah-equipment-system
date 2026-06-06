@@ -11853,7 +11853,17 @@ saveSupport=function(){
     req.academicYear=ctx.academicYear;
     req.courseName=ctx.courseName;
     req.courseCode=ctx.courseCode;
-    req.specifications=`طريقة الحساب: ${rNeedModeLabel(agg)}. ${agg.peakBased?`ذروة التعارض للفصلين ${rNeedPreview(agg.term1Peak)} / ${rNeedPreview(agg.term2Peak)} ${agg.unit}. `:''}احتياج مولد من ${refCount ?? agg.sourceRefIds.size} مرجع تعليمي.`;
+    req.specType=agg.specType||req.specType||'لا يوجد';
+    req.specValue=agg.specValue||req.specValue||'';
+    req.specUnit=agg.specUnit||req.specUnit||'لا يوجد';
+    req.specA=agg.specA||req.specA||[req.specType,req.specValue,req.specUnit].filter(v=>v&&v!=='لا يوجد').join(' ');
+    req.specB=agg.specB||req.specB||'';
+    req.packageSize=agg.packageSize||req.packageSize||0;
+    req.packageUnit=agg.packageUnit||req.packageUnit||'';
+    req.packagePieces=agg.packagePieces||req.packagePieces||0;
+    req.packageType=agg.packageType||req.packageType||'';
+    const specText=[req.specType,req.specValue,req.specUnit].filter(v=>v&&v!=='لا يوجد').join(' ');
+    req.specifications=`${specText?`المواصفة: ${specText}. `:''}طريقة الحساب: ${rNeedModeLabel(agg)}. ${agg.peakBased?`ذروة التعارض للفصلين ${rNeedPreview(agg.term1Peak)} / ${rNeedPreview(agg.term2Peak)} ${agg.unit}. `:''}احتياج مولد من ${refCount ?? agg.sourceRefIds.size} مرجع تعليمي.`;
     req.justification=learningReferenceSummary(agg);
   }
 
@@ -12641,17 +12651,24 @@ saveSupport=function(){
   function nrReferenceVariantTokens(ref){
     return nrVariantTokens([
       ref?.itemNameAr,ref?.itemNameEn,ref?.itemName,
+      ref?.displayNameAr,ref?.displayNameEn,ref?.baseNameAr,ref?.baseNameEn,
       ref?.specA,ref?.specB,ref?.specifications,
+      ref?.specType,ref?.specValue,ref?.specUnit,
       ref?.size,ref?.sizeValue,ref?.sizeUnit,ref?.dimensions,
-      ref?.material,ref?.grade,ref?.sourceConcentration,ref?.targetConcentration
+      ref?.material,ref?.grade,ref?.sourceConcentration,ref?.targetConcentration,
+      ref?.packageSize,ref?.packageUnit,ref?.packagePieces,ref?.packageType
     ].filter(Boolean).join(' '));
   }
   function nrInventoryVariantTokens(item){
     return nrVariantTokens([
       item?.nameAr,item?.nameEn,item?.name,
+      item?.displayNameAr,item?.displayNameEn,item?.baseNameAr,item?.baseNameEn,
       item?.specA,item?.specB,item?.specifications,
+      item?.specType,item?.specValue,item?.specUnit,
       item?.size,item?.sizeValue,item?.sizeUnit,item?.dimensions,
-      item?.material,item?.grade,item?.notes
+      item?.material,item?.grade,item?.concentrationPurity,
+      item?.packageSize,item?.packageUnit,item?.packagePieces,item?.packageType,
+      item?.notes
     ].filter(Boolean).join(' '));
   }
   function nrVariantsCompatible(item,ref){
@@ -12660,6 +12677,60 @@ saveSupport=function(){
     if(!referenceTokens.size && !inventoryTokens.size) return true;
     if(!referenceTokens.size || !inventoryTokens.size) return false;
     return [...referenceTokens].every(token=>inventoryTokens.has(token));
+  }
+  function nrStripVariantFromName(value){
+    return nrAsciiDigits(value)
+      .replace(/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct|ميكرولتر|مايكرولتر|µl|ul|مليلتر|مليلتر|ملل|مل|ml|لتر|liter|litre|l|ملجم|مجم|مليجرام|milligram|mg|كيلوجرام|كيلوغرام|كيلو|kg|جرام|غرام|gram|gm|g|ملم|مم|millimeter|millimetre|mm|سنتيمتر|سم|centimeter|centimetre|cm|مولار|molar|mol|m)(?![\u0600-\u06FFa-z])/gi,' ')
+      .replace(/\b(xs|s|m|l|xl|xxl)\b/gi,' ')
+      .replace(/\b\d+(?:\.\d+)?\b/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function nrBaseName(row){
+    return nrText(row?.baseNameAr||row?.itemBaseNameAr||nrStripVariantFromName(row?.itemNameAr||row?.nameAr||row?.displayNameAr||row?.name||''));
+  }
+  function nrBaseNameEn(row){
+    return nrText(row?.baseNameEn||row?.itemBaseNameEn||nrStripVariantFromName(row?.itemNameEn||row?.nameEn||row?.displayNameEn||''));
+  }
+  function nrIdentityReference(ref){
+    return {
+      college:ref?.college,
+      mainDepartment:ref?.mainDepartment||'القسم العام',
+      section:ref?.section||ref?.referenceCategory,
+      nameAr:ref?.itemNameAr||ref?.displayNameAr||'',
+      nameEn:ref?.itemNameEn||ref?.displayNameEn||'',
+      displayNameAr:ref?.displayNameAr||ref?.itemNameAr||'',
+      displayNameEn:ref?.displayNameEn||ref?.itemNameEn||'',
+      baseNameAr:nrBaseName(ref),
+      baseNameEn:nrBaseNameEn(ref),
+      unit:ref?.requestUnit||ref?.unit,
+      stockUnit:ref?.requestUnit||ref?.unit,
+      specType:ref?.specType||ref?.specificationType||'لا يوجد',
+      specValue:ref?.specValue||ref?.specificationValue||ref?.sizeValue||ref?.concentrationValue||'',
+      specUnit:ref?.specUnit||ref?.specificationUnit||ref?.sizeUnit||ref?.concentrationUnit||'',
+      specA:ref?.specA||'',
+      specB:ref?.specB||'',
+      specifications:ref?.specifications||'',
+      packageSize:ref?.packageSize||ref?.packSize||0,
+      packageUnit:ref?.packageUnit||'',
+      packagePieces:ref?.packagePieces||0,
+      packageType:ref?.packageType||'',
+      concentrationPurity:ref?.sourceConcentration||ref?.concentrationPurity||''
+    };
+  }
+  function nrCategoryFromText(row){
+    const explicit=nrText(row?.referenceCategoryKey||row?.categoryKey||row?.category).toLowerCase().replace(/[^a-z_]+/g,'');
+    if(['chemical','consumable','device'].includes(explicit)) return explicit;
+    const text=nrNorm([row?.section,row?.referenceCategory,row?.categoryLabel,row?.itemNameAr,row?.nameAr,row?.displayNameAr,row?.itemNameEn,row?.nameEn].filter(Boolean).join(' '));
+    if(text.includes('اجهزه') || text.includes('جهاز') || text.includes('ميزان') || text.includes('ثلاجه') || /device|microscope|centrifuge|balance|freezer|meter/i.test(text)) return 'device';
+    if(text.includes('كيمي') || text.includes('ميثانول') || text.includes('ايثانول') || /chemical|ethanol|methanol|acid|reagent/i.test(text)) return 'chemical';
+    if(text.includes('مستهلك') || text.includes('سحاح') || text.includes('قفاز') || text.includes('انابيب') || /consumable|buret|burette|glove|tube|pipette/i.test(text)) return 'consumable';
+    return '';
+  }
+  function nrCategoryCompatible(item,ref){
+    const itemCategory=nrCategoryFromText(item);
+    const refCategory=nrCategoryFromText(ref);
+    return !itemCategory || !refCategory || itemCategory===refCategory;
   }
   function nrNum(value){
     const number=Number(value||0);
@@ -12769,19 +12840,37 @@ saveSupport=function(){
   }
   function nrMatchesReference(item,ref){
     if(!item || nrText(item.college)!==nrText(ref.college)) return false;
+    if(!nrCategoryCompatible(item,ref)) return false;
     const requestUnit=ref.requestUnit||ref.unit;
     if(requestUnit && nrUnitFamily(item.unit)!==nrUnitFamily(requestUnit)) return false;
-    const wanted=[ref.itemNameAr,ref.itemNameEn,ref.itemName].map(nrNorm).filter(Boolean);
-    const itemAliases=[item.nameAr,item.nameEn,item.name,item.code].map(nrNorm).filter(Boolean);
+    const referenceIdentity=nrIdentityReference(ref);
+    if(typeof itemIdentityMatches==='function' && itemIdentityMatches(item,referenceIdentity,{scope:false})) return true;
+    const wanted=[ref.itemNameAr,ref.itemNameEn,ref.itemName,ref.displayNameAr,ref.displayNameEn,nrBaseName(ref),nrBaseNameEn(ref)].map(nrNorm).filter(Boolean);
+    const itemAliases=[item.nameAr,item.nameEn,item.name,item.displayNameAr,item.displayNameEn,item.baseNameAr,item.baseNameEn,item.code].map(nrNorm).filter(Boolean);
     const nameMatches=wanted.some(left=>itemAliases.some(right=>left===right || (left.length>=5 && right.length>=5 && (left.includes(right)||right.includes(left)))));
     if(!nameMatches) return false;
     if(!nrVariantsCompatible(item,ref)) return false;
-    const ignored=new Set(['مقاس','يعمل','قابل','للاشتعال','تعليمي','تعليميه','قطعه','عبوه','علبه','جهاز']);
-    const specTokens=nrWords([ref.specA,ref.specB].filter(Boolean).join(' '))
+    const ignored=new Set(['مقاس','سعه','حجم','طول','قطر','تركيز','نقاوه','درجه','موديل','اخرى','يعمل','قابل','للاشتعال','تعليمي','تعليميه','قطعه','عبوه','علبه','جهاز']);
+    const specTokens=nrWords([ref.specA,ref.specB,ref.specType,ref.specValue,ref.specUnit].filter(Boolean).join(' '))
       .filter(token=>token.length>=2 && !ignored.has(token));
     if(!specTokens.length) return true;
-    const itemText=nrWords([item.nameAr,item.nameEn,item.name,item.notes,item.specifications,item.deviceStatus].filter(Boolean).join(' '));
+    const itemText=nrWords([item.nameAr,item.nameEn,item.name,item.displayNameAr,item.displayNameEn,item.baseNameAr,item.baseNameEn,item.notes,item.specifications,item.specA,item.specB,item.specType,item.specValue,item.specUnit,item.concentrationPurity,item.deviceStatus].filter(Boolean).join(' '));
     return specTokens.every(token=>itemText.includes(token));
+  }
+  function nrPotentialLocalMatches(ref){
+    const requestUnit=ref.requestUnit||ref.unit;
+    const wanted=[ref.itemNameAr,ref.itemNameEn,ref.itemName,ref.displayNameAr,ref.displayNameEn,nrBaseName(ref),nrBaseNameEn(ref)].map(nrNorm).filter(Boolean);
+    return (db.items||[]).filter(item=>{
+      if(nrText(item.college)!==nrText(ref.college)) return false;
+      if(requestUnit && nrUnitFamily(item.unit)!==nrUnitFamily(requestUnit)) return false;
+      const aliases=[item.nameAr,item.nameEn,item.name,item.displayNameAr,item.displayNameEn,item.baseNameAr,item.baseNameEn,item.code].map(nrNorm).filter(Boolean);
+      return wanted.some(left=>aliases.some(right=>left===right || (left.length>=5 && right.length>=5 && (left.includes(right)||right.includes(left)))));
+    }).map(item=>{
+      const reason=nrCategoryCompatible(item,ref)
+        ? 'يوجد صنف مشابه، لكن المواصفة أو وحدة الرصيد لا تطابق المرجع.'
+        : 'يوجد صنف مشابه، لكن التصنيف لا يطابق المرجع.';
+      return {item,reason};
+    });
   }
   function nrPendingIssueQty(itemId){
     return (db.transactions||[])
@@ -12843,6 +12932,7 @@ saveSupport=function(){
     const requiredQty=nrConcurrentDemand(ref,rows);
     const matches=nrLocalMatches(ref);
     const best=matches[0]||null;
+    const nearMatch=best?null:(nrPotentialLocalMatches(ref)[0]||null);
     const available=nrRoundQty(best?.availableRequestUnit||0,requestUnit);
     const linkedIssue=nrLinkedIssue(occurrenceKey);
     const linkedSupport=nrLinkedSupport(occurrenceKey);
@@ -12919,7 +13009,7 @@ saveSupport=function(){
     else if(days<=21) urgency={key:'high',label:'عالية',badge:'badge-danger'};
     else if(days<=45) urgency={key:'medium',label:'متوسطة',badge:'badge-warning'};
     return {
-      ref,requestUnit,reusable,scheduled,days,occurrenceKey,requiredQty,matches,best,available,
+      ref,requestUnit,reusable,scheduled,days,occurrenceKey,requiredQty,matches,best,nearMatch,available,
       linkedIssue,linkedSupport,issueQty,supportQty,key,label,badge,reason,urgency
     };
   }
@@ -12996,7 +13086,13 @@ saveSupport=function(){
       nrFormatDate(plan.scheduled),
       plan.days<0?`متأخر ${Math.abs(plan.days)} يوم`:`متبقي ${plan.days} يوم`,
       `${plan.requiredQty} ${nrEscape(plan.requestUnit)}`,
-      `<div class="mini-progress"><strong>${plan.available} ${nrEscape(plan.requestUnit)}</strong><small>${plan.best?`السجل المطابق: ${nrEscape(nrItemName(plan.best.item))}`:'لا يوجد سجل مخزون مطابق'}</small></div>`,
+      `<div class="mini-progress"><strong>${plan.available} ${nrEscape(plan.requestUnit)}</strong><small>${
+        plan.best
+          ? `السجل المطابق: ${nrEscape(nrItemName(plan.best.item))}`
+          : plan.nearMatch
+            ? `${nrEscape(plan.nearMatch.reason)} أقرب سجل: ${nrEscape(nrItemName(plan.nearMatch.item))}`
+            : 'لا يوجد سجل مخزون مطابق'
+      }</small></div>`,
       nrUrgencyBadge(plan),
       nrStatusBadge(plan),
       nrActionButtons(plan),
@@ -13254,3 +13350,1594 @@ saveSupport=function(){
   });
 })();
 /* ===== end Laboratory Readiness Operational Routing v7.9 ===== */
+
+/* ===== Item Specification Identity Unification v8.1 ===== */
+;(function(){
+  const previousIdentityVisibleItems=typeof visibleItems==='function'?visibleItems:null;
+  const previousIdentityRenderItems=typeof renderItems==='function'?renderItems:null;
+  const previousIdentityItemModalHtml=typeof itemModalHtml==='function'?itemModalHtml:null;
+  const previousIdentityReadItemFormValues=typeof readItemFormValues==='function'?readItemFormValues:null;
+  const previousIdentityItemDuplicateForValues=typeof itemDuplicateForValues==='function'?itemDuplicateForValues:null;
+  const previousIdentityUpdateExistingItemFromForm=typeof updateExistingItemFromForm==='function'?updateExistingItemFromForm:null;
+  const previousIdentitySaveItem=typeof saveItem==='function'?saveItem:null;
+  const previousIdentityImportItemsModalHtml=typeof importItemsModalHtml==='function'?importItemsModalHtml:null;
+  const previousIdentityImportItemsFromExcel=typeof importItemsFromExcel==='function'?importItemsFromExcel:null;
+  const previousIdentityReportData=typeof reportData==='function'?reportData:null;
+  const previousIdentityEduNeedMaterialRowHtml=typeof eduNeedMaterialRowHtml==='function'?eduNeedMaterialRowHtml:null;
+  const previousIdentityEduNeedReadRows=typeof eduNeedReadRows==='function'?eduNeedReadRows:null;
+  const previousIdentitySaveLearningReferences=typeof saveLearningReferences==='function'?saveLearningReferences:null;
+  const previousIdentityItemSmartFillFromMatch=typeof itemSmartFillFromMatch==='function'?itemSmartFillFromMatch:null;
+
+  const ITEM_SPEC_TYPES=['لا يوجد','تركيز','نقاوة','سعة','حجم','مقاس','طول','قطر','مادة','درجة','موديل','أخرى'];
+  const ITEM_SPEC_UNITS=['لا يوجد','%','مل','لتر','µL','mg','g','kg','مم','سم','م','M','حبة','قطعة','علبة','صندوق'];
+  const PACKAGE_UNITS=['','مل','لتر','µL','mg','g','kg','حبة','قطعة','علبة','صندوق'];
+  const HAZARD_LEVELS=['','منخفضة','متوسطة','عالية','شديدة'];
+  const STORAGE_METHODS=['','درجة حرارة الغرفة','ثلاجة','فريزر','قابل للاشتعال / يحتاج تهوية','خزانة أمان كيميائي'];
+  const PACKAGE_TYPES=['','عبوة','علبة','صندوق','كرتون','قارورة','كيس','درج'];
+
+  function iiText(value){ return String(value??'').trim(); }
+  function iiIdKey(value){ return String(value??'').trim(); }
+  function iiSameId(left,right){
+    const a=iiIdKey(left);
+    const b=iiIdKey(right);
+    if(!a || !b) return false;
+    if(a===b) return true;
+    const na=Number(a);
+    const nb=Number(b);
+    return Number.isFinite(na) && Number.isFinite(nb) && na===nb;
+  }
+  function iiGetItemById(id){
+    return (db.items||[]).find(item=>iiSameId(item.id,id)) ||
+      (typeof getItemById==='function'?getItemById(id):null);
+  }
+  function iiEscape(value){
+    return iiText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function iiAsciiDigits(value){
+    return iiText(value)
+      .replace(/[٠-٩]/g,digit=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/[۰-۹]/g,digit=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+  }
+  function iiNorm(value){
+    if(typeof normalizeText==='function') return normalizeText(iiAsciiDigits(value));
+    return iiAsciiDigits(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,'')
+      .trim();
+  }
+  function iiWords(value){
+    return iiAsciiDigits(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+  function iiUnitKey(unit){
+    const raw=iiText(unit);
+    if(!raw) return '';
+    if(window.NeedEngine?.canonicalUnit) return iiNorm(window.NeedEngine.canonicalUnit(raw));
+    const key=iiNorm(raw);
+    if(['مل','ملل','مليلتر','ml'].includes(key)) return 'ml';
+    if(['ميكرولتر','مايكرولتر','ul','µl'].includes(key)) return 'ul';
+    if(['لتر','liter','litre','l'].includes(key)) return 'l';
+    if(['حبه','قطعه','عدد','جهاز'].includes(key)) return 'count';
+    return key;
+  }
+  function iiStripVariantFromName(value){
+    let text=iiAsciiDigits(value)
+      .replace(/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct|ميكرولتر|مايكرولتر|µl|ul|مليلتر|ملليلتر|ملل|مل|ml|لتر|liter|litre|l|ملجم|مجم|mg|جرام|غرام|g|كيلو|kg|ملم|مم|mm|سم|cm|مولار|molar|mol|m)(?![\u0600-\u06FFa-z])/gi,' ')
+      .replace(/\b(xs|s|m|l|xl|xxl)\b/gi,' ')
+      .replace(/\b\d+(?:\.\d+)?\b/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+    return text || iiText(value);
+  }
+  function iiDisplayNameAr(item){ return iiText(item?.displayNameAr||item?.display_name_ar||item?.nameAr||item?.name); }
+  function iiDisplayNameEn(item){ return iiText(item?.displayNameEn||item?.display_name_en||item?.nameEn); }
+  function iiBaseNameAr(item){ return iiText(item?.baseNameAr||item?.base_name_ar||iiStripVariantFromName(iiDisplayNameAr(item))); }
+  function iiBaseNameEn(item){ return iiText(item?.baseNameEn||item?.base_name_en||iiStripVariantFromName(iiDisplayNameEn(item))); }
+  function iiStockUnit(item){ return iiText(item?.stockUnit||item?.stock_unit||item?.unit); }
+  function iiSpecType(item){ return iiText(item?.specType||item?.specificationType||item?.measurementType||'لا يوجد')||'لا يوجد'; }
+  function iiSpecValue(item){ return iiText(item?.specValue||item?.specificationValue||item?.sizeValue||item?.concentrationValue); }
+  function iiSpecUnit(item){ return iiText(item?.specUnit||item?.specificationUnit||item?.sizeUnit||item?.concentrationUnit||''); }
+  function iiCategoryKey(item){
+    const text=[item?.section,item?.category,item?.referenceCategoryKey,item?.nameAr,item?.nameEn].join(' ');
+    const norm=iiNorm(text);
+    if(norm.includes('اجهزه') || norm.includes('جهاز') || /device|microscope|centrifuge|analy/i.test(text)) return 'device';
+    if(norm.includes('كيميائي') || norm.includes('chemical') || /ethanol|acid|hydroxide|reagent/i.test(text)) return 'chemical';
+    return 'consumable';
+  }
+  function iiIsDevice(item){ return iiCategoryKey(item)==='device'; }
+  function iiSpecSummary(item){
+    const parts=[];
+    const type=iiSpecType(item);
+    const value=iiSpecValue(item);
+    const unit=iiSpecUnit(item);
+    if(type && type!=='لا يوجد' && value) parts.push(`${type}: ${value}${unit&&unit!=='لا يوجد'?' '+unit:''}`);
+    else if(value) parts.push(`${value}${unit&&unit!=='لا يوجد'?' '+unit:''}`);
+    if(item?.concentrationPurity) parts.push(`النقاوة/التركيز: ${item.concentrationPurity}`);
+    if(item?.packageSize) parts.push(`عبوة: ${item.packageSize}${item.packageUnit?' '+item.packageUnit:''}`);
+    if(item?.packagePieces) parts.push(`قطع/عبوة: ${item.packagePieces}`);
+    if(item?.packageType) parts.push(`نوع العبوة: ${item.packageType}`);
+    return parts.join(' | ') || '—';
+  }
+  function iiVariantTokens(item){
+    const value=[
+      iiDisplayNameAr(item),iiDisplayNameEn(item),
+      item?.specA,item?.specB,item?.specifications,
+      iiSpecValue(item),iiSpecUnit(item),item?.size,item?.sizeValue,item?.sizeUnit,
+      item?.dimensions,item?.material,item?.grade,item?.concentrationPurity
+    ].filter(Boolean).join(' ');
+    if(typeof window.itemVariantIdentityTokens==='function') return new Set(window.itemVariantIdentityTokens(value));
+    const tokens=new Set();
+    const text=iiAsciiDigits(value).toLowerCase();
+    const measurement=/(\d+(?:\.\d+)?)\s*(%|٪|µl|ul|ml|مل|لتر|mg|g|kg|mm|cm|m)(?![\u0600-\u06FFa-z])/gi;
+    let m;
+    while((m=measurement.exec(text))) tokens.add(`measure:${Number(m[1])}:${iiUnitKey(m[2])}`);
+    (text.match(/\d+(?:\.\d+)?/g)||[]).forEach(n=>tokens.add(`number:${Number(n)}`));
+    const words=new Set(iiWords(text));
+    ['xs','s','m','l','xl','xxl'].forEach(size=>{ if(words.has(size)) tokens.add(`size:${size}`); });
+    return tokens;
+  }
+  function iiSetEquals(a,b){
+    if(a.size!==b.size) return false;
+    return [...a].every(token=>b.has(token));
+  }
+  function iiPackageCompatible(a,b){
+    const fields=['packageSize','packageUnit','packagePieces','packageType'];
+    return fields.every(field=>{
+      const left=iiText(a?.[field]);
+      const right=iiText(b?.[field]);
+      return !left || !right || iiNorm(left)===iiNorm(right);
+    });
+  }
+  function iiSpecUnitGroup(unit,type=''){
+    const raw=iiText(unit);
+    const key=iiUnitKey(raw);
+    const norm=iiNorm(raw);
+    const typeKey=iiNorm(type);
+    if(raw==='%' || raw==='٪' || key==='%' || norm==='%') return 'percent';
+    if(['مليتر','لتر','ml','l','ul','µl','ميكرولتر','مايكرولتر'].includes(key) || ['مليتر','لتر','ml','l','ul','ميكرولتر','مايكرولتر'].includes(norm)) return 'volume';
+    if(['جرام','كيلو','g','kg','mg','ملجم','مجم'].includes(key) || ['جرام','كيلو','g','kg','mg','ملجم','مجم'].includes(norm)) return 'weight';
+    if(['مم','ملم','سم','cm','mm','م','m'].includes(key) || ['مم','ملم','سم','cm','mm','م','m'].includes(norm)) return 'length';
+    if(['تركيز','نقاوه'].includes(typeKey)) return 'percent';
+    return '';
+  }
+  function iiSpecTypeGroup(type,unit){
+    const key=iiNorm(type);
+    if(!key || key==='لايوجد') return '';
+    const unitGroup=iiSpecUnitGroup(unit,type);
+    if(['تركيز','نقاوه'].includes(key)) return unitGroup==='percent' || !unitGroup ? 'concentration' : unitGroup;
+    if(['سعه','حجم','مقاس'].includes(key) && unitGroup) return unitGroup;
+    if(['طول','قطر'].includes(key) && unitGroup) return unitGroup;
+    if(key==='مقاس') return 'size';
+    return key;
+  }
+  function iiSpecTypeCompatible(a,b){
+    const left=iiSpecType(a);
+    const right=iiSpecType(b);
+    if(!left || !right || left==='لا يوجد' || right==='لا يوجد') return true;
+    if(iiNorm(left)===iiNorm(right)) return true;
+    const leftGroup=iiSpecTypeGroup(left,iiSpecUnit(a));
+    const rightGroup=iiSpecTypeGroup(right,iiSpecUnit(b));
+    return Boolean(leftGroup && rightGroup && leftGroup===rightGroup);
+  }
+  function itemIdentityMatches(a,b,{scope=true}={}){
+    if(!a || !b) return false;
+    if(scope){
+      if(iiText(a.college)!==iiText(b.college)) return false;
+      if(iiText(a.mainDepartment||'القسم العام')!==iiText(b.mainDepartment||'القسم العام')) return false;
+      if(iiText(a.section)!==iiText(b.section)) return false;
+    }
+    const baseA=[iiBaseNameAr(a),iiBaseNameEn(a)].map(iiNorm).filter(Boolean);
+    const baseB=[iiBaseNameAr(b),iiBaseNameEn(b)].map(iiNorm).filter(Boolean);
+    if(!baseA.length || !baseB.length || !baseA.some(x=>baseB.includes(x))) return false;
+    if(iiUnitKey(iiStockUnit(a))!==iiUnitKey(iiStockUnit(b))) return false;
+    if(!iiSpecTypeCompatible(a,b)) return false;
+    const tokensA=iiVariantTokens(a);
+    const tokensB=iiVariantTokens(b);
+    if(!tokensA.size && !tokensB.size) return iiPackageCompatible(a,b);
+    if(!tokensA.size || !tokensB.size) return false;
+    return iiSetEquals(tokensA,tokensB) && iiPackageCompatible(a,b);
+  }
+  function iiFindMatchingItem(values,currentId=null){
+    return (db.items||[]).find(item=>
+      !iiSameId(item.id,currentId) &&
+      itemIdentityMatches(item,values,{scope:true})
+    )||null;
+  }
+  function iiSimilarItems(values,currentId=null){
+    return (db.items||[]).filter(item=>{
+      if(iiSameId(item.id,currentId)) return false;
+      if(iiText(item.college)!==iiText(values.college)) return false;
+      if(iiText(item.mainDepartment||'القسم العام')!==iiText(values.mainDepartment||'القسم العام')) return false;
+      if(iiText(item.section)!==iiText(values.section)) return false;
+      const baseA=[iiBaseNameAr(item),iiBaseNameEn(item)].map(iiNorm).filter(Boolean);
+      const baseB=[iiBaseNameAr(values),iiBaseNameEn(values)].map(iiNorm).filter(Boolean);
+      return baseA.some(x=>baseB.includes(x)) && !itemIdentityMatches(item,values,{scope:true});
+    });
+  }
+  function iiOptions(values,selected='',allowEmpty=false){
+    const unique=[...new Set(values.filter(v=>allowEmpty || iiText(v)))];
+    return unique.map(value=>`<option value="${iiEscape(value)}" ${iiText(selected)===iiText(value)?'selected':''}>${iiEscape(value||'—')}</option>`).join('');
+  }
+  function iiFilterOptions(values,selected,label='الكل'){
+    return `<option value="all" ${selected==='all'?'selected':''}>${label}</option>${[...new Set(values.map(iiText).filter(Boolean))].sort().map(value=>`<option value="${iiEscape(value)}" ${selected===value?'selected':''}>${iiEscape(value)}</option>`).join('')}`;
+  }
+  function setItemIdentityFilter(key,value){
+    state[key]=value;
+    render();
+  }
+  function iiSearchFields(item){
+    return [
+      item.code,item.college,item.mainDepartment,item.section,
+      iiDisplayNameAr(item),iiDisplayNameEn(item),iiBaseNameAr(item),iiBaseNameEn(item),
+      iiStockUnit(item),iiSpecType(item),iiSpecValue(item),iiSpecUnit(item),
+      item.packageSize,item.packageUnit,item.packagePieces,item.packageType,
+      item.location,item.serialNumber,item.manufacturer,item.model,item.batchNo,
+      item.concentrationPurity,item.hazardLevel,item.storageMethod,item.notes
+    ];
+  }
+  visibleItems=function(all=false){
+    let rows=db.items||[];
+    if(!all && !isCentral()) rows=rows.filter(i=>i.college===state.currentUser.college);
+    if(hasDepartmentScope()) rows=rows.filter(i=>(i.mainDepartment||'القسم العام')===state.currentUser.department || i.section===state.currentUser.department);
+    if(state.collegeFilter!=='all') rows=rows.filter(i=>i.college===state.collegeFilter);
+    if(state.sectionFilter!=='all') rows=rows.filter(i=>i.section===state.sectionFilter || (i.mainDepartment||'')===state.sectionFilter);
+    if(state.itemClassFilter && state.itemClassFilter!=='all') rows=rows.filter(i=>iiCategoryKey(i)===state.itemClassFilter);
+    if(state.itemUnitFilter && state.itemUnitFilter!=='all') rows=rows.filter(i=>iiStockUnit(i)===state.itemUnitFilter);
+    if(state.itemSpecTypeFilter && state.itemSpecTypeFilter!=='all') rows=rows.filter(i=>iiSpecType(i)===state.itemSpecTypeFilter);
+    if(state.itemSpecUnitFilter && state.itemSpecUnitFilter!=='all') rows=rows.filter(i=>(iiSpecUnit(i)||'لا يوجد')===state.itemSpecUnitFilter);
+    if(state.search){
+      const q=iiNorm(state.search);
+      rows=rows.filter(item=>iiSearchFields(item).some(value=>iiNorm(value).includes(q)));
+    }
+    return rows;
+  };
+  function itemIdentityFiltersHtml(){
+    const rows=db.items||[];
+    return `<div class="panel item-identity-filters">
+      <div class="filter-grid">
+        <div><label class="label">نوع الصنف</label><select class="select" onchange="setItemIdentityFilter('itemClassFilter',this.value)">${[['all','كل الأصناف'],['chemical','المواد الكيميائية'],['consumable','المستهلكات'],['device','الأجهزة']].map(([v,l])=>`<option value="${v}" ${(state.itemClassFilter||'all')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div><label class="label">وحدة الرصيد</label><select class="select" onchange="setItemIdentityFilter('itemUnitFilter',this.value)">${iiFilterOptions(rows.map(iiStockUnit),state.itemUnitFilter||'all','كل الوحدات')}</select></div>
+        <div><label class="label">نوع المواصفة</label><select class="select" onchange="setItemIdentityFilter('itemSpecTypeFilter',this.value)">${iiFilterOptions(rows.map(iiSpecType),state.itemSpecTypeFilter||'all','كل المواصفات')}</select></div>
+        <div><label class="label">وحدة المواصفة</label><select class="select" onchange="setItemIdentityFilter('itemSpecUnitFilter',this.value)">${iiFilterOptions(rows.map(i=>iiSpecUnit(i)||'لا يوجد'),state.itemSpecUnitFilter||'all','كل وحدات المواصفة')}</select></div>
+      </div>
+    </div>`;
+  }
+  function iiItemStatus(item){
+    if(iiIsDevice(item)) return item.deviceStatus||'يعمل';
+    return Number(item.qty||0)<=Number(item.minQty||0)?'<span class="badge badge-low">منخفض</span>':'<span class="badge badge-ok">متوفر</span>';
+  }
+  renderItems=function(){
+    const rows=visibleItems().map(i=>[
+      i.college,
+      i.mainDepartment||'القسم العام',
+      i.code,
+      iiDisplayNameAr(i)||itemName(i),
+      iiBaseNameAr(i)||'—',
+      iiDisplayNameEn(i)||'—',
+      i.section,
+      iiStockUnit(i)||'—',
+      iiSpecType(i),
+      iiSpecValue(i)||'—',
+      iiSpecUnit(i)||'—',
+      i.packageSize?`${i.packageSize} ${i.packageUnit||''}`:'—',
+      i.packagePieces||'—',
+      i.qty,
+      i.minQty,
+      i.location||'—',
+      iiIsDevice(i)?(i.serialNumber||'—'):'—',
+      iiItemStatus(i),
+      itemActionButtons(i)
+    ]);
+    return `${filtersHtml({searchPlaceholder:'بحث بالاسم المعروض، الاسم الأساسي، التركيز، المقاس، الرمز...'})}
+    ${itemIdentityFiltersHtml()}
+    <div class="toolbar action-toolbar"><div class="toolbar-right"></div><div class="toolbar-left">${hasPermission('add_item')?`<button class="btn btn-primary" onclick="openModal('item')">+ إضافة صنف</button>`:''}${hasPermission('add_item')?`<button class="btn btn-secondary" onclick="openModal('importItems')">استيراد Excel</button>`:''}<button class="btn btn-secondary" onclick="downloadItemsImportTemplate()">قالب Excel</button><button class="btn btn-secondary" onclick="exportItemsExcel()">تصدير Excel</button></div></div>
+    <div class="table-panel"><div class="table-head"><div class="panel-title">الأصناف والمخزون</div><div class="panel-subtitle">هوية الصنف تعتمد على الاسم الأساسي + وحدة الرصيد + نوع/قيمة/وحدة المواصفة، لذلك لا تندمج الأصناف المتشابهة بالاسم والمختلفة في التركيز أو السعة.</div></div>${table(['القطاع','القسم الرئيسي','الرمز','الاسم المعروض','الاسم الأساسي','English','التصنيف','وحدة الرصيد','نوع المواصفة','قيمة المواصفة','وحدة المواصفة','حجم العبوة','قطع/عبوة','الرصيد','الحد الأدنى','الموقع','التسلسلي','الحالة','إجراءات'],rows)}</div>`;
+  };
+  function refreshItemIdentityDeviceFields(){
+    const section=document.getElementById('item-section')?.value||'';
+    const isDevice=iiCategoryKey({section})==='device';
+    document.querySelectorAll('.item-device-only').forEach(el=>{ el.style.display=isDevice?'':'none'; });
+    const status=document.getElementById('item-deviceStatus');
+    if(status && !isDevice) status.value='';
+  }
+  function readItemFormValues(){
+    const values={
+      college:isCentral()?document.getElementById('item-college').value:state.currentUser.college,
+      mainDepartment:document.getElementById('item-mainDepartment')?.value || currentDepartmentName(),
+      section:document.getElementById('item-section').value,
+      baseNameAr:iiText(document.getElementById('item-base-name-ar')?.value)||iiStripVariantFromName(document.getElementById('item-name')?.value),
+      baseNameEn:iiText(document.getElementById('item-base-name-en')?.value)||iiStripVariantFromName(document.getElementById('item-name-en')?.value),
+      displayNameAr:iiText(document.getElementById('item-name')?.value),
+      displayNameEn:iiText(document.getElementById('item-name-en')?.value),
+      nameAr:iiText(document.getElementById('item-name')?.value),
+      nameEn:iiText(document.getElementById('item-name-en')?.value),
+      stockUnit:document.getElementById('item-unit')?.value||'حبة',
+      unit:document.getElementById('item-unit')?.value||'حبة',
+      specType:document.getElementById('item-spec-type')?.value||'لا يوجد',
+      specValue:iiText(document.getElementById('item-spec-value')?.value),
+      specUnit:document.getElementById('item-spec-unit')?.value||'لا يوجد',
+      packageSize:Number(document.getElementById('item-package-size')?.value||0),
+      packageUnit:document.getElementById('item-package-unit')?.value||'',
+      packagePieces:Number(document.getElementById('item-package-pieces')?.value||0),
+      packageType:document.getElementById('item-package-type')?.value||'',
+      concentrationPurity:iiText(document.getElementById('item-concentration-purity')?.value),
+      batchNo:iiText(document.getElementById('item-batch-no')?.value),
+      expiryDate:iiText(document.getElementById('item-expiry-date')?.value),
+      hazardLevel:document.getElementById('item-hazard-level')?.value||'',
+      storageMethod:document.getElementById('item-storage-method')?.value||'',
+      manufacturer:iiText(document.getElementById('item-manufacturer')?.value),
+      model:iiText(document.getElementById('item-model')?.value),
+      requiresQr:Boolean(document.getElementById('item-requires-qr')?.checked),
+      requiresPeriodicInspection:Boolean(document.getElementById('item-periodic-inspection')?.checked),
+      qty:Number(document.getElementById('item-qty')?.value||0),
+      minQty:Number(document.getElementById('item-minQty')?.value||0),
+      location:iiText(document.getElementById('item-location')?.value),
+      serialNumber:iiText(document.getElementById('item-serialNumber')?.value),
+      deviceStatus:document.getElementById('item-deviceStatus')?.value||'',
+      notes:iiText(document.getElementById('item-notes')?.value)
+    };
+    if(!iiIsDevice(values)){
+      values.serialNumber='';
+      values.deviceStatus='';
+      values.manufacturer='';
+      values.model='';
+      values.requiresQr=false;
+      values.requiresPeriodicInspection=false;
+    }
+    values.name=values.displayNameAr||values.baseNameAr||values.displayNameEn||values.baseNameEn;
+    values.nameAr=values.displayNameAr||values.baseNameAr||values.name;
+    values.nameEn=values.displayNameEn||values.baseNameEn||'';
+    if(values.specType!=='لا يوجد' && values.specValue && !values.specUnit) values.specUnit='لا يوجد';
+    values.specifications=iiSpecSummary(values)==='—'?'':iiSpecSummary(values);
+    return values;
+  }
+  function itemDuplicateForValues(values,currentId=null){
+    return iiFindMatchingItem(values,currentId);
+  }
+  function iiAssignItemIdentity(item,values){
+    Object.assign(item,{
+      baseNameAr:values.baseNameAr,
+      baseNameEn:values.baseNameEn,
+      displayNameAr:values.displayNameAr,
+      displayNameEn:values.displayNameEn,
+      nameAr:values.displayNameAr||values.baseNameAr,
+      name:values.displayNameAr||values.baseNameAr||values.displayNameEn||values.baseNameEn,
+      nameEn:values.displayNameEn,
+      stockUnit:values.stockUnit||values.unit,
+      unit:values.stockUnit||values.unit,
+      specType:values.specType||'لا يوجد',
+      specValue:values.specValue||'',
+      specUnit:values.specUnit||'لا يوجد',
+      packageSize:Number(values.packageSize||0),
+      packageUnit:values.packageUnit||'',
+      packagePieces:Number(values.packagePieces||0),
+      packageType:values.packageType||'',
+      concentrationPurity:values.concentrationPurity||'',
+      batchNo:values.batchNo||'',
+      expiryDate:values.expiryDate||'',
+      hazardLevel:values.hazardLevel||'',
+      storageMethod:values.storageMethod||'',
+      manufacturer:values.manufacturer||'',
+      model:values.model||'',
+      requiresQr:Boolean(values.requiresQr),
+      requiresPeriodicInspection:Boolean(values.requiresPeriodicInspection),
+      specifications:values.specifications||''
+    });
+  }
+  function updateExistingItemFromForm(item,values){
+    const addedQty=Number(values.qty||0);
+    if(addedQty<0) return alert('الكمية يجب ألا تكون أقل من صفر');
+    const oldQty=Number(item.qty||0);
+    iiAssignItemIdentity(item,{...item,...values});
+    Object.assign(item,{
+      college:values.college||item.college,
+      mainDepartment:values.mainDepartment||item.mainDepartment||'القسم العام',
+      section:values.section||item.section,
+      code:item.code||generateItemCode(values.college||item.college,values.section||item.section,item.id),
+      minQty:Number(values.minQty||item.minQty||0),
+      location:values.location||item.location||'',
+      serialNumber:values.serialNumber||item.serialNumber||'',
+      deviceStatus:values.deviceStatus||item.deviceStatus||'',
+      notes:values.notes||item.notes||'',
+      qty:oldQty+addedQty,
+      lastEditedAt:nowLocalString(),
+      lastEditedBy:state.currentUser.id
+    });
+    if(addedQty>0){
+      db.transactions=db.transactions||[];
+      db.transactions.unshift({
+        id:nextId(db.transactions),
+        type:'receive',
+        movementType:'stock_in',
+        status:'approved',
+        itemId:item.id,
+        college:item.college,
+        mainDepartment:item.mainDepartment||'القسم العام',
+        section:item.section,
+        qty:addedQty,
+        unit:item.unit,
+        transactionAt:nowLocalString(),
+        notes:`إضافة كمية من شاشة الأصناف بعد مطابقة هوية الصنف. الرصيد السابق ${oldQty}، الرصيد الجديد ${item.qty}.`,
+        createdBy:state.currentUser.id,
+        approvedBy:state.currentUser.id,
+        reviewedBy:state.currentUser.id
+      });
+    }
+    auditLog('تحديث رصيد صنف موجود','item',item.id,`تمت إضافة ${addedQty} ${item.unit} إلى ${iiDisplayNameAr(item)||itemName(item)}. الرصيد: ${oldQty} → ${item.qty}`,item.college,item.mainDepartment);
+    saveDb();
+    closeModal();
+    alert(addedQty>0?'تمت إضافة الكمية إلى الصنف الموجود بدون إنشاء تكرار.':'تم تحديث بيانات الصنف الموجود بدون إنشاء تكرار.');
+  }
+  itemModalHtml=function(){
+    const item=state.editId?iiGetItemById(state.editId):{college:isCentral()?COLLEGE_OPTIONS[0]:state.currentUser.college,mainDepartment:currentDepartmentName(),section:SECTION_OPTIONS[0],unit:UNIT_OPTIONS[0],qty:0,minQty:0,location:'',serialNumber:'',deviceStatus:'يعمل',nameAr:'',nameEn:'',notes:''};
+    if(state.editId && !item) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">الصنف غير موجود</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert alert-danger">تعذر فتح الصنف للتعديل. أعد تحميل الصفحة ثم حاول مرة أخرى.</div></div></div></div>`;
+    const college=item.college||(!isCentral()?state.currentUser.college:COLLEGE_OPTIONS[0]);
+    const locs=locationOptionsForCollege(college);
+    const suggestions=!state.editId?itemSmartDatalistOptions(college,item.mainDepartment||currentDepartmentName()):'';
+    const isDevice=iiIsDevice(item);
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl"><div class="modal-header"><div><div class="panel-title">${state.editId?'تعديل صنف':'إضافة صنف'}</div><div class="panel-subtitle">عرّف الاسم الأساسي والمواصفة بوضوح. الأصناف المتشابهة في الاسم لا تندمج إلا إذا تطابقت المواصفة ووحدة الرصيد.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><input id="item-existing-id" type="hidden" value=""><div id="item-smart-hint" class="alert" style="${state.editId?'display:none':'display:block'}">عند تطابق الاسم الأساسي ووحدة الرصيد والمواصفة مع صنف موجود، تتحول العملية إلى إضافة كمية للرصيد بدل إنشاء صنف جديد.</div><div class="form-grid">
+      <div><label class="label">القطاع</label>${isCentral()?`<select id="item-college" class="select" onchange="itemSmartRefreshAfterScopeChange()">${collegeOptions(college,false)}</select>`:`<input id="item-college" class="input" value="${state.currentUser.college}" readonly>`}</div>
+      <div><label class="label">القسم الرئيسي</label>${!isCentral()&&hasDepartmentScope()?`<input id="item-mainDepartment" class="input" value="${state.currentUser.department}" readonly>`:`<select id="item-mainDepartment" class="select" onchange="itemSmartRefreshAfterScopeChange()">${departmentOptions(item.mainDepartment||currentDepartmentName(),false)}</select>`}</div>
+      <div><label class="label">التصنيف / القسم الفرعي</label><select id="item-section" class="select" onchange="refreshItemIdentityDeviceFields(); itemSmartRefreshAfterScopeChange()">${sectionOptions(item.section,false)}</select></div>
+      <div><label class="label">الاسم المعروض بالعربية</label><input id="item-name" class="input" list="item-name-suggestions" value="${iiEscape(iiDisplayNameAr(item))}" oninput="itemSmartLookup('name')" onblur="itemSmartLookup('name')"><datalist id="item-name-suggestions">${suggestions}</datalist></div>
+      <div><label class="label">الاسم الأساسي بالعربية</label><input id="item-base-name-ar" class="input" value="${iiEscape(item.baseNameAr||iiStripVariantFromName(iiDisplayNameAr(item)))}" placeholder="مثال: سحاحة / إيثانول"></div>
+      <div><label class="label">الاسم المعروض بالإنجليزية</label><input id="item-name-en" class="input" list="item-name-suggestions" value="${iiEscape(iiDisplayNameEn(item))}" oninput="itemSmartLookup('english')" onblur="itemSmartLookup('english')"></div>
+      <div><label class="label">الاسم الأساسي بالإنجليزية</label><input id="item-base-name-en" class="input" value="${iiEscape(item.baseNameEn||iiStripVariantFromName(iiDisplayNameEn(item)))}" placeholder="Example: Burette / Ethanol"></div>
+      <div><label class="label">وحدة الرصيد</label><select id="item-unit" class="select">${UNIT_OPTIONS.map(u=>`<option ${iiStockUnit(item)===u?'selected':''}>${iiEscape(u)}</option>`).join('')}</select></div>
+      <div><label class="label">نوع المواصفة</label><select id="item-spec-type" class="select">${iiOptions(ITEM_SPEC_TYPES,iiSpecType(item))}</select></div>
+      <div><label class="label">قيمة المواصفة</label><input id="item-spec-value" class="input" value="${iiEscape(iiSpecValue(item))}" placeholder="مثال: 50 / 96 / M"></div>
+      <div><label class="label">وحدة المواصفة</label><select id="item-spec-unit" class="select">${iiOptions(ITEM_SPEC_UNITS,iiSpecUnit(item)||'لا يوجد')}</select></div>
+      <div><label class="label">${state.editId?'الرصيد الحالي':'الكمية / الكمية المضافة'}</label><input id="item-qty" class="input" type="number" min="0" step="0.01" value="${Number(item.qty||0)}"></div>
+      <div><label class="label">الحد الأدنى</label><input id="item-minQty" class="input" type="number" min="0" step="0.01" value="${Number(item.minQty||0)}"></div>
+      <div><label class="label">حجم العبوة</label><input id="item-package-size" class="input" type="number" min="0" step="0.01" value="${Number(item.packageSize||0)||''}"></div>
+      <div><label class="label">وحدة حجم العبوة</label><select id="item-package-unit" class="select">${iiOptions(PACKAGE_UNITS,item.packageUnit||'',true)}</select></div>
+      <div><label class="label">عدد القطع في العبوة</label><input id="item-package-pieces" class="input" type="number" min="0" step="1" value="${Number(item.packagePieces||0)||''}"></div>
+      <div><label class="label">نوع العبوة</label><select id="item-package-type" class="select">${iiOptions(PACKAGE_TYPES,item.packageType||'',true)}</select></div>
+      <div><label class="label">النقاوة / التركيز</label><input id="item-concentration-purity" class="input" value="${iiEscape(item.concentrationPurity||'')}" placeholder="مثال: 96% أو 0.1M"></div>
+      <div><label class="label">رقم التشغيلة Batch No</label><input id="item-batch-no" class="input" value="${iiEscape(item.batchNo||'')}"></div>
+      <div><label class="label">تاريخ الانتهاء</label><input id="item-expiry-date" class="input" type="date" value="${iiEscape(item.expiryDate||'')}"></div>
+      <div><label class="label">درجة الخطورة</label><select id="item-hazard-level" class="select">${iiOptions(HAZARD_LEVELS,item.hazardLevel||'',true)}</select></div>
+      <div><label class="label">طريقة التخزين</label><select id="item-storage-method" class="select">${iiOptions(STORAGE_METHODS,item.storageMethod||'',true)}</select></div>
+      <div><label class="label">الموقع</label><input id="item-location" class="input" list="item-location-list" value="${iiEscape(item.location||'')}"><datalist id="item-location-list">${locs.map(x=>`<option value="${iiEscape(x)}">`).join('')}</datalist></div>
+      <div class="item-device-only" style="${isDevice?'':'display:none'}"><label class="label">الرقم التسلسلي</label><input id="item-serialNumber" class="input" value="${iiEscape(item.serialNumber||'')}"></div>
+      <div class="item-device-only" style="${isDevice?'':'display:none'}"><label class="label">الشركة المصنعة</label><input id="item-manufacturer" class="input" value="${iiEscape(item.manufacturer||'')}"></div>
+      <div class="item-device-only" style="${isDevice?'':'display:none'}"><label class="label">الموديل</label><input id="item-model" class="input" value="${iiEscape(item.model||'')}"></div>
+      <div class="item-device-only" style="${isDevice?'':'display:none'}"><label class="label">حالة الجهاز</label><select id="item-deviceStatus" class="select">${deviceStatuses().map(s=>`<option ${item.deviceStatus===s?'selected':''}>${iiEscape(s)}</option>`).join('')}</select></div>
+      <div class="item-device-only" style="${isDevice?'':'display:none'}"><label class="checkbox"><input id="item-requires-qr" type="checkbox" ${item.requiresQr?'checked':''}> يحتاج QR</label></div>
+      <div class="item-device-only" style="${isDevice?'':'display:none'}"><label class="checkbox"><input id="item-periodic-inspection" type="checkbox" ${item.requiresPeriodicInspection?'checked':''}> يحتاج فحص دوري</label></div>
+      <div class="full"><label class="label">ملاحظات</label><textarea id="item-notes" class="textarea">${iiEscape(item.notes||'')}</textarea></div>
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveItem()">${state.editId?'حفظ':'حفظ / إضافة للرصيد'}</button></div></div></div>`;
+  };
+  saveItem=function(){
+    const id=state.editId;
+    const values=readItemFormValues();
+    if(!values.baseNameAr && !values.baseNameEn && !values.displayNameAr && !values.displayNameEn) return alert('أدخل اسم الصنف الأساسي أو الاسم المعروض');
+    if(!values.stockUnit) return alert('وحدة الرصيد مطلوبة');
+    if(values.qty<0) return alert('الكمية يجب ألا تكون أقل من صفر');
+    if(values.specType && values.specType!=='لا يوجد' && !values.specValue) return alert('قيمة المواصفة مطلوبة عند اختيار نوع مواصفة');
+    if(values.specValue && !values.specUnit) return alert('وحدة المواصفة مطلوبة أو اختر "لا يوجد"');
+    if(iiIsDevice(values) && values.serialNumber){
+      const duplicateSerial=(db.items||[]).find(item=>!iiSameId(item.id,id) && iiText(item.serialNumber)===values.serialNumber);
+      if(duplicateSerial) return alert('لا يمكن تكرار الرقم التسلسلي للأجهزة.');
+    }
+    if(id){
+      const duplicate=iiFindMatchingItem(values,id);
+      if(duplicate) return alert(`يوجد صنف مطابق تمامًا في نفس النطاق: ${iiDisplayNameAr(duplicate)||itemName(duplicate)}. عدّل الصنف الموجود أو أضف كمية إليه.`);
+      const item=iiGetItemById(id);
+      if(!item) return alert('الصنف غير موجود');
+      iiAssignItemIdentity(item,values);
+      Object.assign(item,{
+        college:values.college,
+        mainDepartment:values.mainDepartment,
+        section:values.section,
+        code:generateItemCode(values.college,values.section,id),
+        qty:values.qty,
+        minQty:values.minQty,
+        location:values.location,
+        serialNumber:values.serialNumber,
+        deviceStatus:values.deviceStatus,
+        notes:values.notes,
+        lastEditedAt:nowLocalString(),
+        lastEditedBy:state.currentUser.id
+      });
+      auditLog('تعديل صنف','item',item.id,`تم تعديل ${iiDisplayNameAr(item)||itemName(item)} | ${iiSpecSummary(item)}`,item.college,item.mainDepartment);
+      saveDb();
+      closeModal();
+      return;
+    }
+    const hiddenId=Number(document.getElementById('item-existing-id')?.value||0);
+    const hiddenRawId=document.getElementById('item-existing-id')?.value||'';
+    const hiddenMatch=hiddenRawId?iiGetItemById(hiddenRawId):(hiddenId?iiGetItemById(hiddenId):null);
+    const duplicate=(hiddenMatch && itemIdentityMatches(hiddenMatch,values,{scope:true})) ? hiddenMatch : iiFindMatchingItem(values,null);
+    if(duplicate) return updateExistingItemFromForm(duplicate,values);
+    const similar=iiSimilarItems(values);
+    if(similar.length){
+      const proceed=confirm(`توجد أصناف مشابهة بالاسم لكنها تختلف في المواصفة ولن يتم دمجها:\n${similar.slice(0,5).map(i=>`- ${iiDisplayNameAr(i)||itemName(i)} (${iiSpecSummary(i)})`).join('\n')}\n\nهل تريد إنشاء صنف مستقل؟`);
+      if(!proceed) return;
+    }
+    const item={id:nextId(db.items),createdAt:nowLocalString(),createdBy:state.currentUser.id};
+    iiAssignItemIdentity(item,values);
+    Object.assign(item,{
+      college:values.college,
+      mainDepartment:values.mainDepartment,
+      section:values.section,
+      code:generateItemCode(values.college,values.section,null),
+      qty:values.qty,
+      minQty:values.minQty,
+      location:values.location,
+      serialNumber:values.serialNumber,
+      deviceStatus:values.deviceStatus,
+      notes:values.notes
+    });
+    db.items.push(item);
+    auditLog('إضافة صنف','item',item.id,`تمت إضافة ${iiDisplayNameAr(item)||itemName(item)} | ${iiSpecSummary(item)}`,item.college,item.mainDepartment);
+    saveDb();
+    closeModal();
+  };
+  function iiHeader(row,names){
+    for(const name of names){
+      if(Object.prototype.hasOwnProperty.call(row,name)) return row[name];
+    }
+    return '';
+  }
+  function iiImportRow(raw){
+    const row={
+      college:iiText(iiHeader(raw,['القطاع','Sector','college'])),
+      mainDepartment:iiText(iiHeader(raw,['القسم الرئيسي','Main Department','mainDepartment']))||'القسم العام',
+      section:iiText(iiHeader(raw,['القسم الفرعي','التصنيف','القسم','Category','section'])),
+      baseNameAr:iiText(iiHeader(raw,['اسم الصنف الأساسي بالعربية','اسم الصنف بالعربية','الاسم الأساسي بالعربية','Base Arabic'])),
+      baseNameEn:iiText(iiHeader(raw,['اسم الصنف الأساسي بالإنجليزية','اسم الصنف بالإنجليزية','الاسم الأساسي بالإنجليزية','Base English'])),
+      displayNameAr:iiText(iiHeader(raw,['الاسم المعروض بالعربية','اسم العرض بالعربية','Display Arabic'])),
+      displayNameEn:iiText(iiHeader(raw,['الاسم المعروض بالإنجليزية','اسم العرض بالإنجليزية','Display English'])),
+      stockUnit:iiText(iiHeader(raw,['وحدة الرصيد','الوحدة','Stock Unit','unit'])),
+      qty:Number(iiHeader(raw,['الكمية','الرصيد الحالي','Quantity','qty'])||0),
+      minQty:Number(iiHeader(raw,['الحد الأدنى','Min Qty','minQty'])||0),
+      location:iiText(iiHeader(raw,['الموقع','Location','location'])),
+      notes:iiText(iiHeader(raw,['ملاحظات','Notes','notes'])),
+      specType:iiText(iiHeader(raw,['نوع المواصفة','Specification Type','specType']))||'لا يوجد',
+      specValue:iiText(iiHeader(raw,['قيمة المواصفة','Specification Value','specValue'])),
+      specUnit:iiText(iiHeader(raw,['وحدة المواصفة','Specification Unit','specUnit']))||'لا يوجد',
+      packageSize:Number(iiHeader(raw,['حجم العبوة','Package Size','packageSize'])||0),
+      packageUnit:iiText(iiHeader(raw,['وحدة حجم العبوة','Package Unit','packageUnit'])),
+      packagePieces:Number(iiHeader(raw,['عدد القطع في العبوة','قطع/عبوة','Package Pieces','packagePieces'])||0),
+      packageType:iiText(iiHeader(raw,['نوع العبوة','Package Type','packageType'])),
+      concentrationPurity:iiText(iiHeader(raw,['التركيز / النقاوة','النقاوة / التركيز','Concentration / Purity'])),
+      batchNo:iiText(iiHeader(raw,['رقم التشغيلة Batch No','رقم التشغيلة','Batch No'])),
+      expiryDate:iiText(iiHeader(raw,['تاريخ الانتهاء','Expiry Date'])),
+      hazardLevel:iiText(iiHeader(raw,['درجة الخطورة','Hazard Level'])),
+      storageMethod:iiText(iiHeader(raw,['طريقة التخزين','Storage Method'])),
+      serialNumber:iiText(iiHeader(raw,['الرقم التسلسلي','Serial Number'])),
+      manufacturer:iiText(iiHeader(raw,['الشركة المصنعة','Manufacturer'])),
+      model:iiText(iiHeader(raw,['الموديل','Model'])),
+      deviceStatus:iiText(iiHeader(raw,['حالة الجهاز','Device Status'])),
+      requiresQr:['نعم','yes','true','1'].includes(iiText(iiHeader(raw,['يحتاج QR','Requires QR'])).toLowerCase()),
+      requiresPeriodicInspection:['نعم','yes','true','1'].includes(iiText(iiHeader(raw,['يحتاج فحص دوري','Requires Periodic Inspection'])).toLowerCase()),
+      review:iiText(iiHeader(raw,['حالة المراجعة']))
+    };
+    row.displayNameAr=row.displayNameAr||row.baseNameAr;
+    row.displayNameEn=row.displayNameEn||row.baseNameEn;
+    row.baseNameAr=row.baseNameAr||iiStripVariantFromName(row.displayNameAr);
+    row.baseNameEn=row.baseNameEn||iiStripVariantFromName(row.displayNameEn);
+    row.unit=row.stockUnit;
+    row.nameAr=row.displayNameAr||row.baseNameAr;
+    row.nameEn=row.displayNameEn||row.baseNameEn;
+    row.name=row.nameAr||row.nameEn;
+    row.specifications=iiSpecSummary(row)==='—'?'':iiSpecSummary(row);
+    return row;
+  }
+  function importRowsFromSheet(sheet){
+    const rows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
+    return rows.map(iiImportRow).filter(row=>row.baseNameAr || row.baseNameEn || row.displayNameAr || row.displayNameEn);
+  }
+  function importedDuplicate(existing,row){
+    return (existing||[]).find(item=>itemIdentityMatches(item,row,{scope:true}))||null;
+  }
+  function importItemsModalHtml(){
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">استيراد أصناف من Excel</div><div class="panel-subtitle">يدعم أعمدة الهوية الجديدة: الاسم الأساسي، وحدة الرصيد، نوع/قيمة/وحدة المواصفة، وحجم العبوة. الصنف المطابق تمامًا يحدث رصيده ولا ينشئ تكرارًا.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="form-grid">
+      <div class="full"><label class="label">ملف Excel</label><input id="import-items-file" class="input" type="file" accept=".xlsx,.xls"></div>
+      <div><label class="label">نطاق الاستيراد</label><select id="import-items-scope" class="select"><option value="ready">جاهز للاستيراد فقط</option><option value="all">كل الأوراق المدعومة</option></select></div>
+      <div><label class="label">القطاع الافتراضي عند الفراغ</label><select id="import-items-default-college" class="select">${collegeOptions(isCentral()?((state.currentUser?.college && state.currentUser.college!=='إدارة التجهيزات')?state.currentUser.college:'كلية الصيدلة'):state.currentUser.college,false)}</select></div>
+      <div><label class="label">القسم الافتراضي عند الفراغ</label><select id="import-items-default-section" class="select">${sectionOptions('المواد الكيميائية',false)}</select></div>
+      <div class="full"><div class="alert">الأعمدة المهمة: القطاع، القسم الرئيسي، القسم الفرعي، اسم الصنف الأساسي، الاسم المعروض، وحدة الرصيد، الكمية، نوع المواصفة، قيمة المواصفة، وحدة المواصفة، حجم العبوة، عدد القطع في العبوة، بيانات الأجهزة عند الحاجة.</div></div>
+      <div class="full"><div id="import-items-result" class="alert">بعد اختيار الملف اضغط "استيراد" لقراءة السجلات وإضافتها أو تحديث رصيد المطابق منها.</div></div>
+    </div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="importItemsFromExcel()">استيراد</button></div></div></div>`;
+  }
+  async function importItemsFromExcel(){
+    if(typeof XLSX==='undefined') return alert('مكتبة Excel غير محملة. تأكد من الاتصال بالإنترنت.');
+    const file=document.getElementById('import-items-file')?.files?.[0];
+    if(!file) return alert('اختر ملف Excel أولًا');
+    const scope=document.getElementById('import-items-scope')?.value||'ready';
+    const fallbackCollege=document.getElementById('import-items-default-college')?.value||state.currentUser.college;
+    const fallbackSection=document.getElementById('import-items-default-section')?.value||'المواد الكيميائية';
+    const resultBox=document.getElementById('import-items-result');
+    try{
+      if(resultBox) resultBox.innerHTML='جاري قراءة الملف...';
+      const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      const sheetNames=[];
+      const ready=findSheetInsensitive(wb,'جاهز للاستيراد');
+      const review=findSheetInsensitive(wb,'مراجعة مطلوبة');
+      if(ready) sheetNames.push(ready);
+      if(scope==='all' && review) sheetNames.push(review);
+      if(!sheetNames.length) sheetNames.push(wb.SheetNames[0]);
+      const importedRows=sheetNames.flatMap(name=>importRowsFromSheet(wb.Sheets[name]));
+      if(!importedRows.length) return alert('لم يتم العثور على صفوف قابلة للاستيراد في الملف');
+      let added=0, updated=0, rejected=0;
+      const rejectionRows=[], similarRows=[];
+      importedRows.forEach((row,index)=>{
+        row.college=row.college||fallbackCollege;
+        row.section=row.section||fallbackSection;
+        row.mainDepartment=row.mainDepartment||'القسم العام';
+        if(!isCentral()) row.college=state.currentUser.college;
+        if(!COLLEGE_OPTIONS.includes(row.college)){ rejectionRows.push([index+2,row.nameAr||row.nameEn,'قطاع غير معروف']); rejected++; return; }
+        if(!SECTION_OPTIONS.includes(row.section)){ row.section=fallbackSection; }
+        if(!row.stockUnit){ rejectionRows.push([index+2,row.nameAr||row.nameEn,'وحدة الرصيد مطلوبة']); rejected++; return; }
+        if(!(row.qty>0)){ rejectionRows.push([index+2,row.nameAr||row.nameEn,'الكمية مطلوبة ويجب أن تكون أكبر من صفر']); rejected++; return; }
+        if(row.specType && row.specType!=='لا يوجد' && !row.specValue){ rejectionRows.push([index+2,row.nameAr||row.nameEn,'قيمة المواصفة مطلوبة']); rejected++; return; }
+        if(iiIsDevice(row) && row.serialNumber && (db.items||[]).some(item=>iiText(item.serialNumber)===row.serialNumber)){
+          rejectionRows.push([index+2,row.nameAr||row.nameEn,'رقم تسلسلي مكرر لجهاز']); rejected++; return;
+        }
+        const duplicate=importedDuplicate(db.items,row);
+        if(duplicate){
+          const oldQty=Number(duplicate.qty||0);
+          duplicate.qty=oldQty+Number(row.qty||0);
+          duplicate.minQty=Number(row.minQty||duplicate.minQty||0);
+          duplicate.location=row.location||duplicate.location||'';
+          duplicate.notes=[duplicate.notes||'',row.notes||''].filter(Boolean).join(' | ');
+          iiAssignItemIdentity(duplicate,{...duplicate,...row});
+          db.transactions=db.transactions||[];
+          db.transactions.unshift({id:nextId(db.transactions),type:'receive',movementType:'stock_in',status:'approved',itemId:duplicate.id,college:duplicate.college,mainDepartment:duplicate.mainDepartment||'القسم العام',section:duplicate.section,qty:Number(row.qty||0),unit:duplicate.unit,transactionAt:nowLocalString(),notes:`إضافة كمية عبر استيراد Excel. الرصيد السابق ${oldQty}، الرصيد الجديد ${duplicate.qty}.`,createdBy:state.currentUser.id,approvedBy:state.currentUser.id,reviewedBy:state.currentUser.id});
+          auditLog('تحديث رصيد صنف مطابق عبر استيراد Excel','item',duplicate.id,`${iiDisplayNameAr(duplicate)||itemName(duplicate)} +${row.qty} ${duplicate.unit}`,duplicate.college,duplicate.mainDepartment);
+          updated++;
+          return;
+        }
+        const similar=iiSimilarItems(row);
+        if(similar.length) similarRows.push([row.nameAr||row.nameEn,similar.map(i=>`${iiDisplayNameAr(i)||itemName(i)} (${iiSpecSummary(i)})`).join('؛ ')]);
+        const item={id:nextId(db.items),createdAt:nowLocalString(),createdBy:state.currentUser.id,college:row.college,mainDepartment:row.mainDepartment,section:row.section,code:generateItemCode(row.college,row.section,null),qty:Number(row.qty||0),minQty:Number(row.minQty||0),location:row.location||'',serialNumber:row.serialNumber||'',deviceStatus:iiIsDevice(row)?(row.deviceStatus||'يعمل'):'',notes:[row.notes,row.review?`حالة المراجعة: ${row.review}`:''].filter(Boolean).join(' | ')};
+        iiAssignItemIdentity(item,row);
+        db.items.push(item);
+        db.transactions=db.transactions||[];
+        db.transactions.unshift({id:nextId(db.transactions),type:'receive',movementType:'opening_balance',status:'approved',itemId:item.id,college:item.college,mainDepartment:item.mainDepartment||'القسم العام',section:item.section,qty:item.qty,unit:item.unit,transactionAt:nowLocalString(),notes:'رصيد افتتاحي عبر استيراد Excel لصنف جديد.',createdBy:state.currentUser.id,approvedBy:state.currentUser.id,reviewedBy:state.currentUser.id});
+        auditLog('استيراد صنف جديد من Excel','item',item.id,`${iiDisplayNameAr(item)||itemName(item)} - ${iiSpecSummary(item)} - كمية ${item.qty} ${item.unit}`,item.college,item.mainDepartment);
+        added++;
+      });
+      normalizeItemCodes();
+      saveDb();
+      const details=[
+        `مضاف جديد: ${added}`,
+        `تم تحديث رصيده: ${updated}`,
+        `مرفوض: ${rejected}`,
+        similarRows.length?`أصناف مشابهة لم تدمج لاختلاف المواصفة: ${similarRows.length}`:''
+      ].filter(Boolean);
+      if(resultBox) resultBox.innerHTML=`اكتمل الاستيراد. ${details.join(' | ')}${rejectionRows.length?'<br>أسباب الرفض:<br>'+rejectionRows.map(r=>`صف ${r[0]}: ${iiEscape(r[2])}`).join('<br>'):''}`;
+      state.modal=null;
+      render();
+      alert(`اكتمل الاستيراد.\nمضاف جديد: ${added}\nتم تحديث رصيده: ${updated}\nمرفوض: ${rejected}\nمشابه غير مدمج: ${similarRows.length}`);
+    }catch(error){
+      console.error(error);
+      if(resultBox) resultBox.innerHTML='تعذر قراءة الملف: '+(error.message||String(error));
+      alert('تعذر قراءة ملف Excel. تأكد من أن الملف بصيغة xlsx وبهيكل الأعمدة المتوقع.');
+    }
+  }
+  function itemExportRow(item){
+    return [
+      item.college,item.mainDepartment||'القسم العام',item.section,
+      iiBaseNameAr(item),iiBaseNameEn(item),iiDisplayNameAr(item),iiDisplayNameEn(item),
+      iiStockUnit(item),iiSpecType(item),iiSpecValue(item),iiSpecUnit(item)||'لا يوجد',
+      item.packageSize||'',item.packageUnit||'',item.packagePieces||'',item.packageType||'',
+      item.qty,item.minQty,item.location||'',item.concentrationPurity||'',item.batchNo||'',item.expiryDate||'',item.hazardLevel||'',item.storageMethod||'',
+      item.serialNumber||'',item.manufacturer||'',item.model||'',iiIsDevice(item)?(item.deviceStatus||'يعمل'):'',item.requiresQr?'نعم':'لا',item.requiresPeriodicInspection?'نعم':'لا',item.notes||''
+    ];
+  }
+  function itemExportHeaders(){
+    return ['القطاع','القسم الرئيسي','القسم الفرعي','اسم الصنف الأساسي بالعربية','اسم الصنف الأساسي بالإنجليزية','الاسم المعروض بالعربية','الاسم المعروض بالإنجليزية','وحدة الرصيد','نوع المواصفة','قيمة المواصفة','وحدة المواصفة','حجم العبوة','وحدة حجم العبوة','عدد القطع في العبوة','نوع العبوة','الرصيد الحالي','الحد الأدنى','الموقع','التركيز / النقاوة','رقم التشغيلة','تاريخ الانتهاء','درجة الخطورة','طريقة التخزين','الرقم التسلسلي','الشركة المصنعة','الموديل','حالة الجهاز','يحتاج QR','يحتاج فحص دوري','ملاحظات'];
+  }
+  function exportItemsExcel(){
+    exportExcel({title:'تصدير الأصناف والمخزون',headers:itemExportHeaders(),rows:visibleItems().map(itemExportRow)},'items-inventory-export.xlsx');
+  }
+  function downloadItemsImportTemplate(){
+    if(typeof XLSX==='undefined') return alert('مكتبة Excel غير محملة. تأكد من الاتصال بالإنترنت.');
+    const headers=itemExportHeaders();
+    const rows=[
+      ['كلية الصيدلة','القسم العام','المواد الكيميائية','إيثانول','Ethanol','إيثانول 96%','Ethanol 96%','لتر','تركيز','96','%','','','','',10,2,'R-B1','96%','B-2026-01','2027-12-31','متوسطة','قابل للاشتعال / يحتاج تهوية','','','','','لا','لا','مثال مادة كيميائية'],
+      ['كلية الصيدلة','القسم العام','المستهلكات التعليمية','سحاحة','Burette','سحاحة 50 مل','Burette 50 ml','حبة','سعة','50','مل','','','', '',15,3,'LAB-1','','','','','','','','','لا','لا','مثال مستهلك'],
+      ['كلية الصيدلة','القسم العام','المستهلكات التعليمية','أنابيب اختبار','Test tubes','أنابيب اختبار 10ml','Test tubes 10ml','علبة','حجم','10','ml','','','100','علبة',5,1,'LAB-2','','','','','','','','','لا','لا','مثال علبة بها قطع']
+    ];
+    const wb=XLSX.utils.book_new();
+    wb.Workbook={Views:[{RTL:true}]};
+    const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+    applyWorksheetLayout(ws,headers.map(h=>Math.min(Math.max(h.length+4,14),28)));
+    XLSX.utils.book_append_sheet(wb,ws,'جاهز للاستيراد');
+    XLSX.writeFile(wb,'items-import-template-v8.xlsx',{compression:true});
+  }
+  reportData=function(){
+    if(state.reportTab==='inventory') return {title:'تقرير المخزون العام',headers:itemExportHeaders(),rows:visibleItems().map(itemExportRow)};
+    if(state.reportTab==='low') return {title:'تقرير الأصناف تحت الحد الأدنى',headers:['القطاع','القسم الرئيسي','القسم الفرعي','الاسم المعروض','الاسم الأساسي','المواصفة','الرصيد الحالي','الحد الأدنى','وحدة الرصيد','الموقع'],rows:lowStock().map(i=>[i.college,i.mainDepartment||'القسم العام',i.section,iiDisplayNameAr(i)||itemName(i),iiBaseNameAr(i),iiSpecSummary(i),i.qty,i.minQty,iiStockUnit(i),i.location||'—'])};
+    return previousIdentityReportData?previousIdentityReportData():{title:'تقرير',headers:[],rows:[]};
+  };
+  function iiEduSpecFieldsHtml(material={}){
+    return `<div><label class="label">نوع المواصفة</label><select class="select edu-spec-type">${iiOptions(ITEM_SPEC_TYPES,material.specType||material.specificationType||'لا يوجد')}</select></div>
+      <div><label class="label">قيمة المواصفة</label><input class="input edu-spec-value" value="${iiEscape(material.specValue||material.specificationValue||'')}" placeholder="مثال: 50 / 96 / M"></div>
+      <div><label class="label">وحدة المواصفة</label><select class="select edu-spec-unit">${iiOptions(ITEM_SPEC_UNITS,material.specUnit||material.specificationUnit||'لا يوجد')}</select></div>`;
+  }
+  if(previousIdentityEduNeedMaterialRowHtml){
+    eduNeedMaterialRowHtml=function(groupIdx,materialIdx,material={},category=null){
+      const html=previousIdentityEduNeedMaterialRowHtml(groupIdx,materialIdx,material,category);
+      if(html.includes('edu-spec-type')) return html;
+      return html.replace(/(<div><label class="label">[^<]*<\/label><input class="input edu-spec-b"[\s\S]*?<\/div>)/,`$1${iiEduSpecFieldsHtml(material)}`);
+    };
+  }
+  if(previousIdentityEduNeedReadRows){
+    eduNeedReadRows=function(){
+      const rows=previousIdentityEduNeedReadRows();
+      const materialNodes=[...document.querySelectorAll('[data-edu-material-row]')];
+      rows.forEach((row,index)=>{
+        const node=materialNodes[index];
+        if(!node) return;
+        row.specType=(node.querySelector('.edu-spec-type')?.value||row.specType||'لا يوجد').trim();
+        row.specValue=(node.querySelector('.edu-spec-value')?.value||row.specValue||'').trim();
+        row.specUnit=(node.querySelector('.edu-spec-unit')?.value||row.specUnit||'لا يوجد').trim();
+        if(row.specValue && (!row.specA || row.specA===row.sourceConcentration)){
+          row.specA=[row.specType,row.specValue,row.specUnit].filter(v=>v&&v!=='لا يوجد').join(' ');
+        }
+      });
+      return rows;
+    };
+  }
+  if(previousIdentitySaveLearningReferences){
+    saveLearningReferences=function(){
+      const enrichedRows=typeof eduNeedReadRows==='function'?eduNeedReadRows():[];
+      const before=new Set((db.needEvidence||[]).map(row=>Number(row.id)));
+      const result=previousIdentitySaveLearningReferences.apply(this,arguments);
+      const added=(db.needEvidence||[]).filter(row=>!before.has(Number(row.id)));
+      added.forEach(ref=>{
+        const match=enrichedRows.find(row=>
+          iiNorm(row.itemNameAr||row.itemNameEn)===iiNorm(ref.itemNameAr||ref.itemNameEn) &&
+          iiNorm(row.specA||'')===iiNorm(ref.specA||'')
+        ) || enrichedRows.find(row=>iiNorm(row.itemNameAr||row.itemNameEn)===iiNorm(ref.itemNameAr||ref.itemNameEn));
+        if(match){
+          ref.specType=match.specType||ref.specType||'لا يوجد';
+          ref.specValue=match.specValue||ref.specValue||'';
+          ref.specUnit=match.specUnit||ref.specUnit||'لا يوجد';
+          ref.specifications=[ref.specifications,[ref.specType,ref.specValue,ref.specUnit].filter(v=>v&&v!=='لا يوجد').join(' ')].filter(Boolean).join(' | ');
+        }
+      });
+      if(added.length) saveDb();
+      return result;
+    };
+    saveNeedEvidence=function(){ return saveLearningReferences(); };
+  }
+  if(previousIdentityItemSmartFillFromMatch){
+    itemSmartFillFromMatch=function(item,source='name'){
+      previousIdentityItemSmartFillFromMatch(item,source);
+      if(!item || state.editId) return;
+      const setValue=(id,value)=>{
+        const el=document.getElementById(id);
+        if(el) el.value=value??'';
+      };
+      const setChecked=(id,value)=>{
+        const el=document.getElementById(id);
+        if(el) el.checked=Boolean(value);
+      };
+      setValue('item-base-name-ar',item.baseNameAr||iiStripVariantFromName(iiDisplayNameAr(item)));
+      setValue('item-base-name-en',item.baseNameEn||iiStripVariantFromName(iiDisplayNameEn(item)));
+      setValue('item-spec-type',iiSpecType(item));
+      setValue('item-spec-value',iiSpecValue(item));
+      setValue('item-spec-unit',iiSpecUnit(item)||'لا يوجد');
+      setValue('item-package-size',Number(item.packageSize||0)||'');
+      setValue('item-package-unit',item.packageUnit||'');
+      setValue('item-package-pieces',Number(item.packagePieces||0)||'');
+      setValue('item-package-type',item.packageType||'');
+      setValue('item-concentration-purity',item.concentrationPurity||'');
+      setValue('item-batch-no',item.batchNo||'');
+      setValue('item-expiry-date',item.expiryDate||'');
+      setValue('item-hazard-level',item.hazardLevel||'');
+      setValue('item-storage-method',item.storageMethod||'');
+      setValue('item-manufacturer',item.manufacturer||'');
+      setValue('item-model',item.model||'');
+      setChecked('item-requires-qr',item.requiresQr);
+      setChecked('item-periodic-inspection',item.requiresPeriodicInspection);
+      if(typeof refreshItemIdentityDeviceFields==='function') refreshItemIdentityDeviceFields();
+    };
+  }
+  Object.assign(window,{
+    setItemIdentityFilter,
+    refreshItemIdentityDeviceFields,
+    exportItemsExcel,
+    downloadItemsImportTemplate,
+    itemIdentityMatches,
+    itemIdentitySummary:iiSpecSummary,
+    itemIdentityBaseName:item=>iiBaseNameAr(item)||iiBaseNameEn(item)
+  });
+})();
+/* ===== end Item Specification Identity Unification v8.1 ===== */
+
+/* ===== Learning Reference Row Edit Actions v8.3 ===== */
+;(function(){
+  const previousLearningReferenceRowActions=typeof learningReferenceRowActions==='function'?learningReferenceRowActions:null;
+
+  function lrActText(value){ return String(value??'').trim(); }
+  function lrActNorm(value){
+    return lrActText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function lrActEscape(value){
+    return lrActText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function lrActJs(value){
+    const text=lrActText(value);
+    if(/^-?\d+(?:\.\d+)?$/.test(text)) return text;
+    return `'${text.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'`;
+  }
+  function lrActSameId(left,right){
+    const a=lrActText(left), b=lrActText(right);
+    return Boolean(a&&b&&a===b);
+  }
+  function lrActFindItemById(id){
+    if(!lrActText(id)) return null;
+    return (db.items||[]).find(item=>lrActSameId(item.id,id))||null;
+  }
+  function lrActCanEditReference(row){
+    if(!row || !state.currentUser || !hasPermission('create_need_evidence')) return false;
+    if(isCentral()) return true;
+    if(lrActText(row.college)!==lrActText(state.currentUser.college)) return false;
+    if(typeof hasDepartmentScope==='function' && hasDepartmentScope()){
+      return lrActText(row.mainDepartment||'القسم العام')===lrActText(state.currentUser.department);
+    }
+    return true;
+  }
+  function lrActCanEditItem(item){
+    if(!item || !hasPermission('edit_item')) return false;
+    if(typeof canManageListedItem==='function') return canManageListedItem(item);
+    if(isCentral()) return true;
+    return lrActText(item.college)===lrActText(state.currentUser?.college);
+  }
+  function lrActReferenceAsItem(row){
+    const displayAr=row.itemNameAr||row.displayNameAr||row.nameAr||'';
+    const displayEn=row.itemNameEn||row.displayNameEn||row.nameEn||'';
+    return {
+      college:row.college,
+      mainDepartment:row.mainDepartment||'القسم العام',
+      section:row.section||row.referenceCategory,
+      nameAr:displayAr,
+      nameEn:displayEn,
+      displayNameAr:displayAr,
+      displayNameEn:displayEn,
+      baseNameAr:row.baseNameAr||row.itemBaseNameAr||'',
+      baseNameEn:row.baseNameEn||row.itemBaseNameEn||'',
+      stockUnit:row.requestUnit||row.unit,
+      unit:row.requestUnit||row.unit,
+      specType:row.specType||row.specificationType||row.measurementType||'',
+      specValue:row.specValue||row.specificationValue||row.sizeValue||row.concentrationValue||'',
+      specUnit:row.specUnit||row.specificationUnit||row.sizeUnit||row.concentrationUnit||'',
+      specA:row.specA,
+      specB:row.specB,
+      specifications:row.specifications,
+      packageSize:row.packageSize||row.packSize||0,
+      packageUnit:row.packageUnit||'',
+      packagePieces:row.packagePieces||0,
+      packageType:row.packageType||'',
+      concentrationPurity:row.concentrationPurity||row.sourceConcentration||''
+    };
+  }
+  function lrActFallbackItemMatch(row){
+    const reference=lrActReferenceAsItem(row);
+    return (db.items||[]).find(item=>{
+      if(lrActText(item.college)!==lrActText(reference.college)) return false;
+      if(lrActText(item.mainDepartment||'القسم العام')!==lrActText(reference.mainDepartment||'القسم العام')) return false;
+      if(lrActText(item.section)!==lrActText(reference.section)) return false;
+      if(lrActNorm(item.unit||item.stockUnit)!==lrActNorm(reference.unit||reference.stockUnit)) return false;
+      return [item.nameAr,item.displayNameAr,item.name,item.nameEn,item.displayNameEn]
+        .some(name=>lrActNorm(name) && lrActNorm(name)===lrActNorm(reference.displayNameAr||reference.displayNameEn));
+    })||null;
+  }
+  function lrActFindReferenceItem(row){
+    const direct=lrActFindItemById(row.itemId||row.sourceItemId||row.inventoryItemId||row.linkedItemId);
+    if(direct) return direct;
+    const reference=lrActReferenceAsItem(row);
+    if(typeof itemIdentityMatches==='function'){
+      return (db.items||[]).find(item=>itemIdentityMatches(item,reference,{scope:true}))||null;
+    }
+    return lrActFallbackItemMatch(row);
+  }
+  function lrActInsertButtons(baseHtml,buttons){
+    const html=lrActText(baseHtml)||'<div class="flex-actions"></div>';
+    if(!buttons.length) return html;
+    if(html.includes('lr-edit-reference') || html.includes('lr-edit-item')) return html;
+    if(/<\/div>\s*$/.test(html)) return html.replace(/<\/div>\s*$/,buttons.join('')+'</div>');
+    return `<div class="flex-actions">${html}${buttons.join('')}</div>`;
+  }
+
+  learningReferenceRowActions=function(row){
+    const base=previousLearningReferenceRowActions
+      ? previousLearningReferenceRowActions(row)
+      : `<div class="flex-actions"><button class="btn btn-warning btn-sm" onclick="printLearningReferenceDetail(${lrActJs(row.id)})">PDF المرجع</button></div>`;
+    const buttons=[];
+    if(lrActCanEditReference(row)){
+      buttons.push(`<button class="btn btn-secondary btn-sm lr-edit-reference" title="تعديل بيانات المرجع التعليمي" onclick="openModal('evidenceEdit',${lrActJs(row.id)})">تعديل المرجع</button>`);
+    }
+    const item=lrActFindReferenceItem(row);
+    if(item && lrActCanEditItem(item)){
+      const label=item.displayNameAr||item.nameAr||item.name||row.itemNameAr||'الصنف';
+      buttons.push(`<button class="btn btn-secondary btn-sm lr-edit-item" title="تعديل الصنف المطابق: ${lrActEscape(label)}" onclick="openModal('item',${lrActJs(item.id)})">تعديل الصنف</button>`);
+    }
+    return lrActInsertButtons(base,buttons);
+  };
+
+  Object.assign(window,{
+    findLearningReferenceInventoryItem:lrActFindReferenceItem
+  });
+})();
+/* ===== end Learning Reference Row Edit Actions v8.3 ===== */
+
+/* ===== Educational Reference Material Edit Modal v8.4 ===== */
+;(function(){
+  const previousMaterialEditNeedEvidenceEditModalHtml=typeof needEvidenceEditModalHtml==='function'?needEvidenceEditModalHtml:null;
+  const previousMaterialEditSaveNeedEvidenceEdit=typeof saveNeedEvidenceEdit==='function'?saveNeedEvidenceEdit:null;
+  const previousMaterialEditCalcEvidenceSingleEdit=typeof calcEvidenceSingleEdit==='function'?calcEvidenceSingleEdit:null;
+
+  function lrmText(value){ return String(value??'').trim(); }
+  function lrmNum(value){ const n=Number(value||0); return Number.isFinite(n)?Math.max(n,0):0; }
+  function lrmEscape(value){
+    return lrmText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function lrmRound(value){ return Math.ceil(lrmNum(value)*100)/100; }
+  function lrmCategory(key){
+    if(typeof eduReferenceCategory==='function') return eduReferenceCategory(key||'chemical');
+    const fallback={
+      chemical:{key:'chemical',label:'مواد كيميائية',section:'المواد الكيميائية',usageUnit:'مليتر',requestUnit:'لتر',basis:'per_student'},
+      consumable:{key:'consumable',label:'مستهلكات تعليمية',section:'المستهلكات التعليمية',usageUnit:'حبة',requestUnit:'علبة',basis:'per_student'},
+      device:{key:'device',label:'أجهزة تعليمية',section:'الأجهزة التعليمية',usageUnit:'جهاز',requestUnit:'جهاز',basis:'per_group'}
+    };
+    return fallback[key]||fallback.chemical;
+  }
+  function lrmNorm(value){
+    return lrmText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function lrmInferCategoryKey(row){
+    const explicit=lrmText(row?.referenceCategoryKey||row?.categoryKey);
+    if(['chemical','consumable','device'].includes(explicit)) return explicit;
+    const text=lrmNorm([
+      row?.categoryLabel,
+      row?.referenceCategory,
+      row?.section,
+      row?.itemNameAr,
+      row?.itemNameEn
+    ].filter(Boolean).join(' '));
+    if(text.includes('جهاز') || text.includes('اجهزه') || /device|microscope|centrifuge|balance|meter/i.test(text)) return 'device';
+    if(text.includes('كيمي') || text.includes('ميثانول') || text.includes('ايثانول') || /chemical|ethanol|methanol|acid|reagent/i.test(text)) return 'chemical';
+    if(text.includes('مستهلك') || text.includes('سحاح') || text.includes('قفاز') || text.includes('علبه') || /consumable|gloves|buret|pipette/i.test(text)) return 'consumable';
+    return 'chemical';
+  }
+  function lrmWasGenerated(row){
+    const status=lrmNorm(row?.referenceStatus||row?.status);
+    return status==='generated' || status.includes('توليد احتياج') || Boolean(row?.generatedNeedId);
+  }
+  function lrmPopulationDefaults(ref){
+    const existingMaleSections=lrmNum(ref.maleSections);
+    const existingMalePerSection=lrmNum(ref.malePerSection);
+    const existingFemaleSections=lrmNum(ref.femaleSections);
+    const existingFemalePerSection=lrmNum(ref.femalePerSection);
+    if(existingMaleSections || existingMalePerSection || existingFemaleSections || existingFemalePerSection){
+      return {
+        maleSections:existingMaleSections,
+        malePerSection:existingMalePerSection,
+        femaleSections:existingFemaleSections,
+        femalePerSection:existingFemalePerSection,
+        groupSize:Math.max(1,lrmNum(ref.groupSize)||1)
+      };
+    }
+    const sections=Math.max(1,lrmNum(ref.sectionsCount||ref.sections)||1);
+    const students=lrmNum(ref.studentsCount||ref.students);
+    const perSection=sections>0 ? students/sections : students;
+    return {
+      maleSections:sections,
+      malePerSection:lrmRound(perSection),
+      femaleSections:0,
+      femalePerSection:0,
+      groupSize:Math.max(1,lrmNum(ref.groupSize)||1)
+    };
+  }
+  function lrmOptions(options,selected){
+    return options.map(([value,label])=>`<option value="${lrmEscape(value)}" ${lrmText(selected)===lrmText(value)?'selected':''}>${lrmEscape(label)}</option>`).join('');
+  }
+  function lrmUnitOptions(selected){
+    const units=typeof UNIT_OPTIONS!=='undefined' ? UNIT_OPTIONS : ['مليتر','لتر','جرام','كيلو','حبة','قطعة','علبة','صندوق','كرتون','جهاز'];
+    const values=[...new Set([selected,...units].map(lrmText).filter(Boolean))];
+    return values.map(unit=>`<option value="${lrmEscape(unit)}" ${lrmText(selected)===unit?'selected':''}>${lrmEscape(unit)}</option>`).join('');
+  }
+  function lrmNeedOptions(selected){
+    const rows=typeof filteredNeeds==='function'?filteredNeeds():(db.needsRequests||[]);
+    const empty=`<option value="0" ${!Number(selected||0)?'selected':''}>بدون طلب احتياج مرتبط</option>`;
+    return empty+rows.map(r=>`<option value="${r.id}" ${Number(selected||0)===Number(r.id)?'selected':''}>${lrmEscape([r.requestNo,r.college,r.mainDepartment||'القسم العام',r.section,r.itemNameAr||r.itemNameEn].filter(Boolean).join(' - '))}</option>`).join('');
+  }
+  function lrmCategoryOptions(selected){
+    return lrmOptions([
+      ['chemical','مواد كيميائية'],
+      ['consumable','مستهلكات تعليمية'],
+      ['device','أجهزة تعليمية']
+    ],selected||'chemical');
+  }
+  function lrmBasisOptions(selected){
+    return lrmOptions([
+      ['per_student','لكل طالب'],
+      ['per_group','لكل مجموعة'],
+      ['per_section','لكل شعبة'],
+      ['per_experiment','للتجربة كاملة'],
+      ['reusable','قابل لإعادة الاستخدام']
+    ],selected||'per_student');
+  }
+  function lrmReuseOptions(category,selected){
+    return lrmOptions([
+      ['single_use','استهلاك كامل / مرة واحدة'],
+      ['reusable_peak','قابل لإعادة الاستخدام - يحسب حسب التعارض'],
+      ['shared','مشترك تشغيليًا - يحسب حسب الذروة']
+    ],selected||(category==='device'?'reusable_peak':'single_use'));
+  }
+  function lrmChemicalModeOptions(selected){
+    return lrmOptions([
+      ['concentrated_direct','مادة جاهزة أو مركزة - أدخل نصيب الطالب/المجموعة'],
+      ['solution_preparation','تحضير محلول من العبوة'],
+      ['prepared_solution','محلول جاهز - أدخل الاستخدام مباشرة']
+    ],selected||'concentrated_direct');
+  }
+  function lrmPreparationModeOptions(selected){
+    return lrmOptions([
+      ['gender','تحضيرة للطلاب وتحضيرة للطالبات'],
+      ['single','تحضيرة واحدة مشتركة'],
+      ['manual','إدخال يدوي لعدد التحضيرات']
+    ],selected||'gender');
+  }
+  function lrmSpecTypeOptions(selected){
+    return lrmOptions([
+      ['','بدون'],
+      ['تركيز','تركيز'],
+      ['سعة','سعة'],
+      ['مقاس','مقاس'],
+      ['حجم','حجم'],
+      ['موديل','موديل'],
+      ['درجة','درجة'],
+      ['مواصفة','مواصفة']
+    ],selected||'');
+  }
+  function lrmSpecUnitOptions(selected){
+    return lrmOptions([
+      ['','بدون'],
+      ['%','%'],
+      ['مل','مل'],
+      ['لتر','لتر'],
+      ['جرام','جرام'],
+      ['كيلو','كيلو'],
+      ['مم','مم'],
+      ['سم','سم'],
+      ['M','M'],
+      ['قطعة','قطعة']
+    ],selected||'');
+  }
+  function lrmCanonicalUnit(unit){
+    if(window.NeedEngine?.canonicalUnit) return window.NeedEngine.canonicalUnit(unit);
+    return lrmText(unit);
+  }
+  function lrmRead(id){ return document.getElementById(id)?.value??''; }
+  function lrmReadNum(id){ return lrmNum(lrmRead(id)); }
+  function lrmPreparationCount(){
+    const mode=lrmRead('ev-prep-count-mode')||'gender';
+    if(mode==='single') return 1;
+    if(mode==='manual') return Math.max(1,lrmReadNum('ev-prep-count-manual')||1);
+    return 2;
+  }
+  function lrmIsEducationalReference(row){
+    if(!row) return false;
+    if(row.referenceType==='educational_reference') return true;
+    return Boolean(
+      row.referenceNo ||
+      row.referenceStatus ||
+      row.referenceCategoryKey ||
+      row.categoryLabel ||
+      row.courseName ||
+      row.courseCode ||
+      row.experimentName ||
+      row.academicYear ||
+      row.studentsCount ||
+      row.sectionsCount ||
+      row.grossNeed ||
+      row.estimatedNeed
+    );
+  }
+  function lrmExistingReference(){
+    return (db.needEvidence||[]).find(x=>String(x.id)===String(state.editId))||null;
+  }
+  function lrmBaseRowFromReference(ref){
+    const categoryKey=lrmInferCategoryKey(ref);
+    const chemicalMode=ref.chemicalUsageMode||ref.preparationMode||'concentrated_direct';
+    const prepSolution=categoryKey==='chemical' && chemicalMode==='solution_preparation';
+    return {
+      referenceCategoryKey:categoryKey,
+      itemNameAr:ref.itemNameAr||'',
+      itemNameEn:ref.itemNameEn||'',
+      usageUnit:ref.usageUnit||ref.unit||'عدد',
+      requestUnit:ref.requestUnit||ref.unit||'عدد',
+      basis:ref.consumptionBasis||ref.basis||ref.calculationBasis||(categoryKey==='device'?'per_group':'per_student'),
+      qtyPerUse:prepSolution ? Number(ref.preparationVolume||ref.displayQtyPerUse||0) : Number(ref.displayQtyPerUse||ref.qtyPerUse||ref.qtyPerStudent||0),
+      wastePercent:Number(ref.wastePercent||0),
+      stockAvailable:Number(ref.stockAvailable||0),
+      specType:ref.specType||ref.specificationType||'',
+      specValue:ref.specValue||ref.specificationValue||'',
+      specUnit:ref.specUnit||ref.specificationUnit||'',
+      specA:ref.specA||'',
+      specB:ref.specB||'',
+      packageSize:ref.packageSize||ref.packSize||0,
+      packageUnit:ref.packageUnit||'',
+      packagePieces:ref.packagePieces||0,
+      packageType:ref.packageType||'',
+      reusePolicy:ref.reusePolicy||ref.lifecyclePolicy||(categoryKey==='device'?'reusable_peak':'single_use'),
+      chemicalUsageMode:chemicalMode,
+      sourceConcentration:ref.sourceConcentration||ref.concentrationPurity||ref.specA||'',
+      preparationPercent:ref.preparationPercent||ref.solutionPercent||ref.targetConcentration||0,
+      preparationCountMode:ref.preparationCountMode||'gender',
+      preparationCount:Number(ref.preparationCount||0)||2
+    };
+  }
+  function lrmBuildCalcRow(){
+    const ref=lrmExistingReference()||{};
+    const categoryKey=lrmRead('ev-reference-category')||ref.referenceCategoryKey||'chemical';
+    const meta=lrmCategory(categoryKey);
+    const usageUnit=lrmRead('ev-usage-unit')||meta.usageUnit;
+    const requestUnit=lrmRead('ev-request-unit')||meta.requestUnit||usageUnit;
+    const rawQty=lrmReadNum('ev-qty-per-use');
+    const chemicalMode=lrmRead('ev-chemical-mode')||'concentrated_direct';
+    const isPrep=categoryKey==='chemical' && chemicalMode==='solution_preparation';
+    const packSize=lrmReadNum('ev-pack-size') || (categoryKey==='consumable'?lrmReadNum('ev-spec-b'):0);
+    let basis=lrmRead('ev-basis')||meta.basis||'per_student';
+    let qtyPerUse=rawQty;
+    let displayQtyPerUse=rawQty;
+    let preparationVolume=0;
+    let preparationPercent=0;
+    let preparationCount=0;
+    let solutionVolumeTotal=0;
+    if(categoryKey==='consumable' && packSize>0 && lrmCanonicalUnit(usageUnit)!==lrmCanonicalUnit(requestUnit)){
+      qtyPerUse=rawQty/packSize;
+    }
+    if(isPrep){
+      preparationVolume=rawQty;
+      preparationPercent=lrmReadNum('ev-preparation-percent');
+      preparationCount=lrmPreparationCount();
+      solutionVolumeTotal=preparationVolume*preparationCount;
+      qtyPerUse=solutionVolumeTotal;
+      basis='per_experiment';
+    }
+    return {
+      referenceCategoryKey:categoryKey,
+      categoryKey,
+      itemNameAr:lrmRead('ev-itemNameAr').trim(),
+      itemNameEn:lrmRead('ev-itemNameEn').trim(),
+      experimentName:lrmRead('ev-experimentName').trim()||'تجربة غير مسماة',
+      semester:lrmRead('ev-semester')||'الأول',
+      academicWeek:lrmReadNum('ev-week')||1,
+      repeats:Math.max(1,lrmReadNum('ev-uses')||1),
+      maleSections:lrmReadNum('ev-male-sections'),
+      malePerSection:lrmReadNum('ev-male-per-section'),
+      femaleSections:lrmReadNum('ev-female-sections'),
+      femalePerSection:lrmReadNum('ev-female-per-section'),
+      groupSize:Math.max(1,lrmReadNum('ev-group-size')||1),
+      usageUnit,
+      requestUnit,
+      unit:usageUnit,
+      basis,
+      qtyPerUse,
+      displayQtyPerUse,
+      wastePercent:categoryKey==='device'?0:lrmReadNum('ev-waste'),
+      stockAvailable:lrmReadNum('ev-stock'),
+      specType:lrmRead('ev-spec-type'),
+      specValue:lrmRead('ev-spec-value').trim(),
+      specUnit:lrmRead('ev-spec-unit'),
+      specA:lrmRead('ev-spec-a').trim(),
+      specB:lrmRead('ev-spec-b').trim(),
+      packageSize:packSize,
+      packageUnit:lrmRead('ev-package-unit').trim(),
+      packagePieces:lrmReadNum('ev-package-pieces'),
+      packageType:lrmRead('ev-package-type').trim(),
+      reusePolicy:lrmRead('ev-reuse-policy'),
+      chemicalUsageMode:chemicalMode,
+      sourceConcentration:lrmRead('ev-source-concentration').trim(),
+      targetConcentration:lrmRead('ev-preparation-percent'),
+      preparationPercent,
+      preparationVolume,
+      preparationCount,
+      preparationCountMode:lrmRead('ev-prep-count-mode'),
+      solutionVolumeTotal
+    };
+  }
+  function lrmCalc(row){
+    if(window.NeedEngine?.calcMaterial) return window.NeedEngine.calcMaterial(row);
+    const students=(row.maleSections*row.malePerSection)+(row.femaleSections*row.femalePerSection);
+    const sections=row.maleSections+row.femaleSections;
+    const groups=Math.ceil(students/Math.max(row.groupSize,1));
+    let base=0;
+    if(row.basis==='per_student') base=students*row.qtyPerUse;
+    else if(row.basis==='per_group') base=groups*row.qtyPerUse;
+    else if(row.basis==='per_section') base=sections*row.qtyPerUse;
+    else base=row.qtyPerUse;
+    const gross=base*Math.max(row.repeats,1)*(1+(row.wastePercent||0)/100);
+    return {...row,students,sections,groups,grossNeed:lrmRound(gross),grossNeedUsage:lrmRound(gross),stockAvailable:row.stockAvailable,deficit:Math.max(lrmRound(gross)-row.stockAvailable,0)};
+  }
+  function lrmMetricsHtml(calc){
+    return `الاحتياج المحسوب: ${lrmRound(calc.grossNeed)} ${lrmEscape(calc.requestUnit||'')} | الرصيد: ${lrmRound(calc.stockAvailable)} | العجز: ${lrmRound(Math.max((calc.grossNeed||0)-(calc.stockAvailable||0),0))}`;
+  }
+  function lrmRefreshEditVisibility(){
+    const category=lrmRead('ev-reference-category')||'chemical';
+    const chemicalMode=lrmRead('ev-chemical-mode')||'concentrated_direct';
+    document.querySelectorAll('.lrm-chemical-only').forEach(el=>{ el.style.display=category==='chemical'?'':'none'; });
+    document.querySelectorAll('.lrm-prep-only').forEach(el=>{ el.style.display=category==='chemical' && chemicalMode==='solution_preparation'?'':'none'; });
+    document.querySelectorAll('.lrm-consumable-only').forEach(el=>{ el.style.display=category==='consumable'?'':'none'; });
+    document.querySelectorAll('.lrm-device-waste').forEach(el=>{ el.readOnly=category==='device'; if(category==='device') el.value='0'; });
+    const qtyLabel=document.getElementById('ev-qty-label');
+    if(qtyLabel){
+      qtyLabel.textContent=category==='chemical' && chemicalMode==='solution_preparation'
+        ? 'حجم التحضيرة الواحدة'
+        : 'كمية الاستخدام';
+    }
+    const manual=document.getElementById('ev-prep-manual-wrap');
+    if(manual) manual.style.display=(category==='chemical' && chemicalMode==='solution_preparation' && lrmRead('ev-prep-count-mode')==='manual')?'':'none';
+  }
+  function lrmRefreshMetrics(){
+    lrmRefreshEditVisibility();
+    const box=document.getElementById('ev-metrics');
+    if(!box) return;
+    const row=lrmBuildCalcRow();
+    const calc=lrmCalc(row);
+    box.innerHTML=lrmMetricsHtml(calc);
+  }
+  function lrmBuildSpecifications(row){
+    return [
+      [row.specType,row.specValue,row.specUnit].filter(Boolean).join(' '),
+      row.specA,
+      row.specB,
+      row.packageSize?`عبوة ${row.packageSize}${row.packageUnit?' '+row.packageUnit:''}`:'',
+      row.packagePieces?`قطع/عبوة ${row.packagePieces}`:'',
+      row.packageType,
+      row.chemicalUsageMode==='solution_preparation'?`تحضير ${row.preparationPercent}% × ${row.preparationCount} تحضيرات`: ''
+    ].filter(Boolean).join(' | ');
+  }
+  function lrmModalHtml(ref){
+    const base=lrmBaseRowFromReference(ref);
+    const meta=lrmCategory(base.referenceCategoryKey);
+    const population=lrmPopulationDefaults(ref);
+    const calc=lrmCalc({
+      ...base,
+      itemNameAr:ref.itemNameAr,
+      itemNameEn:ref.itemNameEn,
+      experimentName:ref.experimentName,
+      semester:ref.semester,
+      repeats:ref.repeats||ref.usesCount||1,
+      maleSections:population.maleSections,
+      malePerSection:population.malePerSection,
+      femaleSections:population.femaleSections,
+      femalePerSection:population.femalePerSection,
+      groupSize:population.groupSize
+    });
+    const generatedWarning=lrmWasGenerated(ref)
+      ? `<div class="alert alert-warning full">هذا المرجع سبق توليد احتياج منه. عند حفظ تعديل في البند أو الحساب سيعود المرجع إلى حالة جاهز للمراجعة حتى لا يبقى الاحتياج القديم غير مطابق.</div>`
+      : '';
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-xl">
+      <div class="modal-header"><div><div class="panel-title">تعديل المرجع التعليمي</div><div class="panel-subtitle">يمكن تعديل بيانات المقرر، والمادة الكيميائية، والمستهلك، أو الجهاز، ثم يعاد حساب الاحتياج والعجز قبل الحفظ.</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+      <div class="modal-body"><div class="form-grid">
+        ${generatedWarning}
+        <div class="full"><label class="label">طلب الاحتياج المرتبط</label><select id="ev-need-id" class="select">${lrmNeedOptions(ref.needId)}</select></div>
+        <div><label class="label">اسم المقرر / الدليل</label><input id="ev-courseName" class="input" value="${lrmEscape(ref.courseName||'')}"></div>
+        <div><label class="label">رمز المقرر</label><input id="ev-courseCode" class="input" value="${lrmEscape(ref.courseCode||'')}"></div>
+        <div><label class="label">السنة الدراسية</label><input id="ev-academicYear" class="input" value="${lrmEscape(ref.academicYear||'')}"></div>
+        <div><label class="label">الفصل الدراسي</label><select id="ev-semester" class="select">${['الأول','الثاني','الصيفي','كلاهما'].map(s=>`<option ${ref.semester===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div><label class="label">اسم التجربة</label><input id="ev-experimentName" class="input" value="${lrmEscape(ref.experimentName||'')}"></div>
+        <div><label class="label">أسبوع التجربة</label><input id="ev-week" class="input" type="number" min="1" max="15" value="${Number(ref.academicWeek||1)}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">شعب الطلاب</label><input id="ev-male-sections" class="input" type="number" min="0" step="0.01" value="${population.maleSections}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">طلاب/شعبة</label><input id="ev-male-per-section" class="input" type="number" min="0" step="0.01" value="${population.malePerSection}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">شعب الطالبات</label><input id="ev-female-sections" class="input" type="number" min="0" step="0.01" value="${population.femaleSections}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">طالبات/شعبة</label><input id="ev-female-per-section" class="input" type="number" min="0" step="0.01" value="${population.femalePerSection}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">حجم المجموعة</label><input id="ev-group-size" class="input" type="number" min="1" value="${population.groupSize}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">عدد مرات الاستخدام</label><input id="ev-uses" class="input" type="number" min="1" value="${Number(ref.repeats||ref.usesCount||1)}" oninput="calcEvidenceSingleEdit()"></div>
+
+        <div><label class="label">التصنيف</label><select id="ev-reference-category" class="select" onchange="calcEvidenceSingleEdit()">${lrmCategoryOptions(base.referenceCategoryKey)}</select></div>
+        <div><label class="label">اسم البند بالعربية</label><input id="ev-itemNameAr" class="input" value="${lrmEscape(ref.itemNameAr||'')}"></div>
+        <div><label class="label">English</label><input id="ev-itemNameEn" class="input" value="${lrmEscape(ref.itemNameEn||'')}"></div>
+        <div><label class="label">نمط الاحتساب</label><select id="ev-reuse-policy" class="select" onchange="calcEvidenceSingleEdit()">${lrmReuseOptions(base.referenceCategoryKey,base.reusePolicy)}</select></div>
+        <div><label class="label">وحدة الاستخدام</label><select id="ev-usage-unit" class="select" onchange="calcEvidenceSingleEdit()">${lrmUnitOptions(base.usageUnit)}</select></div>
+        <div><label class="label">وحدة الطلب النهائية</label><select id="ev-request-unit" class="select" onchange="calcEvidenceSingleEdit()">${lrmUnitOptions(base.requestUnit)}</select></div>
+        <div><label class="label">أساس الحساب</label><select id="ev-basis" class="select" onchange="calcEvidenceSingleEdit()">${lrmBasisOptions(base.basis)}</select></div>
+        <div><label id="ev-qty-label" class="label">${base.chemicalUsageMode==='solution_preparation'?'حجم التحضيرة الواحدة':'كمية الاستخدام'}</label><input id="ev-qty-per-use" class="input" type="number" min="0" step="0.01" value="${Number(base.qtyPerUse||0)}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">هدر/احتياط %</label><input id="ev-waste" class="input lrm-device-waste" type="number" min="0" step="1" value="${Number(base.wastePercent||0)}" oninput="calcEvidenceSingleEdit()"></div>
+        <div><label class="label">الرصيد الحالي المتاح</label><input id="ev-stock" class="input" type="number" min="0" step="0.01" value="${Number(base.stockAvailable||0)}" oninput="calcEvidenceSingleEdit()"></div>
+
+        <div><label class="label">نوع المواصفة</label><select id="ev-spec-type" class="select">${lrmSpecTypeOptions(base.specType)}</select></div>
+        <div><label class="label">قيمة المواصفة</label><input id="ev-spec-value" class="input" value="${lrmEscape(base.specValue||'')}" placeholder="مثال: 50 / 96 / M"></div>
+        <div><label class="label">وحدة المواصفة</label><select id="ev-spec-unit" class="select">${lrmSpecUnitOptions(base.specUnit)}</select></div>
+        <div><label class="label">مواصفة إضافية / تركيز</label><input id="ev-spec-a" class="input" value="${lrmEscape(base.specA||'')}"></div>
+        <div><label class="label">تغليف / حالة / مواصفة ثانية</label><input id="ev-spec-b" class="input" value="${lrmEscape(base.specB||'')}"></div>
+        <div class="lrm-consumable-only"><label class="label">حجم العبوة أو عدد القطع</label><input id="ev-pack-size" class="input" type="number" min="0" step="0.01" value="${Number(base.packageSize||base.packSize||0)}" oninput="calcEvidenceSingleEdit()"></div>
+        <div class="lrm-consumable-only"><label class="label">وحدة العبوة</label><input id="ev-package-unit" class="input" value="${lrmEscape(base.packageUnit||'')}"></div>
+        <div class="lrm-consumable-only"><label class="label">قطع/عبوة</label><input id="ev-package-pieces" class="input" type="number" min="0" value="${Number(base.packagePieces||0)}"></div>
+        <div class="lrm-consumable-only"><label class="label">نوع العبوة</label><input id="ev-package-type" class="input" value="${lrmEscape(base.packageType||'')}"></div>
+
+        <div class="lrm-chemical-only"><label class="label">طريقة الاستخدام الكيميائي</label><select id="ev-chemical-mode" class="select" onchange="calcEvidenceSingleEdit()">${lrmChemicalModeOptions(base.chemicalUsageMode)}</select></div>
+        <div class="lrm-prep-only"><label class="label">مواصفة/تركيز العبوة</label><input id="ev-source-concentration" class="input" value="${lrmEscape(base.sourceConcentration||'')}"></div>
+        <div class="lrm-prep-only"><label class="label">نسبة المادة من العبوة %</label><input id="ev-preparation-percent" class="input" type="number" min="0" max="100" step="0.01" value="${Number(base.preparationPercent||0)}" oninput="calcEvidenceSingleEdit()"></div>
+        <div class="lrm-prep-only"><label class="label">عدد التحضيرات</label><select id="ev-prep-count-mode" class="select" onchange="calcEvidenceSingleEdit()">${lrmPreparationModeOptions(base.preparationCountMode)}</select></div>
+        <div id="ev-prep-manual-wrap" class="lrm-prep-only"><label class="label">عدد التحضيرات اليدوي</label><input id="ev-prep-count-manual" class="input" type="number" min="1" step="1" value="${Number(base.preparationCount||2)}" oninput="calcEvidenceSingleEdit()"></div>
+
+        <div class="full"><div id="ev-metrics" class="alert">${lrmMetricsHtml(calc)}</div></div>
+        <div class="full"><label class="label">مبررات الاحتياج</label><textarea id="ev-justification" class="textarea">${lrmEscape(ref.justification||'')}</textarea></div>
+        <div class="full"><label class="label">التوصية النهائية</label><textarea id="ev-recommendation" class="textarea">${lrmEscape(ref.recommendation||'')}</textarea></div>
+        <div class="full"><label class="label">ملاحظات إضافية</label><textarea id="ev-notes" class="textarea">${lrmEscape(ref.notes||'')}</textarea></div>
+      </div></div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveNeedEvidenceEdit()">حفظ التعديل</button></div>
+    </div></div>`;
+  }
+
+  needEvidenceEditModalHtml=function(){
+    const ev=lrmExistingReference();
+    if(!lrmIsEducationalReference(ev)){
+      return previousMaterialEditNeedEvidenceEditModalHtml?previousMaterialEditNeedEvidenceEditModalHtml():'';
+    }
+    setTimeout(lrmRefreshEditVisibility,0);
+    return lrmModalHtml(ev);
+  };
+
+  calcEvidenceSingleEdit=function(){
+    const ev=lrmExistingReference();
+    if(lrmIsEducationalReference(ev)){
+      lrmRefreshMetrics();
+      return;
+    }
+    if(previousMaterialEditCalcEvidenceSingleEdit) return previousMaterialEditCalcEvidenceSingleEdit();
+  };
+
+  saveNeedEvidenceEdit=function(){
+    const ev=lrmExistingReference();
+    if(!lrmIsEducationalReference(ev)){
+      return previousMaterialEditSaveNeedEvidenceEdit?previousMaterialEditSaveNeedEvidenceEdit():null;
+    }
+    if(!hasPermission('create_need_evidence')) return alert('لا تملك صلاحية تعديل المراجع التعليمية');
+    if(!isCentral() && ev.college!==state.currentUser.college) return alert('لا يمكن تعديل مرجع خارج نطاق قطاعك');
+    const row=lrmBuildCalcRow();
+    if(!row.itemNameAr && !row.itemNameEn) return alert('أدخل اسم المادة أو المستهلك أو الجهاز');
+    if(!(Number(row.qtyPerUse||0)>0)) return alert('أدخل كمية استخدام صحيحة أو حجم تحضيرة صحيح');
+    if(row.referenceCategoryKey==='chemical' && row.chemicalUsageMode==='solution_preparation' && !(Number(row.preparationPercent||0)>0)){
+      return alert('أدخل نسبة المادة من العبوة للتحضير الكيميائي');
+    }
+    const calc=lrmCalc(row);
+    const meta=lrmCategory(row.referenceCategoryKey);
+    const needId=Number(lrmRead('ev-need-id')||0);
+    const linkedNeed=needId?(db.needsRequests||[]).find(n=>Number(n.id)===needId):null;
+    const wasGenerated=lrmWasGenerated(ev);
+    const activeLinkedNeed=wasGenerated?null:linkedNeed;
+    Object.assign(ev,{
+      needId:activeLinkedNeed?activeLinkedNeed.id:null,
+      requestNo:activeLinkedNeed?activeLinkedNeed.requestNo:(ev.referenceNo||ev.requestNo),
+      referenceType:'educational_reference',
+      referenceStatus:wasGenerated?'ready':(ev.referenceStatus||'ready'),
+      generatedNeedId:wasGenerated?null:ev.generatedNeedId,
+      staleGeneratedNeedId:wasGenerated?(ev.generatedNeedId||ev.needId||ev.staleGeneratedNeedId||null):ev.staleGeneratedNeedId,
+      college:activeLinkedNeed?activeLinkedNeed.college:ev.college,
+      mainDepartment:activeLinkedNeed?(activeLinkedNeed.mainDepartment||'القسم العام'):(ev.mainDepartment||'القسم العام'),
+      section:meta.section,
+      referenceCategoryKey:meta.key,
+      referenceCategory:meta.section,
+      categoryLabel:meta.label,
+      itemNameAr:row.itemNameAr,
+      itemNameEn:row.itemNameEn,
+      unit:calc.requestUnit||row.requestUnit,
+      usageUnit:row.usageUnit,
+      calculationUsageUnit:calc.usageUnit||row.usageUnit,
+      requestUnit:calc.requestUnit||row.requestUnit,
+      courseName:lrmRead('ev-courseName').trim()||'مقرر غير محدد',
+      courseCode:lrmRead('ev-courseCode').trim()||'غير محدد',
+      academicYear:lrmRead('ev-academicYear').trim(),
+      semester:row.semester,
+      experimentName:row.experimentName,
+      academicWeek:row.academicWeek,
+      sectionsCount:calc.sections,
+      studentsCount:calc.students,
+      maleSections:row.maleSections,
+      malePerSection:row.malePerSection,
+      femaleSections:row.femaleSections,
+      femalePerSection:row.femalePerSection,
+      groupSize:row.groupSize,
+      groupsCount:calc.groups,
+      usesCount:calc.effectiveRepeats||row.repeats,
+      repeats:row.repeats,
+      consumptionBasis:row.basis,
+      calculationMethod:typeof eduNeedBasisLabel==='function'?eduNeedBasisLabel(row.basis):row.basis,
+      qtyPerUse:calc.qtyPerUse,
+      displayQtyPerUse:row.displayQtyPerUse,
+      finalSolutionTotal:row.solutionVolumeTotal||0,
+      preparationVolume:row.preparationVolume||0,
+      preparationPercent:row.preparationPercent||0,
+      preparationCount:row.preparationCount||0,
+      preparationCountMode:row.preparationCountMode||'',
+      solutionVolumeTotal:row.solutionVolumeTotal||0,
+      calculatedQtyPerUse:row.qtyPerUse,
+      packSize:row.packageSize||0,
+      packageSize:row.packageSize||0,
+      packageUnit:row.packageUnit||'',
+      packagePieces:row.packagePieces||0,
+      packageType:row.packageType||'',
+      wastePercent:calc.wastePercent||0,
+      stockAvailable:calc.stockAvailable||0,
+      specType:row.specType,
+      specValue:row.specValue,
+      specUnit:row.specUnit,
+      specA:row.specA,
+      specB:row.specB,
+      reusePolicy:row.reusePolicy,
+      chemicalUsageMode:row.chemicalUsageMode,
+      sourceConcentration:row.sourceConcentration,
+      targetConcentration:row.targetConcentration,
+      solutionPercent:row.preparationPercent||0,
+      chemicalFactor:calc.chemicalFactor,
+      calculationMode:calc.peakBased?'peak':'sum',
+      specifications:lrmBuildSpecifications(row),
+      estimatedNeed:lrmRound(calc.grossNeed),
+      grossNeed:lrmRound(calc.grossNeed),
+      grossNeedUsage:lrmRound(calc.grossNeedUsage),
+      deficit:lrmRound(Math.max((calc.grossNeed||0)-(calc.stockAvailable||0),0)),
+      justification:lrmRead('ev-justification').trim(),
+      recommendation:lrmRead('ev-recommendation').trim(),
+      notes:lrmRead('ev-notes').trim(),
+      updatedAt:nowLocalString(),
+      updatedBy:state.currentUser.id
+    });
+    if(wasGenerated){
+      ev.revisionNote='تم تعديل المرجع بعد توليد احتياج سابق، ويلزم مراجعته وإعادة توليده عند الحاجة.';
+    }
+    auditLog('تعديل مرجع تعليمي','educationReference',ev.referenceNo||ev.requestNo,`${ev.categoryLabel} - ${ev.itemNameAr||ev.itemNameEn} - عجز ${ev.deficit} ${ev.requestUnit}`,ev.college,ev.mainDepartment);
+    saveDb();
+    state.currentPage='needEvidence';
+    closeModal();
+    alert(wasGenerated?'تم حفظ التعديل، وأعيد المرجع إلى حالة جاهز للمراجعة لأن الاحتياج السابق قد لا يطابق التعديل.':'تم تحديث المرجع التعليمي بنجاح');
+  };
+})();
+/* ===== end Educational Reference Material Edit Modal v8.4 ===== */
+
+/* ===== Learning Reference Delete Action v8.5 ===== */
+;(function(){
+  const previousDeleteLearningReferenceRowActions=typeof learningReferenceRowActions==='function'?learningReferenceRowActions:null;
+  const previousDeleteNeedEvidenceEditModalHtml=typeof needEvidenceEditModalHtml==='function'?needEvidenceEditModalHtml:null;
+
+  function lrdText(value){ return String(value??'').trim(); }
+  function lrdNorm(value){
+    return lrdText(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function lrdJs(value){
+    const text=lrdText(value);
+    if(/^-?\d+(?:\.\d+)?$/.test(text)) return text;
+    return `'${text.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'`;
+  }
+  function lrdEscape(value){
+    return lrdText(value)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function lrdFindReference(id){
+    return (db.needEvidence||[]).find(row=>lrdText(row.id)===lrdText(id))||null;
+  }
+  function lrdIsLearningReference(row){
+    if(!row) return false;
+    if(row.referenceType==='educational_reference') return true;
+    if(lrdText(row.referenceNo).startsWith('ER-')) return true;
+    return Boolean(row.courseName||row.courseCode||row.experimentName||row.referenceCategoryKey);
+  }
+  function lrdWasGenerated(row){
+    const status=lrdNorm(row?.referenceStatus||row?.status);
+    return status==='generated' || status.includes('توليد احتياج') || Boolean(row?.generatedNeedId);
+  }
+  function lrdReferenceNo(row){
+    return typeof learningReferenceNumber==='function'
+      ? learningReferenceNumber(row)
+      : (row?.referenceNo||row?.requestNo||row?.id||'—');
+  }
+  function lrdCanDeleteReference(row){
+    if(!row || !state.currentUser || !hasPermission('create_need_evidence') || !lrdIsLearningReference(row)) return false;
+    if(isCentral()) return true;
+    if(lrdText(row.college)!==lrdText(state.currentUser.college)) return false;
+    if(typeof hasDepartmentScope==='function' && hasDepartmentScope()){
+      return lrdText(row.mainDepartment||'القسم العام')===lrdText(state.currentUser.department);
+    }
+    return true;
+  }
+  function lrdDeleteButton(row){
+    if(!lrdCanDeleteReference(row)) return '';
+    return `<button class="btn btn-danger btn-sm lr-delete-reference" title="حذف المرجع التعليمي بالكامل" onclick="deleteLearningReference(${lrdJs(row.id)})">حذف المرجع</button>`;
+  }
+  function lrdInsertActionButton(baseHtml,buttonHtml){
+    const html=lrdText(baseHtml)||'<div class="flex-actions"></div>';
+    if(!buttonHtml || html.includes('lr-delete-reference')) return html;
+    if(/<\/div>\s*$/.test(html)) return html.replace(/<\/div>\s*$/,buttonHtml+'</div>');
+    return `<div class="flex-actions">${html}${buttonHtml}</div>`;
+  }
+
+  learningReferenceRowActions=function(row){
+    const base=previousDeleteLearningReferenceRowActions
+      ? previousDeleteLearningReferenceRowActions(row)
+      : `<div class="flex-actions"><button class="btn btn-warning btn-sm" onclick="printLearningReferenceDetail(${lrdJs(row.id)})">PDF المرجع</button></div>`;
+    return lrdInsertActionButton(base,lrdDeleteButton(row));
+  };
+
+  needEvidenceEditModalHtml=function(){
+    const html=previousDeleteNeedEvidenceEditModalHtml?previousDeleteNeedEvidenceEditModalHtml():'';
+    const ref=lrdFindReference(state.editId);
+    const button=lrdDeleteButton(ref);
+    if(!button || !html || html.includes('lr-delete-reference')) return html;
+    return html.replace('<div class="modal-footer">',`<div class="modal-footer">${button}`);
+  };
+
+  window.deleteLearningReference=function(id){
+    const ref=lrdFindReference(id);
+    if(!ref) return alert('المرجع التعليمي غير موجود.');
+    if(!lrdCanDeleteReference(ref)) return alert('لا تملك صلاحية حذف هذا المرجع التعليمي.');
+    const refNo=lrdReferenceNo(ref);
+    const generated=lrdWasGenerated(ref);
+    const itemName=ref.itemNameAr||ref.itemNameEn||ref.courseName||'مرجع تعليمي';
+    const message=generated
+      ? `هذا المرجع (${refNo}) سبق توليد احتياج منه.\n\nسيتم حذف المرجع التعليمي فقط، ولن يتم حذف طلب الاحتياج الرسمي المرتبط به تلقائيًا.\nإذا كان الطلب الرسمي مبنيًا على بيانات خاطئة، راجعه من صفحة طلبات الاحتياج أو أعد التوليد بعد التصحيح.\n\nهل تريد حذف المرجع؟`
+      : `هل تريد حذف المرجع التعليمي (${refNo}) بالكامل؟\n\nالصنف/الدليل: ${itemName}`;
+    if(!confirm(message)) return;
+    const before=(db.needEvidence||[]).length;
+    db.needEvidence=(db.needEvidence||[]).filter(row=>lrdText(row.id)!==lrdText(id));
+    if((db.needEvidence||[]).length===before) return alert('لم يتم العثور على المرجع لحذفه.');
+    auditLog(
+      'حذف مرجع تعليمي',
+      'educationReference',
+      refNo,
+      `${itemName}${generated?' - كان مرتبطًا بطلب احتياج مولد':''}`,
+      ref.college,
+      ref.mainDepartment||ref.section
+    );
+    saveDb();
+    state.currentPage='needEvidence';
+    state.modal=null;
+    state.editId=null;
+    render();
+    alert(generated
+      ? 'تم حذف المرجع التعليمي. لم يتم حذف طلب الاحتياج الرسمي المرتبط تلقائيًا.'
+      : 'تم حذف المرجع التعليمي بنجاح.');
+  };
+})();
+/* ===== end Learning Reference Delete Action v8.5 ===== */
