@@ -10409,15 +10409,21 @@ saveSupport=function(){
     const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
     if(!req || !spIsRequester(req)) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">إعادة إرسال طلب الدعم</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">لا تملك صلاحية تنفيذ هذا الإجراء على هذا القطاع.</div></div></div></div>`;
     if(spStatus(req.status)!==SUPPORT_STATUS.returned) return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div class="panel-title">إعادة إرسال طلب الدعم</div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div><div class="modal-body"><div class="alert">إعادة الإرسال متاحة فقط للطلبات المعادة بملاحظات.</div></div></div></div>`;
-    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal"><div class="modal-header"><div><div class="panel-title">رد وإعادة إرسال طلب الدعم</div><div class="panel-subtitle">${spEscape(req.requestNo)} - ${spEscape(req.itemName)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
+    return `<div class="modal-backdrop" onclick="closeIfBackdrop(event)"><div class="modal modal-lg"><div class="modal-header"><div><div class="panel-title">تعديل وإعادة إرسال طلب الدعم</div><div class="panel-subtitle">${spEscape(req.requestNo)} - ${spEscape(req.itemName)}</div></div><button class="btn btn-secondary btn-sm" onclick="closeModal()">إغلاق</button></div>
     <div class="modal-body">
       <div class="alert">ملاحظة إدارة التجهيزات: ${spEscape(req.returnNotes||req.reviewNotes||'—')}</div>
       <div class="form-grid">
-        <div><label class="label">الكمية المطلوبة</label><input class="input" value="${Number(req.requestedQty||req.qty||0)} ${spEscape(req.unit||'')}" readonly></div>
+        <div class="full"><label class="label">الصنف المطلوب</label><input id="support-edit-item-name" class="input" list="support-edit-catalog-list" value="${spEscape(req.itemName||req.requestedItemName||'')}" placeholder="اكتب اسم الصنف المطلوب"><datalist id="support-edit-catalog-list">${spCatalogOptions()}</datalist></div>
+        <div><label class="label">نوع الطلب</label><select id="support-edit-type" class="select"><option ${spText(req.requestType||req.supportType)==='دعم تشغيلي'?'selected':''}>دعم تشغيلي</option><option ${spText(req.requestType||req.supportType)==='سلفة تشغيلية'?'selected':''}>سلفة تشغيلية</option><option ${spText(req.requestType||req.supportType)==='نقل عهدة'?'selected':''}>نقل عهدة</option></select></div>
+        <div><label class="label">الكمية المطلوبة</label><input id="support-edit-qty" class="input" type="number" min="1" step="1" value="${Number(req.requestedQty||req.qty||1)}"></div>
+        <div><label class="label">الوحدة</label><input id="support-edit-unit" class="input" value="${spEscape(req.unit||'')}" placeholder="مثال: صندوق، علبة، جهاز"></div>
+        <div><label class="label">القسم الفرعي</label><select id="support-edit-section" class="select">${typeof sectionOptions==='function'?sectionOptions(req.section||'',false):`<option>${spEscape(req.section||'القسم العام')}</option>`}</select></div>
         <div><label class="label">الحالة الحالية</label><div class="alert">${spStatusBadge(req.status)}</div></div>
-        <div class="full"><label class="label">رد القطاع / الملاحظات بعد التعديل</label><textarea id="support-resubmit-notes" class="textarea" placeholder="اكتب رد القطاع أو التعديل المطلوب">${spEscape(req.notes||'')}</textarea></div>
+        <div class="full"><label class="label">المبرر أو سبب الطلب</label><textarea id="support-edit-justification" class="textarea" placeholder="اكتب سبب طلب الدعم">${spEscape(req.justification||'')}</textarea></div>
+        <div class="full"><label class="label">ملاحظات الطلب</label><textarea id="support-edit-notes" class="textarea" placeholder="ملاحظات اختيارية">${spEscape(req.notes||'')}</textarea></div>
+        <div class="full"><label class="label">رد القطاع على ملاحظات الإدارة</label><textarea id="support-resubmit-notes" class="textarea" placeholder="اكتب رد القطاع أو ما تم تعديله">${spEscape(req.requesterReplyNotes||'')}</textarea></div>
       </div>
-    </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="resubmitSupportRequest(${req.id})">إعادة إرسال لإدارة التجهيزات</button></div></div></div>`;
+    </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveSupportEdit()">حفظ التعديل وإعادة الإرسال</button></div></div></div>`;
   }
   function supportAdminModalHtml(){
     const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
@@ -10509,7 +10515,7 @@ saveSupport=function(){
     if(spCanReviewAll()) buttons.push(`<button class="btn btn-primary btn-sm" onclick="openSupportAdminModal(${req.id})">مراجعة</button>`);
     if(spCanAssignSourceFor(req)) buttons.push(`<button class="btn btn-success btn-sm" onclick="openSupportAdminModal(${req.id})">اختيار مصدر</button>`);
     if(spHas('execute_support_transfer') && spStatus(req.status)===SUPPORT_STATUS.pendingTransfer) buttons.push(`<button class="btn btn-warning btn-sm" onclick="executeSupportTransfer(${req.id})">تنفيذ التحويل</button>`);
-    if(spStatus(req.status)===SUPPORT_STATUS.returned && spIsRequester(req) && spHas('create_support_request')) buttons.push(`<button class="btn btn-primary btn-sm" onclick="openModal('supportEdit',${req.id})">رد وإعادة إرسال</button>`);
+    if(spStatus(req.status)===SUPPORT_STATUS.returned && spIsRequester(req) && spHas('create_support_request')) buttons.push(`<button class="btn btn-primary btn-sm" onclick="openModal('supportEdit',${req.id})">تعديل وإعادة إرسال</button>`);
     if(spCanCancelOwn(req)) buttons.push(`<button class="btn btn-danger btn-sm" onclick="cancelSupportRequest(${req.id})">إلغاء</button>`);
     return buttons.length?`<div class="flex-actions">${buttons.join('')}</div>`:'—';
   }
@@ -10889,7 +10895,73 @@ saveSupport=function(){
   function saveSupportEdit(){
     const req=(db.supportRequests||[]).find(row=>Number(row.id)===Number(state.editId));
     if(!req) return alert('طلب الدعم غير موجود.');
-    if(spStatus(req.status)===SUPPORT_STATUS.returned) return resubmitSupportRequest(req.id);
+    if(!spIsRequester(req)) return alert('لا تملك صلاحية تعديل هذا الطلب.');
+    if(!spHas('create_support_request')) return alert('لا تملك صلاحية إنشاء أو إعادة إرسال طلب دعم.');
+    if(spStatus(req.status)===SUPPORT_STATUS.returned){
+      const itemNameValue=spText(document.getElementById('support-edit-item-name')?.value||req.itemName);
+      const requestType=spText(document.getElementById('support-edit-type')?.value||req.requestType||req.supportType||'دعم تشغيلي');
+      const qty=Number(document.getElementById('support-edit-qty')?.value||0);
+      const unit=spText(document.getElementById('support-edit-unit')?.value||req.unit);
+      const section=spText(document.getElementById('support-edit-section')?.value||req.section||'القسم العام');
+      const justification=spText(document.getElementById('support-edit-justification')?.value||'');
+      const notes=spText(document.getElementById('support-edit-notes')?.value||'');
+      const reply=spText(document.getElementById('support-resubmit-notes')?.value||'');
+      if(!itemNameValue) return alert('أدخل اسم الصنف المطلوب.');
+      if(!(qty>0)) return alert('أدخل كمية صحيحة.');
+      if(!unit) return alert('أدخل وحدة الطلب.');
+      const oldSummary=`${req.itemName||req.requestedItemName||''} - ${Number(req.requestedQty||req.qty||0)} ${req.unit||''}`;
+      const catalogItem=spFindCatalogItem(itemNameValue,unit,section);
+      const now=spNow();
+      req.requestType=requestType;
+      req.supportType=requestType;
+      req.itemId=null;
+      req.requestedItemId=null;
+      req.itemName=itemNameValue;
+      req.requestedItemName=itemNameValue;
+      req.itemNameEn=catalogItem?.nameEn||req.itemNameEn||req.requestedItemNameEn||'';
+      req.requestedItemNameEn=req.itemNameEn;
+      req.itemCode=catalogItem?.code||req.itemCode||req.requestedItemCode||'';
+      req.requestedItemCode=req.itemCode;
+      req.requestedQty=qty;
+      req.qty=qty;
+      req.unit=unit;
+      req.section=section;
+      req.mainDepartment=spUser().department&&spUser().department!=='الكل'?spUser().department:(req.mainDepartment||req.requesterDepartment||'القسم العام');
+      req.requesterDepartment=req.mainDepartment;
+      req.justification=justification;
+      req.notes=notes;
+      req.requesterReplyNotes=reply;
+      req.lastReturnNotes=req.returnNotes||req.reviewNotes||'';
+      req.status=SUPPORT_STATUS.review;
+      req.workflowStage=SUPPORT_STATUS.review;
+      req.reviewedAt=null;
+      req.reviewedBy=null;
+      req.reviewNotes='';
+      req.sourceSector=null;
+      req.sourceCollege=null;
+      req.sourceItemId=null;
+      req.sourceLocation=null;
+      req.sourceMainDepartment=null;
+      req.sourceSection=null;
+      req.approvedQty=null;
+      req.sourceAssignedAt=null;
+      req.sourceAssignedBy=null;
+      req.sourceNotes='';
+      req.transferApprovedAt=null;
+      req.transferApprovedBy=null;
+      req.transferredAt=null;
+      req.transferredBy=null;
+      req.returnResolvedAt=now;
+      req.resubmittedAt=now;
+      req.resubmittedBy=spUser().id||null;
+      req.updatedAt=now;
+      req.updatedBy=spUser().id||null;
+      spAudit(`تم تعديل وإعادة إرسال طلب الدعم رقم ${req.requestNo}`,req.requestNo,`قبل: ${oldSummary}. بعد: ${itemNameValue} - ${qty} ${unit}. ${reply||notes||''}`,spReqRequester(req),req.mainDepartment||req.section);
+      saveDb();
+      closeModal();
+      alert('تم حفظ التعديل وإعادة إرسال طلب الدعم إلى إدارة التجهيزات.');
+      return;
+    }
     return alert('تعديل طلب الدعم متاح فقط عندما تعيده إدارة التجهيزات بملاحظات. للطلبات الجديدة أنشئ طلب دعم جديد.');
   }
   function cancelSupportRequest(id){
@@ -12674,9 +12746,22 @@ saveSupport=function(){
   function nrVariantsCompatible(item,ref){
     const referenceTokens=nrReferenceVariantTokens(ref);
     const inventoryTokens=nrInventoryVariantTokens(item);
-    if(!referenceTokens.size && !inventoryTokens.size) return true;
-    if(!referenceTokens.size || !inventoryTokens.size) return false;
-    return [...referenceTokens].every(token=>inventoryTokens.has(token));
+    const reduceTokens=(tokens)=>{
+      const valuesWithMeasures=new Set();
+      [...tokens].forEach(token=>{
+        const match=String(token).match(/^measure:([^:]+):/);
+        if(match) valuesWithMeasures.add(match[1]);
+      });
+      return [...tokens].filter(token=>{
+        const number=String(token).match(/^number:(.+)$/);
+        return !(number && valuesWithMeasures.has(number[1]));
+      });
+    };
+    const reference=reduceTokens(referenceTokens);
+    const inventory=reduceTokens(inventoryTokens);
+    if(!reference.length && !inventory.length) return true;
+    if(!reference.length || !inventory.length) return false;
+    return reference.every(token=>inventory.includes(token));
   }
   function nrStripVariantFromName(value){
     return nrAsciiDigits(value)
@@ -14941,3 +15026,536 @@ saveSupport=function(){
   };
 })();
 /* ===== end Learning Reference Delete Action v8.5 ===== */
+
+/* ===== Reference Inventory Live Stock Matching v8.8 ===== */
+;(function(){
+  const previousLiveVisibleNeedEvidence=typeof visibleNeedEvidence==='function'?visibleNeedEvidence:null;
+  const previousLiveNeedEvidenceDetailData=typeof needEvidenceDetailData==='function'?needEvidenceDetailData:null;
+
+  function risText(value){ return String(value??'').trim(); }
+  function risNum(value){
+    const n=Number(value||0);
+    return Number.isFinite(n)?Math.max(n,0):0;
+  }
+  function risNorm(value){
+    return risText(value).toLowerCase()
+      .replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/^ال/,'')
+      .replace(/[^\u0600-\u06FFa-z0-9%]+/gi,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function risKey(value){ return risNorm(value).replace(/\s+/g,''); }
+  function risUnitFamily(unit){
+    if(window.NeedEngine?.unitFamily) return window.NeedEngine.unitFamily(unit);
+    const key=risKey(unit);
+    if(['مل','ملل','مليلتر','ml','لتر','l'].includes(key)) return 'volume';
+    if(['جرام','غرام','g','كيلو','kg','مجم','mg'].includes(key)) return 'weight';
+    if(['حبه','قطعه','عدد','علبه','صندوق','كرتون','جهاز'].includes(key)) return 'count';
+    return key;
+  }
+  function risConvert(qty,fromUnit,toUnit){
+    if(window.NeedEngine?.convertQty) return window.NeedEngine.convertQty(qty,fromUnit,toUnit);
+    return risNum(qty);
+  }
+  function risStripVariant(value){
+    return risText(value)
+      .replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+      .replace(/(\d+(?:\.\d+)?)\s*(%|مل|ملل|مليلتر|ml|لتر|l|مجم|mg|جرام|غرام|g|كيلو|kg|مم|ملم|mm|سم|cm|مولار|molar|mol)(?![\u0600-\u06FFa-z])/gi,' ')
+      .replace(/\b(xs|s|m|l|xl|xxl)\b/gi,' ')
+      .replace(/\b\d+(?:\.\d+)?\b/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function risBaseNames(row){
+    return [
+      row?.baseNameAr,
+      row?.itemBaseNameAr,
+      row?.nameAr,
+      row?.itemNameAr,
+      row?.displayNameAr,
+      risStripVariant(row?.nameAr||row?.itemNameAr||row?.displayNameAr||row?.name||''),
+      row?.baseNameEn,
+      row?.itemBaseNameEn,
+      row?.nameEn,
+      row?.itemNameEn,
+      row?.displayNameEn,
+      risStripVariant(row?.nameEn||row?.itemNameEn||row?.displayNameEn||'')
+    ].map(risNorm).filter(Boolean);
+  }
+  function risVariantTokens(row){
+    const text=risText([
+      row?.displayNameAr,row?.displayNameEn,row?.nameAr,row?.nameEn,row?.name,
+      row?.itemNameAr,row?.itemNameEn,
+      row?.specA,row?.specB,row?.specifications,
+      row?.specType,row?.specValue,row?.specUnit,
+      row?.specificationType,row?.specificationValue,row?.specificationUnit,
+      row?.size,row?.sizeValue,row?.sizeUnit,
+      row?.concentrationPurity,row?.sourceConcentration,
+      row?.packageSize,row?.packageUnit,row?.packagePieces,row?.packageType
+    ].filter(value=>value!==null&&typeof value!=='undefined'&&String(value).trim()!==''&&String(value).trim()!=='0').join(' '));
+    const normalized=risNorm(text).replace(/,/g,'.');
+    const tokens=new Set();
+    const measurement=/(\d+(?:\.\d+)?)\s*(%|مل|ملل|مليلتر|ml|لتر|l|مجم|mg|جرام|غرام|g|كيلو|kg|مم|ملم|mm|سم|cm|مولار|molar|mol|m)(?![\u0600-\u06FFa-z])/gi;
+    let match;
+    while((match=measurement.exec(normalized))){
+      tokens.add(`measure:${Number(match[1])}:${risUnitFamily(match[2])}:${risKey(match[2])}`);
+      tokens.add(`measure-family:${Number(match[1])}:${risUnitFamily(match[2])}`);
+    }
+    (normalized.match(/\d+(?:\.\d+)?/g)||[]).forEach(number=>tokens.add(`number:${Number(number)}`));
+    const words=new Set(normalized.split(/\s+/).filter(Boolean));
+    ['xs','s','m','l','xl','xxl'].forEach(size=>{ if(words.has(size)) tokens.add(`size:${size}`); });
+    ['زجاج','زجاجي','glass'].forEach(v=>{ if(normalized.includes(risNorm(v))) tokens.add('material:glass'); });
+    ['بلاستيك','بلاستيكي','plastic'].forEach(v=>{ if(normalized.includes(risNorm(v))) tokens.add('material:plastic'); });
+    if(normalized.includes('غير معقم') || normalized.includes('غيرمعقم') || normalized.includes('nonsterile')) tokens.add('sterility:nonsterile');
+    else if(normalized.includes('معقم') || normalized.includes('sterile')) tokens.add('sterility:sterile');
+    return tokens;
+  }
+  function risReduceTokens(tokens){
+    const measuredNumbers=new Set();
+    [...tokens].forEach(token=>{
+      const match=String(token).match(/^measure(?:-family)?:([^:]+):/);
+      if(match) measuredNumbers.add(String(Number(match[1])));
+    });
+    return [...tokens].filter(token=>{
+      if(String(token).startsWith('measure:')) return false;
+      const number=String(token).match(/^number:(.+)$/);
+      return !(number && measuredNumbers.has(String(Number(number[1]))));
+    });
+  }
+  function risCategory(row){
+    const explicit=risText(row?.referenceCategoryKey||row?.categoryKey||row?.category).toLowerCase().replace(/[^a-z_]+/g,'');
+    if(['chemical','consumable','device'].includes(explicit)) return explicit;
+    const text=risNorm([row?.section,row?.referenceCategory,row?.categoryLabel,row?.nameAr,row?.itemNameAr,row?.displayNameAr,row?.nameEn,row?.itemNameEn].filter(Boolean).join(' '));
+    if(text.includes('اجهزه')||text.includes('جهاز')||text.includes('ميزان')||text.includes('ثلاجه')||/device|balance|freezer|microscope/i.test(text)) return 'device';
+    if(text.includes('كيميائي')||text.includes('ميثانول')||text.includes('ايثانول')||/chemical|ethanol|methanol|acid|reagent/i.test(text)) return 'chemical';
+    if(text.includes('مستهلك')||text.includes('سحاح')||text.includes('قفاز')||text.includes('انابيب')||/consumable|buret|burette|glove|tube/i.test(text)) return 'consumable';
+    return '';
+  }
+  function risNamesCompatible(item,ref){
+    const wanted=risBaseNames(ref);
+    const aliases=risBaseNames(item);
+    return wanted.some(left=>aliases.some(right=>left===right || (left.length>=4 && right.length>=4 && (left.includes(right)||right.includes(left)))));
+  }
+  function risVariantsCompatible(item,ref){
+    const refTokens=risReduceTokens(risVariantTokens(ref));
+    const itemTokens=risReduceTokens(risVariantTokens(item));
+    if(!refTokens.length && !itemTokens.length) return true;
+    if(!refTokens.length || !itemTokens.length) return false;
+    return refTokens.every(token=>itemTokens.includes(token));
+  }
+  function risReferenceAsItem(ref){
+    return {
+      ...ref,
+      nameAr:ref?.itemNameAr||ref?.displayNameAr||ref?.nameAr||'',
+      nameEn:ref?.itemNameEn||ref?.displayNameEn||ref?.nameEn||'',
+      displayNameAr:ref?.displayNameAr||ref?.itemNameAr||ref?.nameAr||'',
+      displayNameEn:ref?.displayNameEn||ref?.itemNameEn||ref?.nameEn||'',
+      baseNameAr:ref?.baseNameAr||ref?.itemBaseNameAr||'',
+      baseNameEn:ref?.baseNameEn||ref?.itemBaseNameEn||'',
+      unit:ref?.requestUnit||ref?.unit,
+      stockUnit:ref?.requestUnit||ref?.unit,
+      specType:ref?.specType||ref?.specificationType||'لا يوجد',
+      specValue:ref?.specValue||ref?.specificationValue||ref?.sizeValue||ref?.concentrationValue||'',
+      specUnit:ref?.specUnit||ref?.specificationUnit||ref?.sizeUnit||ref?.concentrationUnit||''
+    };
+  }
+  function risItemMatchesReference(item,ref){
+    if(!item || !ref) return false;
+    if(risText(item.college)!==risText(ref.college)) return false;
+    const itemCategory=risCategory(item);
+    const refCategory=risCategory(ref);
+    if(itemCategory && refCategory && itemCategory!==refCategory) return false;
+    const requestUnit=ref.requestUnit||ref.unit;
+    if(requestUnit && risUnitFamily(item.unit||item.stockUnit)!==risUnitFamily(requestUnit)) return false;
+    const reference=risReferenceAsItem(ref);
+    if(typeof itemIdentityMatches==='function' && itemIdentityMatches(item,reference,{scope:false})) return true;
+    if(!risNamesCompatible(item,reference)) return false;
+    return risVariantsCompatible(item,reference);
+  }
+  function risMatchingItems(ref){
+    return (db.items||[]).filter(item=>risItemMatchesReference(item,ref));
+  }
+  function risPendingQty(itemId){
+    return (db.transactions||[])
+      .filter(tx=>tx.type==='issue' && Number(tx.itemId)===Number(itemId) && risNorm(tx.status||'pending')==='pending')
+      .reduce((sum,tx)=>sum+risNum(tx.qty),0);
+  }
+  function risLiveStock(ref){
+    const requestUnit=ref?.requestUnit||ref?.unit;
+    const matches=risMatchingItems(ref);
+    const available=matches.reduce((sum,item)=>{
+      const itemUnit=item.unit||item.stockUnit||requestUnit;
+      const qty=Math.max(risNum(item.qty)-risPendingQty(item.id),0);
+      return sum+risConvert(qty,itemUnit,requestUnit||itemUnit);
+    },0);
+    return {
+      available:Math.ceil(available*100)/100,
+      matches,
+      best:matches[0]||null
+    };
+  }
+
+  window.findReferenceInventoryMatches=risMatchingItems;
+  window.liveStockForLearningReference=risLiveStock;
+
+  if(previousLiveVisibleNeedEvidence){
+    visibleNeedEvidence=function(){
+      return previousLiveVisibleNeedEvidence().map(row=>{
+        const live=risLiveStock(row);
+        if(!live.matches.length) return row;
+        return {
+          ...row,
+          stockAvailable:live.available,
+          deficit:Math.max(risNum(row.estimatedNeed||row.grossNeed)-live.available,0),
+          liveStockItemName:typeof itemName==='function'?itemName(live.best):live.best?.nameAr
+        };
+      });
+    };
+  }
+
+  if(previousLiveNeedEvidenceDetailData){
+    needEvidenceDetailData=function(id){
+      const data=previousLiveNeedEvidenceDetailData(id);
+      const ref=(db.needEvidence||[]).find(row=>String(row.id)===String(id));
+      if(!data || !ref) return data;
+      const live=risLiveStock(ref);
+      if(!live.matches.length) return data;
+      const unit=ref.requestUnit||ref.unit||'';
+      data.rows=(data.rows||[]).map(row=>{
+        const label=risNorm(row?.[0]);
+        if(label.includes('الرصيد') || label.includes('رصيد')) return [row[0],`${live.available} ${unit}`];
+        if(label.includes('العجز')) return [row[0],`${Math.max(risNum(ref.estimatedNeed||ref.grossNeed)-live.available,0)} ${unit}`];
+        return row;
+      });
+      data.rows.splice(15,0,['سجل المخزون المطابق',live.best?(typeof itemName==='function'?itemName(live.best):live.best.nameAr||live.best.nameEn):'—']);
+      return data;
+    };
+  }
+  if(typeof render==='function'){
+    setTimeout(()=>render(),0);
+  }
+})();
+/* ===== end Reference Inventory Live Stock Matching v8.8 ===== */
+
+/* ===== Generated Needs Live Stock Alignment v8.9 ===== */
+;(function(){
+  const previousGeneratedNeedLearningReferenceToEngineRow=typeof learningReferenceToEngineRow==='function'?learningReferenceToEngineRow:null;
+
+  function gnlNum(value){
+    const n=Number(value||0);
+    return Number.isFinite(n)?Math.max(n,0):0;
+  }
+
+  function gnlLiveStock(ref){
+    if(typeof window.liveStockForLearningReference!=='function') return null;
+    try{
+      const live=window.liveStockForLearningReference(ref);
+      if(!live || !Array.isArray(live.matches) || !live.matches.length) return null;
+      return live;
+    }catch(error){
+      console.warn('[GeneratedNeed] Live stock lookup failed',error,ref);
+      return null;
+    }
+  }
+
+  function gnlDecorateReference(ref){
+    const live=gnlLiveStock(ref);
+    if(!live) return ref;
+    const need=gnlNum(ref?.grossNeed||ref?.estimatedNeed);
+    return {
+      ...ref,
+      stockAvailable:live.available,
+      deficit:Math.max(need-live.available,0),
+      matchedInventoryItemId:live.best?.id||ref?.matchedInventoryItemId||null,
+      matchedInventoryCode:live.best?.code||ref?.matchedInventoryCode||'',
+      matchedInventoryName:typeof itemName==='function' && live.best ? itemName(live.best) : (live.best?.nameAr||live.best?.nameEn||ref?.matchedInventoryName||''),
+      liveStockSource:'inventory'
+    };
+  }
+
+  if(previousGeneratedNeedLearningReferenceToEngineRow){
+    learningReferenceToEngineRow=function(ref){
+      return previousGeneratedNeedLearningReferenceToEngineRow(gnlDecorateReference(ref));
+    };
+  }
+
+  if(typeof learningReferencesForGeneration==='function'){
+    const previousGeneratedNeedLearningReferencesForGeneration=learningReferencesForGeneration;
+    learningReferencesForGeneration=function(){
+      return previousGeneratedNeedLearningReferencesForGeneration().map(gnlDecorateReference);
+    };
+  }
+
+  window.decorateLearningReferenceWithLiveStock=gnlDecorateReference;
+})();
+/* ===== end Generated Needs Live Stock Alignment v8.9 ===== */
+
+/* ===== Official Need Live Stock Display Alignment v9.0 ===== */
+;(function(){
+  const previousOfficialNeedWorkflowStockText=typeof workflowStockText==='function'?workflowStockText:null;
+  const previousOfficialNeedStockForNeed=typeof stockForNeed==='function'?stockForNeed:null;
+
+  function onlText(value){ return String(value??'').trim(); }
+  function onlNum(value){
+    const n=Number(value||0);
+    return Number.isFinite(n)?Math.max(n,0):0;
+  }
+  function onlCategoryKey(need){
+    const text=[need?.referenceCategoryKey,need?.categoryKey,need?.category,need?.section,need?.itemNameAr,need?.itemNameEn].filter(Boolean).join(' ');
+    if(/chemical|ethanol|methanol|acid|reagent/i.test(text) || text.includes('كيميائي')) return 'chemical';
+    if(/device|balance|freezer|microscope/i.test(text) || text.includes('أجهزة') || text.includes('اجهزة') || text.includes('جهاز')) return 'device';
+    if(/consumable|buret|burette|glove|tube/i.test(text) || text.includes('مستهلك') || text.includes('سحاح') || text.includes('قفاز')) return 'consumable';
+    return '';
+  }
+  function onlNeedAsReference(need){
+    return {
+      ...need,
+      referenceCategoryKey:onlCategoryKey(need),
+      referenceCategory:need?.section||need?.category||'',
+      itemNameAr:need?.itemNameAr||need?.nameAr||need?.itemName||'',
+      itemNameEn:need?.itemNameEn||need?.nameEn||'',
+      displayNameAr:need?.displayNameAr||need?.itemNameAr||need?.nameAr||'',
+      displayNameEn:need?.displayNameEn||need?.itemNameEn||need?.nameEn||'',
+      baseNameAr:need?.baseNameAr||need?.itemBaseNameAr||'',
+      baseNameEn:need?.baseNameEn||need?.itemBaseNameEn||'',
+      requestUnit:need?.requestUnit||need?.unit,
+      unit:need?.unit||need?.requestUnit,
+      specA:need?.specA||need?.specifications||need?.description||'',
+      specB:need?.specB||need?.similarItem||'',
+      specType:need?.specType||need?.specificationType||'',
+      specValue:need?.specValue||need?.specificationValue||need?.sizeValue||need?.concentrationValue||'',
+      specUnit:need?.specUnit||need?.specificationUnit||need?.sizeUnit||need?.concentrationUnit||'',
+      packageSize:need?.packageSize||need?.packSize||0,
+      packageUnit:need?.packageUnit||'',
+      packagePieces:need?.packagePieces||0,
+      packageType:need?.packageType||''
+    };
+  }
+  function onlLiveStock(need){
+    if(!need || typeof window.liveStockForLearningReference!=='function') return null;
+    try{
+      const live=window.liveStockForLearningReference(onlNeedAsReference(need));
+      if(!live || !Array.isArray(live.matches) || !live.matches.length) return null;
+      return live;
+    }catch(error){
+      console.warn('[OfficialNeed] Live stock lookup failed',error,need);
+      return null;
+    }
+  }
+  function onlStockValue(need){
+    const live=onlLiveStock(need);
+    if(live) return live.available;
+    if(typeof need?.stockAvailable!=='undefined' && need.stockAvailable!==null && need.stockAvailable!=='') return onlNum(need.stockAvailable);
+    return null;
+  }
+
+  if(previousOfficialNeedWorkflowStockText){
+    workflowStockText=function(need){
+      const value=onlStockValue(need);
+      if(value===null) return previousOfficialNeedWorkflowStockText(need);
+      const unit=need?.unit||need?.requestUnit||'';
+      return unit ? `${value} ${unit}` : String(value);
+    };
+  }
+
+  if(previousOfficialNeedStockForNeed){
+    stockForNeed=function(need){
+      const value=onlStockValue(need);
+      return value===null ? previousOfficialNeedStockForNeed(need) : value;
+    };
+  }
+
+  window.liveStockForNeedRequest=onlLiveStock;
+})();
+/* ===== end Official Need Live Stock Display Alignment v9.0 ===== */
+
+/* ===== Base Name + Specification Matching Rule v9.2 ===== */
+;(function(){
+  function bsmText(value){ return String(value??'').trim(); }
+  function bsmAsciiDigits(value){
+    return bsmText(value)
+      .replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  }
+  function bsmNorm(value){
+    return bsmAsciiDigits(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/^ال/,'')
+      .replace(/[^\u0600-\u06FFa-z0-9.%]+/gi,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function bsmKey(value){ return bsmNorm(value).replace(/\s+/g,''); }
+  function bsmNum(value){
+    const n=Number(bsmAsciiDigits(value).replace(',','.'));
+    return Number.isFinite(n)?n:null;
+  }
+  function bsmStripVariant(value){
+    const stripped=bsmAsciiDigits(value)
+      .replace(/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct|ميكرولتر|مايكرولتر|µl|ul|مليلتر|ملليلتر|ملل|مل|ml|لتر|liter|litre|l|ملجم|مجم|mg|جرام|غرام|g|كيلو|kg|ملم|مم|mm|سم|cm|مولار|molar|mol|m)(?![\u0600-\u06FFa-z])/gi,' ')
+      .replace(/\b(xs|s|m|l|xl|xxl)\b/gi,' ')
+      .replace(/\b\d+(?:\.\d+)?\b/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+    return stripped || bsmText(value);
+  }
+  function bsmInferSpec(row){
+    const fields=[
+      row?.specType,row?.specificationType,row?.measurementType,
+      row?.specValue,row?.specificationValue,row?.sizeValue,row?.concentrationValue,
+      row?.specUnit,row?.specificationUnit,row?.sizeUnit,row?.concentrationUnit
+    ].filter(value=>bsmText(value));
+    if(fields.length){
+      return {
+        type:bsmSpecType(row?.specType||row?.specificationType||row?.measurementType||'لا يوجد'),
+        value:bsmSpecValue(row?.specValue||row?.specificationValue||row?.sizeValue||row?.concentrationValue||'')
+      };
+    }
+    const text=bsmAsciiDigits([
+      row?.displayNameAr,row?.displayNameEn,row?.nameAr,row?.nameEn,row?.name,
+      row?.itemNameAr,row?.itemNameEn,row?.requestedItemName,
+      row?.specA,row?.specB,row?.specifications,row?.description,row?.concentrationPurity
+    ].filter(Boolean).join(' '));
+    const percent=text.match(/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct)/i);
+    if(percent) return {type:'تركيز',value:bsmSpecValue(percent[1])};
+    const volume=text.match(/(\d+(?:\.\d+)?)\s*(ميكرولتر|مايكرولتر|µl|ul|مليلتر|ملليلتر|ملل|مل|ml|لتر|liter|litre|l)(?![\u0600-\u06FFa-z])/i);
+    if(volume) return {type:'سعة',value:bsmSpecValue(volume[1])};
+    const length=text.match(/(\d+(?:\.\d+)?)\s*(ملم|مم|mm|سم|cm|م)(?![\u0600-\u06FFa-z])/i);
+    if(length) return {type:'طول',value:bsmSpecValue(length[1])};
+    const size=text.match(/\b(xs|s|m|l|xl|xxl)\b/i);
+    if(size) return {type:'مقاس',value:bsmSpecValue(size[1])};
+    return {type:'لا يوجد',value:''};
+  }
+  function bsmSpecType(value){
+    const key=bsmKey(value);
+    if(!key || key==='لايوجد' || key==='none' || key==='na') return 'لا يوجد';
+    return key;
+  }
+  function bsmSpecValue(value){
+    const text=bsmText(value);
+    if(!text) return '';
+    const n=bsmNum(text);
+    if(n!==null) return String(n);
+    return bsmKey(text);
+  }
+  function bsmBaseNames(row){
+    return [
+      row?.baseNameAr,
+      row?.itemBaseNameAr,
+      bsmStripVariant(row?.itemNameAr||row?.nameAr||row?.displayNameAr||row?.name||''),
+      row?.baseNameEn,
+      row?.itemBaseNameEn,
+      bsmStripVariant(row?.itemNameEn||row?.nameEn||row?.displayNameEn||'')
+    ].map(bsmKey).filter(Boolean);
+  }
+  function bsmBaseCompatible(a,b){
+    const left=bsmBaseNames(a);
+    const right=bsmBaseNames(b);
+    return Boolean(left.length && right.length && left.some(value=>right.includes(value)));
+  }
+  function bsmSpecCompatible(a,b){
+    const left=bsmInferSpec(a);
+    const right=bsmInferSpec(b);
+    const leftHas=left.type!=='لا يوجد' || Boolean(left.value);
+    const rightHas=right.type!=='لا يوجد' || Boolean(right.value);
+    if(!leftHas && !rightHas) return true;
+    if(!leftHas || !rightHas) return false;
+    return left.type===right.type && left.value===right.value;
+  }
+  function bsmCategory(row){
+    const explicit=bsmText(row?.referenceCategoryKey||row?.categoryKey||row?.category).toLowerCase().replace(/[^a-z_]+/g,'');
+    if(['chemical','consumable','device'].includes(explicit)) return explicit;
+    const text=bsmNorm([row?.section,row?.referenceCategory,row?.categoryLabel,row?.itemNameAr,row?.nameAr,row?.displayNameAr,row?.itemNameEn,row?.nameEn].filter(Boolean).join(' '));
+    if(text.includes('اجهزه') || text.includes('جهاز') || text.includes('ميزان') || text.includes('ثلاجه') || /device|microscope|centrifuge|balance|freezer|meter/i.test(text)) return 'device';
+    if(text.includes('كيمي') || text.includes('ميثانول') || text.includes('ايثانول') || /chemical|ethanol|methanol|acid|reagent/i.test(text)) return 'chemical';
+    if(text.includes('مستهلك') || text.includes('سحاح') || text.includes('قفاز') || text.includes('انابيب') || /consumable|buret|burette|glove|tube|pipette/i.test(text)) return 'consumable';
+    return '';
+  }
+  function bsmUnitFamily(unit){
+    if(window.NeedEngine?.unitFamily) return window.NeedEngine.unitFamily(unit);
+    const key=bsmKey(unit);
+    if(['مل','ملل','مليلتر','ml','لتر','l'].includes(key)) return 'volume';
+    if(['جرام','غرام','g','كيلو','kg','مجم','mg'].includes(key)) return 'weight';
+    if(['حبه','قطعه','عدد','علبه','صندوق','كرتون','جهاز'].includes(key)) return 'count';
+    return key;
+  }
+  function bsmConvert(qty,fromUnit,toUnit){
+    if(window.NeedEngine?.convertQty) return window.NeedEngine.convertQty(qty,fromUnit,toUnit);
+    const n=Number(qty||0);
+    return Number.isFinite(n)?Math.max(n,0):0;
+  }
+  function bsmAsReference(ref){
+    return {
+      ...ref,
+      nameAr:ref?.itemNameAr||ref?.displayNameAr||ref?.nameAr||ref?.itemName||'',
+      nameEn:ref?.itemNameEn||ref?.displayNameEn||ref?.nameEn||'',
+      displayNameAr:ref?.displayNameAr||ref?.itemNameAr||ref?.nameAr||ref?.itemName||'',
+      displayNameEn:ref?.displayNameEn||ref?.itemNameEn||ref?.nameEn||'',
+      baseNameAr:ref?.baseNameAr||ref?.itemBaseNameAr||'',
+      baseNameEn:ref?.baseNameEn||ref?.itemBaseNameEn||'',
+      stockUnit:ref?.requestUnit||ref?.unit,
+      unit:ref?.requestUnit||ref?.unit
+    };
+  }
+  function bsmIdentityMatches(a,b,{scope=true}={}){
+    if(!a || !b) return false;
+    if(scope){
+      if(bsmText(a.college)!==bsmText(b.college)) return false;
+      if(bsmText(a.mainDepartment||'القسم العام')!==bsmText(b.mainDepartment||'القسم العام')) return false;
+      if(bsmText(a.section)!==bsmText(b.section)) return false;
+    }
+    return bsmBaseCompatible(a,b) && bsmSpecCompatible(a,b);
+  }
+  function bsmReferenceMatchesItem(item,ref){
+    if(!item || !ref) return false;
+    if(bsmText(ref.college) && bsmText(item.college)!==bsmText(ref.college)) return false;
+    const itemCategory=bsmCategory(item);
+    const refCategory=bsmCategory(ref);
+    if(itemCategory && refCategory && itemCategory!==refCategory) return false;
+    const requestUnit=ref.requestUnit||ref.unit;
+    if(requestUnit && bsmUnitFamily(item.unit||item.stockUnit)!==bsmUnitFamily(requestUnit)) return false;
+    return bsmIdentityMatches(item,bsmAsReference(ref),{scope:false});
+  }
+  function bsmPendingQty(itemId){
+    return (db.transactions||[])
+      .filter(tx=>tx.type==='issue' && Number(tx.itemId)===Number(itemId) && bsmKey(tx.status||'pending')==='pending')
+      .reduce((sum,tx)=>sum+(Number(tx.qty)||0),0);
+  }
+  function bsmMatchingItems(ref){
+    return (db.items||[]).filter(item=>bsmReferenceMatchesItem(item,ref));
+  }
+  function bsmLiveStock(ref){
+    const requestUnit=ref?.requestUnit||ref?.unit;
+    const matches=bsmMatchingItems(ref);
+    const available=matches.reduce((sum,item)=>{
+      const itemUnit=item.unit||item.stockUnit||requestUnit;
+      const qty=Math.max((Number(item.qty)||0)-bsmPendingQty(item.id),0);
+      return sum+bsmConvert(qty,itemUnit,requestUnit||itemUnit);
+    },0);
+    return {
+      available:Math.ceil(available*100)/100,
+      matches,
+      best:matches[0]||null,
+      matchingRule:'baseName+specType+specValue'
+    };
+  }
+
+  itemIdentityMatches=bsmIdentityMatches;
+  window.itemIdentityMatches=bsmIdentityMatches;
+  window.findReferenceInventoryMatches=bsmMatchingItems;
+  window.liveStockForLearningReference=bsmLiveStock;
+  window.inventoryBaseSpecIdentity={
+    matches:bsmIdentityMatches,
+    referenceMatchesItem:bsmReferenceMatchesItem,
+    liveStock:bsmLiveStock
+  };
+})();
+/* ===== end Base Name + Specification Matching Rule v9.2 ===== */

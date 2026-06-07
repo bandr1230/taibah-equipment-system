@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<!--
+  Source ownership signature.
+  Owner: Bandar bin Khalaf Aljabri | بندر بن خلف الجابري
+  Signature ID: BJ-TEIP-2026-SOURCE-SIGNATURE
+  This marker is source-level only and is not rendered in UI or reports.
+-->
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>المساعد الذكي - برنامج إدارة التجهيزات والمخزون</title>
+  <style>
+    :root {
+      --ink: #10143f;
+      --muted: #60708a;
+      --line: #d8e2ef;
+      --surface: #ffffff;
+      --soft: #f4f7fb;
+      --brand: #0a8e6e;
+      --brand-dark: #08745b;
+      --warn: #fff7da;
+      --warn-line: #f0d47a;
+      --danger: #b42318;
+      --info: #e9f7fb;
+      --shadow: 0 14px 40px rgba(16, 20, 63, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #eef2f7;
+      color: var(--ink);
+      font-family: Tahoma, Arial, sans-serif;
+      line-height: 1.7;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--brand);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: #e8f6f2;
+      color: var(--brand-dark);
+      font-weight: 700;
+      border: 1px solid #bfe4d9;
+      white-space: nowrap;
+    }
+
+    .notice {
+      background: var(--warn);
+      border: 1px solid var(--warn-line);
+      color: #7a5700;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      font-weight: 700;
+    }
+
+    .chat-shell {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .quick-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .quick-btn,
+    .secondary-btn,
+    .primary-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      min-height: 44px;
+      padding: 9px 13px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.16s ease;
+    }
+
+    .quick-btn {
+      text-align: right;
+    }
+
+    .quick-btn:hover,
+    .secondary-btn:hover {
+      border-color: var(--brand);
+      color: var(--brand-dark);
+      background: #f7fffc;
+    }
+
+    .primary-btn {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+      min-width: 140px;
+    }
+
+    .primary-btn:hover {
+      background: var(--brand-dark);
+    }
+
+    .primary-btn:disabled,
+    .secondary-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .composer {
+      display: grid;
+      gap: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 118px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(10, 142, 110, 0.12);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      min-height: 34px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .answer-card {
+      margin-top: 16px;
+      background: #fbfdff;
+      border: 1px solid var(--line);
+      border-right: 4px solid var(--brand);
+      border-radius: 8px;
+      padding: 18px;
+      min-height: 120px;
+      white-space: pre-wrap;
+      font-size: 17px;
+    }
+
+    .answer-card.refusal {
+      border-right-color: var(--danger);
+      background: #fff8f7;
+      color: #611a15;
+    }
+
+    .sources {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .source-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .source-item strong {
+      color: var(--ink);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .meta {
+      background: var(--info);
+      border: 1px solid #cdebf4;
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .meta strong {
+      display: block;
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    @media (max-width: 860px) {
+      .hero,
+      .chat-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <h1>المساعد الذكي</h1>
+        <p>واجهة محادثة داخلية تجيب من وثائق برنامج إدارة التجهيزات والمخزون وتعرض المصادر المستخدمة.</p>
+      </div>
+      <div class="badge">POST /api/assistant/chat</div>
+    </section>
+
+    <div class="notice">
+      المساعد يعتمد على وثائق البرنامج، ولا يقرأ البيانات الحية إلا عند تفعيل الربط التشغيلي.
+    </div>
+
+    <section class="chat-shell">
+      <aside class="panel">
+        <h2>أسئلة للاختبار</h2>
+        <div class="quick-list">
+          <button class="quick-btn" type="button">كيف أضيف صنف؟</button>
+          <button class="quick-btn" type="button">اشرح طلبات الدعم</button>
+          <button class="quick-btn" type="button">كم رصيد الإيثانول الآن؟</button>
+          <button class="quick-btn" type="button">من أي قطاع تم توفير الدعم؟</button>
+          <button class="quick-btn" type="button">اعرض أسماء المستخدمين</button>
+          <button class="quick-btn" type="button">سؤال خارج نطاق البرنامج</button>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <h2>المحادثة</h2>
+        <div class="composer">
+          <textarea id="question" placeholder="اكتب سؤالك هنا..."></textarea>
+          <div class="actions">
+            <button id="ask" class="primary-btn" type="button">اسأل</button>
+            <button id="clear" class="secondary-btn" type="button">مسح</button>
+          </div>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+        <div id="answer" class="answer-card">اكتب سؤالًا ثم اضغط اسأل.</div>
+
+        <div class="meta-grid">
+          <div class="meta"><strong id="provider">-</strong>المزود</div>
+          <div class="meta"><strong id="classification">-</strong>التصنيف</div>
+          <div class="meta"><strong id="context-state">-</strong>السياق</div>
+        </div>
+
+        <div id="sources" class="sources"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const questionEl = document.getElementById('question');
+    const askEl = document.getElementById('ask');
+    const clearEl = document.getElementById('clear');
+    const statusEl = document.getElementById('status');
+    const answerEl = document.getElementById('answer');
+    const providerEl = document.getElementById('provider');
+    const classificationEl = document.getElementById('classification');
+    const contextStateEl = document.getElementById('context-state');
+    const sourcesEl = document.getElementById('sources');
+
+    function setLoading(isLoading) {
+      askEl.disabled = isLoading;
+      statusEl.textContent = isLoading ? 'جاري تحليل السؤال...' : '';
+    }
+
+    function renderSources(sources) {
+      sourcesEl.innerHTML = '';
+      if (!sources || !sources.length) {
+        sourcesEl.innerHTML = '<div class="source-item">لا توجد مصادر معرفة مستخدمة في هذه الإجابة.</div>';
+        return;
+      }
+
+      sourcesEl.innerHTML = sources.map(source => `
+        <div class="source-item">
+          <strong>${source.id || '-'}</strong>
+          <div>${source.topic || '-'}</div>
+          <div>${source.source_file || '-'}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderResult(result) {
+      const answer = result.answer || 'لم تصل إجابة من المساعد.';
+      answerEl.textContent = answer;
+      answerEl.classList.toggle('refusal', result.classification !== 'knowledge');
+      providerEl.textContent = result.provider || '-';
+      classificationEl.textContent = result.classification || '-';
+      contextStateEl.textContent = result.hasContext ? 'تم العثور على سياق' : 'لا يوجد سياق';
+      renderSources(result.sources || []);
+    }
+
+    async function askAssistant() {
+      const message = questionEl.value.trim();
+      if (!message) {
+        statusEl.textContent = 'اكتب سؤالًا أولًا.';
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = await fetch('/api/assistant/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok && !payload.answer) {
+          throw new Error('تعذر الوصول إلى مسار المساعد.');
+        }
+        renderResult(payload);
+      } catch (error) {
+        answerEl.textContent = 'تعذر تشغيل المساعد. تأكد أن backend الخاص بالمسار /api/assistant/chat يعمل.';
+        answerEl.classList.add('refusal');
+        providerEl.textContent = '-';
+        classificationEl.textContent = 'error';
+        contextStateEl.textContent = 'غير متاح';
+        renderSources([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    document.querySelectorAll('.quick-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        questionEl.value = button.textContent.trim();
+        questionEl.focus();
+      });
+    });
+
+    askEl.addEventListener('click', askAssistant);
+    clearEl.addEventListener('click', () => {
+      questionEl.value = '';
+      answerEl.textContent = 'اكتب سؤالًا ثم اضغط اسأل.';
+      answerEl.classList.remove('refusal');
+      providerEl.textContent = '-';
+      classificationEl.textContent = '-';
+      contextStateEl.textContent = '-';
+      sourcesEl.innerHTML = '';
+      statusEl.textContent = '';
+    });
+  </script>
+</body>
+</html>

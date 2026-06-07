@@ -2,6 +2,7 @@
 
 .gitignore
 .vercelignore
+.env.example
 vercel.json
 package.json
 package-lock.json
@@ -28,12 +29,19 @@ icons/icon-512.png
 
 scripts/build-web.mjs
 scripts/smoke-check.mjs
+scripts/test-assistant-api.mjs
 scripts/verify-ownership-signature.mjs
 
 supabase/functions/ai-analyzer/index.ts
 supabase/functions/ai-analyzer/README.md
 
-# ملفات توثيق اختيارية لكنها مفيدة للمطورين
+# ملفات المساعد الذكي / API
+assistant_chat.html
+assistant_core.mjs
+api/assistant/chat.js
+knowledge_chunks/program_chunks.json
+
+# ملفات توثيق مفيدة للمساعد والصيانة
 PERMISSIONS_MATRIX.md
 SUPPORT_WORKFLOW.md
 docs/01_project_overview.md

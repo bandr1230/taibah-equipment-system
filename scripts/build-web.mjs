@@ -20,6 +20,7 @@ const ignoredDirs = new Set([
 ]);
 
 const allowedRootFiles = new Set([
+  "assistant_chat.html",
   "ai-analyzer.js",
   "app.js",
   "data.js",

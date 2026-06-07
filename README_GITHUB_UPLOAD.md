@@ -20,7 +20,10 @@ npm run prepare:github
 - vercel.json
 - package.json
 - package-lock.json
+- .env.example
 - index.html
+- assistant_chat.html
+- assistant_core.mjs
 - style.css
 - app.js
 - data.js
@@ -35,9 +38,12 @@ npm run prepare:github
 - service-worker.js
 - taibah-logo.png
 - icons
+- api/assistant/chat.js
 - scripts/build-web.mjs
 - scripts/smoke-check.mjs
+- scripts/test-assistant-api.mjs
 - scripts/verify-ownership-signature.mjs
+- knowledge_chunks/program_chunks.json
 - supabase/functions/ai-analyzer/index.ts
 - supabase/functions/ai-analyzer/README.md
 
@@ -58,3 +64,18 @@ npm run prepare:github
 
 ## ملفات أساسية مفقودة
 - لا يوجد
+
+## اختبار سريع
+بعد فتح هذا المجلد كمشروع مستقل، يمكن تشغيل:
+
+```bash
+npm run test:assistant
+npm run test:smoke
+npm run build
+```
+
+## ملاحظات أمان
+- لا تضع أي مفاتيح API داخل ملفات المتصفح.
+- استخدم `.env.example` كقالب فقط، وضع القيم الحقيقية في متغيرات البيئة على السيرفر.
+- مسار المساعد الذكي هو `POST /api/assistant/chat`.
+- المزود الافتراضي للمساعد هو `mock` إذا لم تضبط `ASSISTANT_PROVIDER`.

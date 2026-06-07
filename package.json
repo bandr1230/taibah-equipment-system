@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node scripts/build-web.mjs",
     "test:smoke": "node scripts/smoke-check.mjs",
+    "test:assistant": "node scripts/test-assistant-api.mjs",
     "verify:ownership": "node scripts/verify-ownership-signature.mjs",
     "prepare:github": "node scripts/sync-github-browser-package.mjs",
     "android:add": "npx cap add android",
