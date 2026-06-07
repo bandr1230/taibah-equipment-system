@@ -5,7 +5,7 @@
  * This marker is source-level only and is not rendered in UI or reports.
  */
 ;(()=>{const __bjAljabriSourceSignature='BJ-TEIP-2026-SOURCE-SIGNATURE|Bandar bin Khalaf Aljabri|بندر بن خلف الجابري';void __bjAljabriSourceSignature;})();
-const CACHE_NAME = "educational-equipment-platform-v2-20260607-base-spec-match-v92";
+const CACHE_NAME = "educational-equipment-platform-v2-20260607-need-register-stock-v93";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

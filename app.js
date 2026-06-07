@@ -15559,3 +15559,245 @@ saveSupport=function(){
   };
 })();
 /* ===== end Base Name + Specification Matching Rule v9.2 ===== */
+
+/* ===== Need Register Live Stock Display v9.3 ===== */
+;(function(){
+  const previousNeedRegisterFilteredNeeds=typeof filteredNeeds==='function'?filteredNeeds:null;
+  const previousNeedRegisterWorkflowStockText=typeof workflowStockText==='function'?workflowStockText:null;
+  const previousNeedRegisterStockForNeed=typeof stockForNeed==='function'?stockForNeed:null;
+
+  function nrlsText(value){ return String(value??'').trim(); }
+  function nrlsAsciiDigits(value){
+    return nrlsText(value)
+      .replace(/[\u0660-\u0669]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/[\u06F0-\u06F9]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  }
+  function nrlsNorm(value){
+    return nrlsAsciiDigits(value).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ىي]/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/^ال/,'')
+      .replace(/[^\u0600-\u06FFa-z0-9.%]+/gi,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function nrlsKey(value){ return nrlsNorm(value).replace(/\s+/g,''); }
+  function nrlsNum(value){
+    const n=Number(nrlsAsciiDigits(value).replace(',','.'));
+    return Number.isFinite(n)?Math.max(n,0):0;
+  }
+  function nrlsStripVariant(value){
+    const text=nrlsAsciiDigits(value)
+      .replace(/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct|ميكرولتر|مايكرولتر|µl|ul|ملليلتر|مللليلتر|ملل|مل|ml|لتر|liter|litre|l|ملجم|مجم|mg|جرام|غرام|g|كيلو|kg|ملم|مم|mm|سم|cm|مولار|molar|mol|m)(?![\u0600-\u06FFa-z])/gi,' ')
+      .replace(/\b(xs|s|m|l|xl|xxl)\b/gi,' ')
+      .replace(/\b\d+(?:\.\d+)?\b/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+    return text||nrlsText(value);
+  }
+  function nrlsSpecType(value){
+    const key=nrlsKey(value);
+    if(!key || key==='لايوجد' || key==='none' || key==='na' || key==='بدون') return 'لايوجد';
+    return key;
+  }
+  function nrlsSpecValue(value){
+    const raw=nrlsText(value);
+    if(!raw) return '';
+    const number=Number(nrlsAsciiDigits(raw).replace(',','.'));
+    if(Number.isFinite(number)) return String(number);
+    return nrlsKey(raw);
+  }
+  function nrlsInferSpec(row){
+    const explicit=[
+      row?.specType,row?.specificationType,row?.measurementType,
+      row?.specValue,row?.specificationValue,row?.sizeValue,row?.concentrationValue,
+      row?.specUnit,row?.specificationUnit,row?.sizeUnit,row?.concentrationUnit
+    ].filter(value=>nrlsText(value));
+    if(explicit.length){
+      return {
+        type:nrlsSpecType(row?.specType||row?.specificationType||row?.measurementType||'لا يوجد'),
+        value:nrlsSpecValue(row?.specValue||row?.specificationValue||row?.sizeValue||row?.concentrationValue||'')
+      };
+    }
+    const text=nrlsAsciiDigits([
+      row?.displayNameAr,row?.displayNameEn,row?.nameAr,row?.nameEn,row?.name,
+      row?.itemNameAr,row?.itemNameEn,row?.requestedItemName,
+      row?.specA,row?.specB,row?.specifications,row?.description,row?.concentrationPurity
+    ].filter(Boolean).join(' '));
+    const percent=text.match(/(\d+(?:\.\d+)?)\s*(%|٪|بالمئة|بالمائه|percent|pct)/i);
+    if(percent) return {type:'تركيز',value:nrlsSpecValue(percent[1])};
+    const volume=text.match(/(\d+(?:\.\d+)?)\s*(ميكرولتر|مايكرولتر|µl|ul|ملليلتر|مللليلتر|ملل|مل|ml|لتر|liter|litre|l)(?![\u0600-\u06FFa-z])/i);
+    if(volume) return {type:'سعه',value:nrlsSpecValue(volume[1])};
+    const length=text.match(/(\d+(?:\.\d+)?)\s*(ملم|مم|mm|سم|cm|م)(?![\u0600-\u06FFa-z])/i);
+    if(length) return {type:'طول',value:nrlsSpecValue(length[1])};
+    const size=text.match(/\b(xs|s|m|l|xl|xxl)\b/i);
+    if(size) return {type:'مقاس',value:nrlsSpecValue(size[1])};
+    return {type:'لايوجد',value:''};
+  }
+  function nrlsBaseNames(row){
+    return [
+      row?.baseNameAr,
+      row?.itemBaseNameAr,
+      nrlsStripVariant(row?.itemNameAr||row?.nameAr||row?.displayNameAr||row?.name||''),
+      row?.baseNameEn,
+      row?.itemBaseNameEn,
+      nrlsStripVariant(row?.itemNameEn||row?.nameEn||row?.displayNameEn||'')
+    ].map(nrlsKey).filter(Boolean);
+  }
+  function nrlsBaseMatches(a,b){
+    const left=nrlsBaseNames(a);
+    const right=nrlsBaseNames(b);
+    return Boolean(left.length && right.length && left.some(value=>right.includes(value)));
+  }
+  function nrlsSpecMatches(a,b){
+    const left=nrlsInferSpec(a);
+    const right=nrlsInferSpec(b);
+    const leftHas=left.type!=='لايوجد' || Boolean(left.value);
+    const rightHas=right.type!=='لايوجد' || Boolean(right.value);
+    if(!leftHas && !rightHas) return true;
+    if(!leftHas || !rightHas) return false;
+    return left.type===right.type && left.value===right.value;
+  }
+  function nrlsCategory(row){
+    const explicit=nrlsText(row?.referenceCategoryKey||row?.categoryKey||row?.category).toLowerCase().replace(/[^a-z_]+/g,'');
+    if(['chemical','consumable','device'].includes(explicit)) return explicit;
+    const text=nrlsNorm([row?.section,row?.referenceCategory,row?.categoryLabel,row?.itemNameAr,row?.nameAr,row?.displayNameAr,row?.itemNameEn,row?.nameEn].filter(Boolean).join(' '));
+    if(text.includes('اجهزه') || text.includes('جهاز') || text.includes('ميزان') || text.includes('ثلاجه') || /device|microscope|centrifuge|balance|freezer|meter/i.test(text)) return 'device';
+    if(text.includes('كيمي') || text.includes('ميثانول') || text.includes('ايثانول') || /chemical|ethanol|methanol|acid|reagent/i.test(text)) return 'chemical';
+    if(text.includes('مستهلك') || text.includes('سحاح') || text.includes('قفاز') || text.includes('انابيب') || /consumable|buret|burette|glove|tube|pipette/i.test(text)) return 'consumable';
+    return '';
+  }
+  function nrlsUnitFamily(unit){
+    if(window.NeedEngine?.unitFamily) return window.NeedEngine.unitFamily(unit);
+    const key=nrlsKey(unit);
+    if(['مل','ملل','ملليلتر','ml','لتر','l'].includes(key)) return 'volume';
+    if(['جرام','غرام','g','كيلو','kg','مجم','mg'].includes(key)) return 'weight';
+    if(['حبه','قطعه','عدد','علبه','صندوق','كرتون','جهاز'].includes(key)) return 'count';
+    return key;
+  }
+  function nrlsConvert(qty,fromUnit,toUnit){
+    if(window.NeedEngine?.convertQty) return window.NeedEngine.convertQty(qty,fromUnit,toUnit);
+    return nrlsNum(qty);
+  }
+  function nrlsPendingIssueQty(itemId){
+    return (db.transactions||[])
+      .filter(tx=>tx.type==='issue' && Number(tx.itemId)===Number(itemId) && nrlsKey(tx.status||'pending')==='pending')
+      .reduce((sum,tx)=>sum+nrlsNum(tx.qty),0);
+  }
+  function nrlsNeedAsReference(need){
+    return {
+      ...need,
+      referenceCategoryKey:need?.referenceCategoryKey||need?.categoryKey||'',
+      referenceCategory:need?.referenceCategory||need?.category||need?.section||'',
+      nameAr:need?.itemNameAr||need?.nameAr||need?.itemName||'',
+      nameEn:need?.itemNameEn||need?.nameEn||'',
+      displayNameAr:need?.displayNameAr||need?.itemNameAr||need?.nameAr||need?.itemName||'',
+      displayNameEn:need?.displayNameEn||need?.itemNameEn||need?.nameEn||'',
+      baseNameAr:need?.baseNameAr||need?.itemBaseNameAr||'',
+      baseNameEn:need?.baseNameEn||need?.itemBaseNameEn||'',
+      requestUnit:need?.requestUnit||need?.unit,
+      unit:need?.requestUnit||need?.unit,
+      stockUnit:need?.requestUnit||need?.unit,
+      specType:need?.specType||need?.specificationType||need?.measurementType||'',
+      specValue:need?.specValue||need?.specificationValue||need?.sizeValue||need?.concentrationValue||'',
+      specUnit:need?.specUnit||need?.specificationUnit||need?.sizeUnit||need?.concentrationUnit||'',
+      specA:need?.specA||need?.specifications||need?.description||'',
+      specB:need?.specB||need?.similarItem||'',
+      specifications:need?.specifications||'',
+      packageSize:need?.packageSize||need?.packSize||0,
+      packageUnit:need?.packageUnit||'',
+      packagePieces:need?.packagePieces||0,
+      packageType:need?.packageType||''
+    };
+  }
+  function nrlsManualMatches(ref){
+    const requestUnit=ref?.requestUnit||ref?.unit;
+    return (db.items||[]).filter(item=>{
+      if(nrlsText(ref?.college) && nrlsText(item.college)!==nrlsText(ref.college)) return false;
+      const itemCategory=nrlsCategory(item);
+      const refCategory=nrlsCategory(ref);
+      if(itemCategory && refCategory && itemCategory!==refCategory) return false;
+      if(requestUnit && nrlsUnitFamily(item.unit||item.stockUnit)!==nrlsUnitFamily(requestUnit)) return false;
+      return nrlsBaseMatches(item,ref) && nrlsSpecMatches(item,ref);
+    });
+  }
+  function nrlsManualLiveStock(ref){
+    const requestUnit=ref?.requestUnit||ref?.unit;
+    const matches=nrlsManualMatches(ref);
+    const available=matches.reduce((sum,item)=>{
+      const itemUnit=item.unit||item.stockUnit||requestUnit;
+      const qty=Math.max(nrlsNum(item.qty)-nrlsPendingIssueQty(item.id),0);
+      return sum+nrlsConvert(qty,itemUnit,requestUnit||itemUnit);
+    },0);
+    return {
+      available:Math.ceil(available*100)/100,
+      matches,
+      best:matches[0]||null,
+      matchingRule:'baseName+specType+specValue'
+    };
+  }
+  function nrlsLiveStock(need){
+    if(!need) return null;
+    const ref=nrlsNeedAsReference(need);
+    if(typeof window.liveStockForLearningReference==='function'){
+      try{
+        const live=window.liveStockForLearningReference(ref);
+        if(live && Array.isArray(live.matches) && live.matches.length) return live;
+      }catch(error){
+        console.warn('[NeedRegister] Primary live stock lookup failed',error,need);
+      }
+    }
+    const fallback=nrlsManualLiveStock(ref);
+    return fallback.matches.length?fallback:null;
+  }
+  function nrlsStockValue(need){
+    const live=nrlsLiveStock(need);
+    if(live) return live.available;
+    if(typeof need?.stockAvailable!=='undefined' && need.stockAvailable!==null && need.stockAvailable!=='') return nrlsNum(need.stockAvailable);
+    return null;
+  }
+  function nrlsDecorateNeed(need){
+    if(!need) return need;
+    const live=nrlsLiveStock(need);
+    if(!live) return need;
+    const decorated={
+      ...need,
+      stockAvailable:live.available,
+      liveStockAvailable:live.available,
+      matchedInventoryItemId:live.best?.id||need.matchedInventoryItemId||null,
+      matchedInventoryCode:live.best?.code||need.matchedInventoryCode||'',
+      matchedInventoryName:typeof itemName==='function' && live.best ? itemName(live.best) : (live.best?.nameAr||live.best?.nameEn||need.matchedInventoryName||''),
+      liveStockSource:'inventory',
+      liveStockMatchingRule:live.matchingRule||'baseName+specType+specValue'
+    };
+    const gross=nrlsNum(need.grossQty||need.grossNeed||need.estimatedNeed||need.qty);
+    if(gross || typeof need.deficit!=='undefined'){
+      decorated.deficit=Math.max(Math.ceil((gross-live.available)*100)/100,0);
+    }
+    return decorated;
+  }
+
+  if(previousNeedRegisterFilteredNeeds){
+    filteredNeeds=function(){
+      return previousNeedRegisterFilteredNeeds().map(nrlsDecorateNeed);
+    };
+  }
+  workflowStockText=function(need){
+    const value=nrlsStockValue(need);
+    if(value!==null){
+      const unit=need?.unit||need?.requestUnit||'';
+      return unit ? `${value} ${unit}` : String(value);
+    }
+    return previousNeedRegisterWorkflowStockText?previousNeedRegisterWorkflowStockText(need):'—';
+  };
+  stockForNeed=function(need){
+    const value=nrlsStockValue(need);
+    if(value!==null) return value;
+    return previousNeedRegisterStockForNeed?previousNeedRegisterStockForNeed(need):0;
+  };
+
+  window.liveStockForNeedRequest=nrlsLiveStock;
+  window.decorateNeedRequestWithLiveStock=nrlsDecorateNeed;
+})();
+/* ===== end Need Register Live Stock Display v9.3 ===== */
